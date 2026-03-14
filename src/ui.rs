@@ -4,15 +4,36 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Style},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Clear},
     Frame,
 };
 
 use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
+
+// Helper function to center a rect
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
 
 pub enum AppState {
     LanguageSelection,
@@ -159,8 +180,9 @@ impl App {
 
         match self.state {
             AppState::LanguageSelection => {
+                let rect = centered_rect(60, 50, area);
                 let text = vec![
-                    Line::from(vec![Span::styled("Select Language", Style::default().fg(Color::Cyan))]),
+                    Line::from(vec![Span::styled("Select Language", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
                     Line::from("1. English"),
                     Line::from("2. Español"),
@@ -173,10 +195,13 @@ impl App {
                 let p = Paragraph::new(text).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Hangman"),
                 );
-                f.render_widget(p, area);
+                f.render_widget(Clear, rect); // Clear background
+                f.render_widget(p, rect);
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
+                    let game_area = centered_rect(80, 80, area);
+                    
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
@@ -188,11 +213,13 @@ impl App {
                             Constraint::Length(2),  // Error msg
                             Constraint::Min(1),     // Prompt
                         ])
-                        .split(area);
+                        .split(game_area);
+
+                    f.render_widget(Clear, game_area); // Clear background
 
                     // Title
                     f.render_widget(
-                        Paragraph::new(lang.title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan)),
+                        Paragraph::new(lang.title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
@@ -207,7 +234,7 @@ impl App {
                     // Word
                     let word_text = vec![Line::from(vec![
                         Span::raw(lang.word_label),
-                        Span::styled(game.display_word(), Style::default().fg(Color::Green)),
+                        Span::styled(game.display_word(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
                     ])];
                     f.render_widget(Paragraph::new(word_text).alignment(Alignment::Center), layout[2]);
 
@@ -219,12 +246,13 @@ impl App {
                     f.render_widget(Paragraph::new(guessed_text).alignment(Alignment::Center), layout[3]);
 
                     // Stats (Attempts & Timer)
+                    let timer_color = if self.timer <= 3.0 { Color::Red } else if self.timer <= 10.0 { Color::Yellow } else { Color::White };
                     let stats_text = vec![Line::from(vec![
                         Span::raw(lang.attempts_label),
-                        Span::styled(game.attempts_left().to_string(), Style::default().fg(Color::Red)),
-                        Span::raw(" | "),
+                        Span::styled(game.attempts_left().to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                        Span::raw("   |   "),
                         Span::raw(lang.time_left_label),
-                        Span::styled(format!("{:.1}s", self.timer), Style::default().fg(Color::LightCyan)),
+                        Span::styled(format!("{:.1}s", self.timer), Style::default().fg(timer_color).add_modifier(Modifier::BOLD)),
                     ])];
                     f.render_widget(Paragraph::new(stats_text).alignment(Alignment::Center), layout[4]);
 
@@ -245,18 +273,19 @@ impl App {
             }
             AppState::GameOver(won) => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
+                    let rect = centered_rect(60, 40, area);
                     let msg = if won {
-                        Span::styled(lang.win_msg, Style::default().fg(Color::Green))
+                        Span::styled(lang.win_msg, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
                     } else {
-                        Span::styled(lang.lose_msg, Style::default().fg(Color::Red))
+                        Span::styled(lang.lose_msg, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                     };
 
                     let text = vec![
                         Line::from(msg),
                         Line::from(""),
                         Line::from(vec![
-                            Span::raw("Word: "),
-                            Span::styled(game.word(), Style::default().fg(Color::Yellow)),
+                            Span::raw(lang.word_label),
+                            Span::styled(game.word(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
                         ]),
                         Line::from(""),
                         Line::from(vec![Span::styled(lang.press_enter, Style::default().fg(Color::DarkGray))]),
@@ -265,7 +294,8 @@ impl App {
                     let p = Paragraph::new(text).alignment(Alignment::Center).block(
                         Block::default().borders(Borders::ALL).title(lang.title),
                     );
-                    f.render_widget(p, area);
+                    f.render_widget(Clear, rect); // Clear background
+                    f.render_widget(p, rect);
                 }
             }
         }
