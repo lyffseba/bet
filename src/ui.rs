@@ -143,15 +143,29 @@ impl App {
         quotes.shuffle(&mut rand::thread_rng());
         
         for quote in quotes {
-            let margin = 5;
+            // Add massive padding so only one quote is on screen at a time
+            let padding = " ".repeat(60); 
+            
+            // The quote starts here
             let next_start = text.len();
-            if next_start >= margin {
-                pause_points.push(next_start - margin);
+            
+            // We want it to pause when the quote is perfectly centered on a standard 100 char terminal.
+            // That means it pauses when the start of the quote has traveled about `padding.len() + (100 - quote.len())/2` chars.
+            let quote_len = quote.chars().count();
+            let expected_term_width: usize = 100;
+            let center_offset = (expected_term_width.saturating_sub(quote_len)) / 2;
+            
+            // To ensure it always pauses perfectly for the user, we just set the pause point at the start of the quote minus the center offset.
+            if next_start >= center_offset {
+                pause_points.push(next_start - center_offset);
             } else {
                 pause_points.push(0);
             }
+            
             text.extend(quote.chars());
-            text.extend("            ✦            ".chars());
+            text.extend(padding.chars());
+            text.extend("✦".chars());
+            text.extend(padding.chars());
         }
         app.ticker_text = text;
         app.ticker_pause_points = pause_points;
@@ -918,7 +932,7 @@ impl App {
                             }
 
                             if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
-                                style = style.bg(Color::White).fg(Color::Black);
+                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
                             }
 
                             line_spans.push(Span::styled(cell_str, style));
