@@ -1435,8 +1435,8 @@ LLLLL     Y   F     F    "#
 
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
-            // Speed = 8 characters per second, slower, more sobering reading
-            let t = self.start_time.elapsed().as_secs_f64() * 8.0; 
+            // Speed = 4 characters per second, very slow, contemplative reading
+            let t = self.start_time.elapsed().as_secs_f64() * 4.0; 
             let offset = (t as usize) % self.ticker_text.len();
             
             let mut display_text = String::with_capacity(ticker_area.width as usize * 2);
