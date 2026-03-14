@@ -8,7 +8,8 @@ use crossterm::{
     terminal::{self, Clear, ClearType},
 };
 
-use crate::game::Hangman;
+use crate::game::{Hangman, GuessError};
+use crate::lang::{Language, Lang};
 
 pub fn clear_screen() -> io::Result<()> {
     let mut stdout = io::stdout();
@@ -20,6 +21,34 @@ fn wait_for_enter() -> io::Result<()> {
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     Ok(())
+}
+
+fn select_language() -> io::Result<Language> {
+    loop {
+        clear_screen()?;
+        let mut stdout = io::stdout();
+        execute!(
+            stdout,
+            SetForegroundColor(Color::Cyan),
+            Print("SELECT LANGUAGE / SELECCIONE IDIOMA / SELECIONE O IDIOMA\n\n"),
+            ResetColor,
+            Print("1. English\n"),
+            Print("2. Español\n"),
+            Print("3. Português\n\n"),
+            SetForegroundColor(Color::White),
+            Print("Choose option / Elige una opción / Escolha uma opção: "),
+            ResetColor,
+        )?;
+        stdout.flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        match input.trim() {
+            "1" => return Ok(Language::English),
+            "2" => return Ok(Language::Spanish),
+            "3" => return Ok(Language::Portuguese),
+            _ => {}
+        }
+    }
 }
 
 /// Hangman ASCII art for each stage (0..6).
@@ -130,27 +159,29 @@ fn draw_hangman_with_delay(
     }
 }
 
-pub fn draw_game_state(game: &Hangman) -> io::Result<()> {
+pub fn draw_game_state(game: &Hangman, lang: &Lang) -> io::Result<()> {
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("AHORCADO\n\n"),
+        Print(format!("{}\n\n", lang.title)),
         ResetColor
     )?;
     draw_hangman(game.attempts_left(), game.max_attempts())?;
     execute!(
         stdout,
-        Print("Palabra: "),
+        Print(lang.word_label),
         SetForegroundColor(Color::Green),
         Print(game.display_word()),
         ResetColor,
-        Print("\n\nLetras adivinadas: "),
+        Print("\n\n"),
+        Print(lang.guessed_label),
         SetForegroundColor(Color::Magenta),
         Print(game.display_guessed()),
         ResetColor,
-        Print("\n\nIntentos restantes: "),
+        Print("\n\n"),
+        Print(lang.attempts_label),
         SetForegroundColor(Color::Red),
         Print(game.attempts_left()),
         ResetColor,
@@ -161,43 +192,43 @@ pub fn draw_game_state(game: &Hangman) -> io::Result<()> {
 
 /// Get a guess from the user via line input.
 /// Returns Some(letter) if valid, None if user wants to quit.
-fn get_guess() -> io::Result<Option<char>> {
+fn get_guess(lang: &Lang) -> io::Result<Option<char>> {
     let mut stdout = io::stdout();
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("Ingresa una letra (o 'salir' para salir): "),
+        Print(lang.prompt_guess),
         ResetColor
     )?;
     stdout.flush()?;
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim().to_lowercase();
-    if input == "salir" || input == "quit" || input == "q" {
+    if input == "salir" || input == "quit" || input == "sair" || input == "q" {
         return Ok(None);
     }
     // Find the first alphabetic character
     for c in input.chars() {
-        if c.is_ascii_alphabetic() {
+        if c.is_alphabetic() {
             return Ok(Some(c));
         }
     }
     Ok(Some('\0')) // invalid
 }
 
-pub fn play_game(mut game: Hangman) -> io::Result<()> {
+pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
     let mut previous_attempts_left = game.attempts_left();
     loop {
         // Draw the game state (including hangman)
-        draw_game_state(&game)?;
+        draw_game_state(&game, lang)?;
         if game.is_won() {
             let mut stdout = io::stdout();
             execute!(
                 stdout,
                 SetForegroundColor(Color::Green),
-                Print("¡Felicidades! ¡Ganaste!\n"),
+                Print(format!("{}\n", lang.win_msg)),
                 ResetColor,
-                Print("Presiona Enter para continuar..."),
+                Print(lang.press_enter),
             )?;
             wait_for_enter()?;
             break;
@@ -207,16 +238,16 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
             execute!(
                 stdout,
                 SetForegroundColor(Color::Red),
-                Print("¡Juego terminado! La palabra era: "),
+                Print(lang.lose_msg),
                 SetForegroundColor(Color::Yellow),
                 Print(game.word()),
                 ResetColor,
-                Print("\nPresiona Enter para continuar..."),
+                Print(format!("\n{}", lang.press_enter)),
             )?;
             wait_for_enter()?;
             break;
         }
-        match get_guess()? {
+        match get_guess(lang)? {
             None => break, // quit
             Some('\0') => {
                 // invalid input, ignore
@@ -240,7 +271,11 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
                             previous_attempts_left = new_attempts_left;
                         }
                     }
-                    Err(msg) => {
+                    Err(err) => {
+                        let msg = match err {
+                            GuessError::NotLetter => lang.error_not_letter,
+                            GuessError::AlreadyGuessed => lang.error_already_guessed,
+                        };
                         let mut stdout = io::stdout();
                         execute!(
                             stdout,
@@ -257,7 +292,7 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
     Ok(())
 }
 
-pub fn get_word_from_player() -> io::Result<String> {
+pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
     let raw_guard = terminal::enable_raw_mode();
     let raw = raw_guard.is_ok();
     let mut stdout = io::stdout();
@@ -265,9 +300,11 @@ pub fn get_word_from_player() -> io::Result<String> {
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("Ingresa la palabra para que el otro jugador adivine (no se mostrará):\n"),
+        Print(lang.word_input_prompt),
+        Print("\n"),
         ResetColor,
-        Print("(Escribe la palabra y presiona Enter)\n"),
+        Print(lang.word_input_instruction),
+        Print("\n"),
     )?;
     // Hide input only if raw mode enabled
     if raw {
@@ -282,19 +319,19 @@ pub fn get_word_from_player() -> io::Result<String> {
     Ok(word.trim().to_string())
 }
 
-pub fn draw_menu() -> io::Result<()> {
+pub fn draw_menu(lang: &Lang) -> io::Result<()> {
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("AHORCADO\n\n"),
+        Print(format!("{}\n\n", lang.title)),
         ResetColor,
-        Print("1. Solo (película aleatoria)\n"),
-        Print("2. Multijugador (un jugador pone la palabra)\n"),
-        Print("3. Salir\n\n"),
+        Print(format!("{}\n", lang.menu_solo)),
+        Print(format!("{}\n", lang.menu_multi)),
+        Print(format!("{}\n\n", lang.menu_quit)),
         SetForegroundColor(Color::White),
-        Print("Elige una opción: "),
+        Print(lang.prompt_option),
         ResetColor,
     )?;
     stdout.flush()?;
@@ -302,24 +339,26 @@ pub fn draw_menu() -> io::Result<()> {
 }
 
 pub fn run_menu() -> io::Result<()> {
+    let language = select_language()?;
+    let lang = Lang::from_language(language);
     loop {
-        draw_menu()?;
+        draw_menu(&lang)?;
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         let choice = input.trim();
         match choice {
             "1" => {
-                let game = Hangman::random();
-                play_game(game)?;
+                let game = Hangman::random(lang.movies);
+                play_game(game, &lang)?;
             }
             "2" => {
-                let word = get_word_from_player()?;
+                let word = get_word_from_player(&lang)?;
                 if word.is_empty() {
-                    let game = Hangman::random();
-                    play_game(game)?;
+                    let game = Hangman::random(lang.movies);
+                    play_game(game, &lang)?;
                 } else {
                     let game = Hangman::new(&word, 6);
-                    play_game(game)?;
+                    play_game(game, &lang)?;
                 }
             }
             "3" | "quit" | "q" => break,

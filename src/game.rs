@@ -1,4 +1,3 @@
-use crate::wordlist::MOVIES;
 use rand::seq::SliceRandom;
 
 #[derive(Debug, Clone)]
@@ -7,6 +6,12 @@ pub struct Hangman {
     guessed_letters: Vec<char>,
     max_attempts: usize,
     attempts_left: usize,
+}
+
+#[derive(Debug)]
+pub enum GuessError {
+    NotLetter,
+    AlreadyGuessed,
 }
 
 impl Hangman {
@@ -19,18 +24,18 @@ impl Hangman {
         }
     }
 
-    pub fn random() -> Self {
-        let word = MOVIES.choose(&mut rand::thread_rng()).unwrap();
+    pub fn random(movies: &'static [&'static str]) -> Self {
+        let word = movies.choose(&mut rand::thread_rng()).unwrap();
         Self::new(word, 6)
     }
 
-    pub fn guess(&mut self, letter: char) -> Result<bool, &str> {
+    pub fn guess(&mut self, letter: char) -> Result<bool, GuessError> {
         let letter = letter.to_uppercase().next().unwrap(); // get the uppercase char
         if !letter.is_alphabetic() {
-            return Err("Por favor ingresa una letra");
+            return Err(GuessError::NotLetter);
         }
         if self.guessed_letters.contains(&letter) {
-            return Err("Ya adivinaste esa letra");
+            return Err(GuessError::AlreadyGuessed);
         }
         self.guessed_letters.push(letter);
         if self.word.contains(letter) {

@@ -4,13 +4,14 @@ A simple, fast, and reliable terminal hangman game written in Rust.
 
 ## Features
 
-- Solo mode: guess a random movie title (Spanish titles)
+- Language selection at startup (English, Spanish, Portuguese)
+- Solo mode: guess a random movie title (localized titles)
 - Multiplayer mode: one player sets a word, the other guesses
-- Full Spanish UI (menu, prompts, messages)
+- Full UI translation (menu, prompts, messages) in selected language
 - Colorful terminal UI with Unicode box‑drawing art
 - Smooth animation: body parts appear with a subtle delay
 - Line input: type a letter, see it, then press Enter (allows backspace)
-- Supports accented letters (e.g., é, ñ, á)
+- Supports accented letters (e.g., é, ñ, á, ã)
 - Lightweight with minimal dependencies (crossterm + rand)
 
 ## Requirements
@@ -47,11 +48,11 @@ cargo build --release
 hangman
 ```
 
-Follow the on‑screen menu:
+You will be prompted to select a language (English, Spanish, or Portuguese). Then follow the on‑screen menu:
 
-1. Solo (random movie) - Computer picks a random movie title
+1. Solo (random movie) - Computer picks a random movie title (in the selected language)
 2. Multiplayer (one player sets word) - Player 1 enters a word (hidden), Player 2 guesses
-3. Quit
+3. Quit / Salir / Sair
 
 ## Gameplay
 

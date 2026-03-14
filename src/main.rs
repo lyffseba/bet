@@ -1,4 +1,5 @@
 mod game;
+mod lang;
 mod ui;
 mod wordlist;
 
