@@ -1,7 +1,7 @@
 use std::io;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -79,6 +79,10 @@ impl App {
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == event::KeyEventKind::Press {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+                        self.should_quit = true;
+                        return Ok(());
+                    }
                     match self.state {
                         AppState::LanguageSelection => {
                             match key.code {
@@ -180,7 +184,7 @@ impl App {
 
         match self.state {
             AppState::LanguageSelection => {
-                let rect = centered_rect(60, 50, area);
+                let rect = centered_rect(70, 60, area);
                 let text = vec![
                     Line::from(vec![Span::styled("Select Language", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
@@ -200,7 +204,7 @@ impl App {
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
-                    let game_area = centered_rect(80, 80, area);
+                    let game_area = centered_rect(90, 85, area);
                     
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
@@ -273,7 +277,7 @@ impl App {
             }
             AppState::GameOver(won) => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
-                    let rect = centered_rect(60, 40, area);
+                    let rect = centered_rect(70, 50, area);
                     let msg = if won {
                         Span::styled(lang.win_msg, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
                     } else {

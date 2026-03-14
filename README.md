@@ -1,78 +1,69 @@
-# Hangman Terminal Game
+<div align="center">
 
-A simple, fast, and reliable terminal hangman game written in Rust.
+# 🎮 Terminal Hangman
 
-## Features
+**A lightning-fast, zero-flicker terminal hangman game built with Rust and Ratatui.**
 
-- Language selection at startup (English, Spanish, Portuguese)
-- Solo mode: guess a random movie title (localized titles)
-- Multiplayer mode: one player sets a word, the other guesses
-- Full UI translation (menu, prompts, messages) in selected language
-- Colorful terminal UI with Unicode box‑drawing art
-- Smooth animation: body parts appear with a subtle delay
-- Line input: type a letter, see it, then press Enter (allows backspace)
-- Supports accented letters (e.g., é, ñ, á, ã)
-- Lightweight with minimal dependencies (crossterm + rand)
+[![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Ratatui](https://img.shields.io/badge/ratatui-%23F05032.svg?style=for-the-badge&logo=rust&logoColor=white)](https://ratatui.rs/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-## Requirements
+</div>
 
-- Rust (stable) and Cargo
-- Terminal that supports ANSI colors and Unicode characters
+## ✨ Key Features
 
-## Installation
+- 🦀 **Powered by Rust & Ratatui:** Enjoy a robust, incredibly fast, and memory-safe terminal experience.
+- ⚡ **Zero-Flicker Rendering:** Smooth UI rendering thanks to Ratatui's intelligent terminal backend.
+- 🌍 **5 Localized Languages:** Play in English, Spanish (Español), Portuguese (Português), German (Deutsch), and Dutch (Nederlands).
+- ⏱️ **Real-Time Timer:** Feel the pressure with a live countdown timer built right into the gameplay!
+- 🎨 **Modern Terminal UI:** Beautifully centered layouts, styled text, and classic ASCII art scaling elegantly with your window.
+- 🔤 **Unicode Support:** Native support for accented characters (é, ñ, á, ã, etc.).
+- ⌨️ **Intuitive Controls:** Simple keystroke detection (no typing delays). Press `Ctrl-C` or `Esc` to instantly exit and gracefully restore your terminal.
 
-### Install for current user (recommended)
+## 🚀 Installation
+
+### Using Cargo (Recommended)
+
+If you have Rust installed, you can build and install the game directly from the source:
 
 ```bash
-make install
+cargo install --path .
 ```
 
-This will install the binary to `~/.local/bin`. Ensure that directory is in your `PATH`.
-
-### Install system‑wide (requires sudo)
+### Manual Build
 
 ```bash
-sudo make install-system
-```
-
-### Manual build
-
-```bash
+# Build the release version
 cargo build --release
+
+# Run the executable
 ./target/release/hangman
 ```
 
-## Usage
+## 🕹️ Gameplay
+
+Start the game simply by running:
 
 ```bash
 hangman
 ```
 
-You will be prompted to select a language (English, Spanish, or Portuguese). Then follow the on‑screen menu:
+1. **Select your language:** Press `1-5` to choose from the startup menu.
+2. **Guess letters:** Press any alphabetic key to make a guess. The game responds instantly!
+3. **Beat the clock:** You have a strict time limit per turn. Make your move before the timer hits 0.0s!
+4. **Survive:** 6 wrong attempts and the hangman will be complete.
 
-1. Solo (random movie) - Computer picks a random movie title (in the selected language)
-2. Multiplayer (one player sets word) - Player 1 enters a word (hidden), Player 2 guesses
-3. Quit / Salir / Sair
+## 🛠️ Tech Stack Highlights
 
-## Gameplay
+This project stands as a testament to modern CLI development:
+- **[Rust](https://www.rust-lang.org/):** Core logic, blazing fast, and memory-safe.
+- **[Ratatui](https://ratatui.rs/):** Next-generation Terminal User Interface library, replacing older TUI crates.
+- **[Crossterm](https://github.com/crossterm-rs/crossterm):** Cross-platform terminal manipulation (handling raw modes, key events, and graceful exits).
 
-- Guess letters one at a time (type a letter and press Enter)
-- You have 6 attempts before the hangman is complete
-- Guessed letters are displayed
-- After a wrong guess, a new body part is drawn with a short delay
-- Accented letters (é, ñ, á, etc.) are supported
-- Type 'salir', 'quit', or 'q' to exit a game
+## 🤝 Contributing
 
-## Multiplayer
+Pull requests are fully welcome! Feel free to open issues to discuss bugs or new feature ideas.
 
-When selecting multiplayer mode, Player 1 will be prompted to enter a word.
-The word will not be displayed (hidden input). After entering the word,
-Player 2 can start guessing.
+## 📝 License
 
-## License
-
-MIT
-
-## Contributing
-
-Pull requests welcome!
+This project is licensed under the **MIT** License.
