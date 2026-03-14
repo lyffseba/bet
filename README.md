@@ -67,8 +67,8 @@ You will be prompted to select a language (English, Spanish, or Portuguese). The
 ## Multiplayer
 
 When selecting multiplayer mode, Player 1 will be prompted to enter a word.
-The word will not be displayed (hidden input). After entering the word,
-Player 2 can start guessing.
+A warning will ask Player 2 to look away, and the word will be visible as it is typed.
+After entering the word, Player 2 can start guessing.
 
 ## License
 
