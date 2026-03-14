@@ -25,12 +25,12 @@ impl Hangman {
     }
 
     pub fn random(movies: &'static [&'static str]) -> Self {
-        let word = movies.choose(&mut rand::thread_rng()).unwrap();
+        let word = movies.choose(&mut rand::thread_rng()).unwrap_or(&"BET");
         Self::new(word, 6)
     }
 
     pub fn guess(&mut self, letter: char) -> Result<bool, GuessError> {
-        let letter = letter.to_uppercase().next().unwrap(); // get the uppercase char
+        let letter = letter.to_uppercase().next().unwrap_or(letter); // get the uppercase char
         if !letter.is_alphabetic() {
             return Err(GuessError::NotLetter);
         }
@@ -149,4 +149,43 @@ mod tests {
         // Display should show "CAFÉ"
         assert_eq!(game.display_word(), "CAFÉ");
     }
+}
+
+#[test]
+fn test_loss_condition() {
+    let mut game = Hangman::new("TEST", 3);
+
+    // 1st wrong guess
+    assert_eq!(game.guess('X').unwrap(), false);
+    assert!(!game.is_lost());
+    assert_eq!(game.attempts_left(), 2);
+
+    // 2nd wrong guess
+    assert_eq!(game.guess('Y').unwrap(), false);
+    assert!(!game.is_lost());
+    assert_eq!(game.attempts_left(), 1);
+
+    // 3rd wrong guess - game over
+    assert_eq!(game.guess('Z').unwrap(), false);
+    assert!(game.is_lost());
+    assert_eq!(game.attempts_left(), 0);
+}
+
+#[test]
+fn test_invalid_guess() {
+    let mut game = Hangman::new("TEST", 3);
+
+    // Numbers
+    assert!(matches!(game.guess('1'), Err(GuessError::NotLetter)));
+
+    // Symbols
+    assert!(matches!(game.guess('@'), Err(GuessError::NotLetter)));
+
+    // Duplicate guess
+    game.guess('T').unwrap();
+    assert!(matches!(game.guess('T'), Err(GuessError::AlreadyGuessed)));
+
+    // Duplicate wrong guess
+    game.guess('X').unwrap();
+    assert!(matches!(game.guess('X'), Err(GuessError::AlreadyGuessed)));
 }

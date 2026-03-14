@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎮 bet (Terminal Hub)
+# 🎮 bet
 
 **A lightning-fast, zero-flicker terminal game hub containing Hangman and Tic-Tac-Toe, built with Rust and Ratatui.**
 
@@ -23,7 +23,7 @@
 
 ### Using Cargo (Recommended)
 
-If you have Rust installed, you can build and install the hub directly from the source:
+If you have Rust installed, you can build and install bet directly from the source:
 
 ```bash
 cargo install --path .
@@ -44,7 +44,7 @@ sudo make install-system
 
 ## 🕹️ Gameplay
 
-Start the hub simply by running:
+Start bet simply by running:
 
 ```bash
 bet
