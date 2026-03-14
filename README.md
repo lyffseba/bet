@@ -15,7 +15,7 @@
 - 🦀 **Powered by Rust & Ratatui:** Enjoy a robust, incredibly fast, and memory-safe terminal experience.
 - ⚡ **Zero-Flicker Rendering:** Smooth UI rendering thanks to Ratatui's intelligent terminal backend.
 - 🌍 **5 Localized Languages:** Play in English, Spanish (Español), Portuguese (Português), German (Deutsch), and Dutch (Nederlands).
-- 🎲 **Multiple Games:** Play classic Hangman, test your logic against a simple AI in Tic-Tac-Toe, or play Chess against an AI, bounce the ball in Pong, or get a Random Movie, Series, Manga, Book, Anime, or Cartoon Recommendation!
+- 🎲 **Multiple Games:** Play classic Hangman, test your logic against a simple AI in Tic-Tac-Toe, or play Chess against an AI, bounce the ball in Pong, or get a Random Movie, Series, Manga, Book, Anime, Cartoon, or Music Recommendation!
 - 🎨 **Modern Terminal UI:** Beautifully centered layouts, styled text, and classic ASCII art scaling elegantly with your window.
 - ⌨️ **Intuitive Controls:** Simple keystroke detection. Arrow keys to navigate boards, `Ctrl-C` or `Esc` to instantly exit and gracefully restore your terminal.
 
@@ -74,6 +74,8 @@ manga
 anime
 # or
 cartoon
+# or
+music
 ```
 
 1. **Select your language:** Press `1-5` to choose from the startup menu.

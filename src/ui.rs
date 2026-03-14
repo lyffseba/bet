@@ -67,6 +67,11 @@ pub enum RecommenderCategory {
     Book,
     Anime,
     Cartoon,
+    MusicRock,
+    MusicHipHop,
+    MusicPop,
+    MusicElectronic,
+    MusicClassical,
 }
 
 pub enum AppState {
@@ -148,6 +153,7 @@ impl App {
         let wants_book = exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
         let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
         let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
+        let wants_music = exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
         let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
 
         if wants_hangman {
@@ -180,6 +186,10 @@ impl App {
         } else if wants_cartoon {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::Cartoon);
+        } else if wants_music {
+            self.select_language(Language::English);
+            // Default to rock for general music command, or they can use the menu
+            self.show_recommendation(RecommenderCategory::MusicRock);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -397,7 +407,12 @@ impl App {
                                     KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::Book),
                                     KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::Anime),
                                     KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::Cartoon),
-                                    KeyCode::Char('7') | KeyCode::Esc => self.state = AppState::GameSelection,
+                                    KeyCode::Char('7') => self.show_recommendation(RecommenderCategory::MusicRock),
+                                    KeyCode::Char('8') => self.show_recommendation(RecommenderCategory::MusicHipHop),
+                                    KeyCode::Char('9') => self.show_recommendation(RecommenderCategory::MusicPop),
+                                    KeyCode::Char('a') | KeyCode::Char('A') => self.show_recommendation(RecommenderCategory::MusicElectronic),
+                                    KeyCode::Char('b') | KeyCode::Char('B') => self.show_recommendation(RecommenderCategory::MusicClassical),
+                                    KeyCode::Esc => self.state = AppState::GameSelection,
                                     _ => {}
                                 }
                             }
@@ -503,6 +518,11 @@ impl App {
                 RecommenderCategory::Book => lang.books.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Anime => lang.animes.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Cartoon => lang.cartoons.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicRock => lang.music_rock.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicHipHop => lang.music_hiphop.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicPop => lang.music_pop.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicElectronic => lang.music_electronic.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicClassical => lang.music_classical.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"
@@ -548,7 +568,7 @@ impl App {
 
         match self.state {
             AppState::LanguageSelection => {
-                let rect = centered_rect(70, 60, area);
+                let rect = centered_rect(80, 80, area);
                 let text = vec![
                     Line::from(vec![Span::styled(
                         "Select Language",
@@ -592,7 +612,7 @@ impl App {
             }
             AppState::GameSelection => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(70, 60, area);
+                    let rect = centered_rect(80, 80, area);
                     let text = vec![
                         Line::from(vec![Span::styled(
                             lang.menu_game_selection,
@@ -1099,7 +1119,7 @@ impl App {
             }
             AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(70, 60, area);
+                    let rect = centered_rect(80, 80, area);
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
@@ -1112,9 +1132,14 @@ impl App {
                         ratatui::text::Line::from(lang.recommender_menu_books),
                         ratatui::text::Line::from(lang.recommender_menu_anime),
                         ratatui::text::Line::from(lang.recommender_menu_cartoons),
+                        ratatui::text::Line::from(lang.recommender_menu_music_rock),
+                        ratatui::text::Line::from(lang.recommender_menu_music_hiphop),
+                        ratatui::text::Line::from(lang.recommender_menu_music_pop),
+                        ratatui::text::Line::from(lang.recommender_menu_music_electronic),
+                        ratatui::text::Line::from(lang.recommender_menu_music_classical),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            "7. Go Back (ESC)",
+                            "Go Back (ESC)",
                             Style::default().fg(Color::DarkGray),
                         )]),
                     ];
