@@ -39,6 +39,7 @@ pub enum AppState {
     LanguageSelection,
     Playing,
     GameOver(bool), // true if won, false if lost
+    DiscordQr,
 }
 
 pub struct App {
@@ -91,6 +92,7 @@ impl App {
                                 KeyCode::Char('3') => self.start_game(Language::Portuguese),
                                 KeyCode::Char('4') => self.start_game(Language::German),
                                 KeyCode::Char('5') => self.start_game(Language::Dutch),
+                                KeyCode::Char('6') => self.state = AppState::DiscordQr,
                                 KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             }
@@ -109,6 +111,11 @@ impl App {
                                 self.state = AppState::LanguageSelection;
                                 self.game = None;
                                 self.lang = None;
+                            }
+                        }
+                        AppState::DiscordQr => {
+                            if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
+                                self.state = AppState::LanguageSelection;
                             }
                         }
                     }
@@ -194,7 +201,9 @@ impl App {
                     Line::from("4. Deutsch"),
                     Line::from("5. Nederlands"),
                     Line::from(""),
-                    Line::from(vec![Span::styled("Press 1-5 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
+                    Line::from(vec![Span::styled("6. Join our Discord! (QR)", Style::default().fg(Color::LightMagenta))]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("Press 1-6 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
                 ];
                 let p = Paragraph::new(text).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Hangman"),
@@ -301,6 +310,38 @@ impl App {
                     f.render_widget(Clear, rect); // Clear background
                     f.render_widget(p, rect);
                 }
+            }
+            AppState::DiscordQr => {
+                let rect = centered_rect(80, 80, area);
+                
+                let url = "https://discord.gg/bet-games";
+                let code = qrcode::QrCode::new(url).unwrap();
+                let qr_string = code.render::<char>()
+                    .quiet_zone(false)
+                    .module_dimensions(2, 1)
+                    .light_color(' ')
+                    .dark_color('█')
+                    .build();
+
+                let mut lines = vec![
+                    Line::from(vec![Span::styled("Join our Discord group: BET", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("We have hangman and will get more classic games!", Style::default().fg(Color::White))]),
+                    Line::from(""),
+                ];
+
+                for line in qr_string.lines() {
+                    lines.push(Line::from(Span::styled(line.to_string(), Style::default().fg(Color::White))));
+                }
+
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![Span::styled("Press ESC or Enter to go back", Style::default().fg(Color::DarkGray))]));
+
+                let p = Paragraph::new(lines).alignment(Alignment::Center).block(
+                    Block::default().borders(Borders::ALL).title("Discord"),
+                );
+                f.render_widget(Clear, rect);
+                f.render_widget(p, rect);
             }
         }
     }
