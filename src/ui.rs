@@ -94,6 +94,8 @@ pub enum AppState {
 pub struct App {
     pub state: AppState,
     pub lang: Option<Lang>,
+    pub language_cursor: usize,
+    pub game_cursor: usize,
     pub game: Option<Hangman>,
     pub tictactoe: Option<TicTacToe>,
     pub tictactoe_cursor: usize,
@@ -117,6 +119,8 @@ impl App {
         let mut app = Self {
             state: AppState::LanguageSelection,
             lang: None,
+            language_cursor: 0,
+            game_cursor: 0,
             game: None,
             tictactoe: None,
             chess: None,
@@ -313,22 +317,64 @@ impl App {
 
                         match self.state {
                             AppState::LanguageSelection => match key.code {
-                                KeyCode::Char('1') => self.select_language(Language::English),
-                                KeyCode::Char('2') => self.select_language(Language::Spanish),
-                                KeyCode::Char('3') => self.select_language(Language::Portuguese),
-                                KeyCode::Char('4') => self.select_language(Language::German),
-                                KeyCode::Char('5') => self.select_language(Language::Dutch),
-                                KeyCode::Char('9') => self.state = AppState::DiscordQr,
+                                KeyCode::Up => {
+                                    self.language_cursor = self.language_cursor.saturating_sub(1);
+                                }
+                                KeyCode::Down => {
+                                    if self.language_cursor < 5 {
+                                        self.language_cursor += 1;
+                                    }
+                                }
+                                KeyCode::Enter | KeyCode::Char(' ') => {
+                                    match self.language_cursor {
+                                        0 => self.select_language(Language::English),
+                                        1 => self.select_language(Language::Spanish),
+                                        2 => self.select_language(Language::Portuguese),
+                                        3 => self.select_language(Language::German),
+                                        4 => self.select_language(Language::Dutch),
+                                        5 => self.state = AppState::DiscordQr,
+                                        _ => {}
+                                    }
+                                }
+                                KeyCode::Char('1') => { self.language_cursor = 0; self.select_language(Language::English); }
+                                KeyCode::Char('2') => { self.language_cursor = 1; self.select_language(Language::Spanish); }
+                                KeyCode::Char('3') => { self.language_cursor = 2; self.select_language(Language::Portuguese); }
+                                KeyCode::Char('4') => { self.language_cursor = 3; self.select_language(Language::German); }
+                                KeyCode::Char('5') => { self.language_cursor = 4; self.select_language(Language::Dutch); }
+                                KeyCode::Char('9') => { self.language_cursor = 5; self.state = AppState::DiscordQr; }
                                 KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             },
                             AppState::GameSelection => match key.code {
-                                KeyCode::Char('1') => self.start_hangman(),
-                                KeyCode::Char('2') => self.start_tictactoe(),
-                                KeyCode::Char('3') => self.start_chess(),
-                                KeyCode::Char('4') => self.start_pong(),
-                                KeyCode::Char('5') => self.state = AppState::RecommenderMenu,
+                                KeyCode::Up => {
+                                    self.game_cursor = self.game_cursor.saturating_sub(1);
+                                }
+                                KeyCode::Down => {
+                                    if self.game_cursor < 5 {
+                                        self.game_cursor += 1;
+                                    }
+                                }
+                                KeyCode::Enter | KeyCode::Char(' ') => {
+                                    match self.game_cursor {
+                                        0 => self.start_hangman(),
+                                        1 => self.start_tictactoe(),
+                                        2 => self.start_chess(),
+                                        3 => self.start_pong(),
+                                        4 => self.state = AppState::RecommenderMenu,
+                                        5 => {
+                                            self.state = AppState::LanguageSelection;
+                                            self.lang = None;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                KeyCode::Char('1') => { self.game_cursor = 0; self.start_hangman(); }
+                                KeyCode::Char('2') => { self.game_cursor = 1; self.start_tictactoe(); }
+                                KeyCode::Char('3') => { self.game_cursor = 2; self.start_chess(); }
+                                KeyCode::Char('4') => { self.game_cursor = 3; self.start_pong(); }
+                                KeyCode::Char('5') => { self.game_cursor = 4; self.state = AppState::RecommenderMenu; }
                                 KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 5;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -753,16 +799,13 @@ impl App {
                                 .add_modifier(Modifier::BOLD),
                         )]),
                         Line::from(""),
-                        Line::from(lang.menu_hangman),
-                        Line::from(lang.menu_tictactoe),
-                        Line::from(lang.menu_chess),
-                        Line::from(lang.menu_pong),
-                        Line::from(lang.menu_recommender),
+                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("  > {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("  > {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("  > {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("  > {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("  > {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
                         Line::from(""),
-                        Line::from(vec![Span::styled(
-                            lang.menu_go_back,
-                            Style::default().fg(Color::DarkGray),
-                        )]),
+                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  > {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1503,10 +1546,15 @@ LLLLL     Y   F     F    "#
             }
             
             // Sober floating gray text tracking across the top
-            let ticker_p = Paragraph::new(Span::styled(
-                display_text,
-                Style::default().fg(Color::Gray)
-            ));
+            let mut spans = vec![];
+            for c in display_text.chars() {
+                if c == '✦' {
+                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                } else {
+                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Gray)));
+                }
+            }
+            let ticker_p = Paragraph::new(Line::from(spans));
             f.render_widget(ticker_p, ticker_area);
         }
     }
