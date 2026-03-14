@@ -19,6 +19,10 @@ pub struct Lang {
     pub time_left_label: &'static str,
     pub error_not_letter: &'static str,
     pub error_already_guessed: &'static str,
+    pub menu_game_selection: &'static str,
+    pub menu_hangman: &'static str,
+    pub menu_tictactoe: &'static str,
+    pub menu_go_back: &'static str,
     pub movies: &'static [&'static str],
 }
 
@@ -36,6 +40,10 @@ impl Lang {
             time_left_label: "Time left: ",
             error_not_letter: "Please enter a letter",
             error_already_guessed: "You already guessed that letter",
+            menu_game_selection: "Game Selection",
+            menu_hangman: "1. Hangman",
+            menu_tictactoe: "2. Tic-Tac-Toe",
+            menu_go_back: "3. Go Back (ESC)",
             movies: super::wordlist::ENGLISH_MOVIES,
         }
     }
@@ -53,6 +61,10 @@ impl Lang {
             time_left_label: "Tiempo restante: ",
             error_not_letter: "Por favor ingresa una letra",
             error_already_guessed: "Ya adivinaste esa letra",
+            menu_game_selection: "Selección de Juego",
+            menu_hangman: "1. Ahorcado",
+            menu_tictactoe: "2. Tres en Raya",
+            menu_go_back: "3. Volver (ESC)",
             movies: super::wordlist::SPANISH_MOVIES,
         }
     }
@@ -70,6 +82,10 @@ impl Lang {
             time_left_label: "Tempo restante: ",
             error_not_letter: "Por favor, digite uma letra",
             error_already_guessed: "Você já adivinhou essa letra",
+            menu_game_selection: "Seleção de Jogo",
+            menu_hangman: "1. Forca",
+            menu_tictactoe: "2. Jogo da Velha",
+            menu_go_back: "3. Voltar (ESC)",
             movies: super::wordlist::PORTUGUESE_MOVIES,
         }
     }
@@ -87,6 +103,10 @@ impl Lang {
             time_left_label: "Verbleibende Zeit: ",
             error_not_letter: "Bitte gib einen Buchstaben ein",
             error_already_guessed: "Du hast diesen Buchstaben bereits geraten",
+            menu_game_selection: "Spielauswahl",
+            menu_hangman: "1. Galgenmännchen",
+            menu_tictactoe: "2. Tic-Tac-Toe",
+            menu_go_back: "3. Zurück (ESC)",
             movies: super::wordlist::GERMAN_MOVIES,
         }
     }
@@ -104,6 +124,10 @@ impl Lang {
             time_left_label: "Resterende tijd: ",
             error_not_letter: "Voer een letter in",
             error_already_guessed: "Je hebt deze letter al geraden",
+            menu_game_selection: "Spelselectie",
+            menu_hangman: "1. Galgje",
+            menu_tictactoe: "2. Boter-kaas-en-eieren",
+            menu_go_back: "3. Ga terug (ESC)",
             movies: super::wordlist::DUTCH_MOVIES,
         }
     }

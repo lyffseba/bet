@@ -2,6 +2,7 @@ mod game;
 mod lang;
 mod ui;
 mod wordlist;
+mod tictactoe;
 
 use std::error::Error;
 use std::io;

@@ -13,13 +13,13 @@ clean:
 
 install: build
 	install -d ~/.local/bin
-	install -m 755 target/release/hangman ~/.local/bin/
+	install -m 755 target/release/bet ~/.local/bin/
 
 install-system: build
-	install -m 755 target/release/hangman /usr/local/bin/
+	install -m 755 target/release/bet /usr/local/bin/
 
 uninstall:
-	rm -f ~/.local/bin/hangman
+	rm -f ~/.local/bin/bet
 
 uninstall-system:
-	rm -f /usr/local/bin/hangman
+	rm -f /usr/local/bin/bet

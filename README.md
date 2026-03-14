@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🎮 Terminal Hangman
+# 🎮 bet (Terminal Hub)
 
-**A lightning-fast, zero-flicker terminal hangman game built with Rust and Ratatui.**
+**A lightning-fast, zero-flicker terminal game hub containing Hangman and Tic-Tac-Toe, built with Rust and Ratatui.**
 
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Ratatui](https://img.shields.io/badge/ratatui-%23F05032.svg?style=for-the-badge&logo=rust&logoColor=white)](https://ratatui.rs/)
@@ -15,16 +15,15 @@
 - 🦀 **Powered by Rust & Ratatui:** Enjoy a robust, incredibly fast, and memory-safe terminal experience.
 - ⚡ **Zero-Flicker Rendering:** Smooth UI rendering thanks to Ratatui's intelligent terminal backend.
 - 🌍 **5 Localized Languages:** Play in English, Spanish (Español), Portuguese (Português), German (Deutsch), and Dutch (Nederlands).
-- ⏱️ **Real-Time Timer:** Feel the pressure with a live countdown timer built right into the gameplay!
+- 🎲 **Multiple Games:** Play classic Hangman or test your logic against a simple AI in Tic-Tac-Toe!
 - 🎨 **Modern Terminal UI:** Beautifully centered layouts, styled text, and classic ASCII art scaling elegantly with your window.
-- 🔤 **Unicode Support:** Native support for accented characters (é, ñ, á, ã, etc.).
-- ⌨️ **Intuitive Controls:** Simple keystroke detection (no typing delays). Press `Ctrl-C` or `Esc` to instantly exit and gracefully restore your terminal.
+- ⌨️ **Intuitive Controls:** Simple keystroke detection. Arrow keys to navigate boards, `Ctrl-C` or `Esc` to instantly exit and gracefully restore your terminal.
 
 ## 🚀 Installation
 
 ### Using Cargo (Recommended)
 
-If you have Rust installed, you can build and install the game directly from the source:
+If you have Rust installed, you can build and install the hub directly from the source:
 
 ```bash
 cargo install --path .
@@ -34,31 +33,34 @@ cargo install --path .
 
 ```bash
 # Build the release version
-cargo build --release
+make build
 
-# Run the executable
-./target/release/hangman
+# Install locally to ~/.local/bin
+make install
+
+# Or install system-wide
+sudo make install-system
 ```
 
 ## 🕹️ Gameplay
 
-Start the game simply by running:
+Start the hub simply by running:
 
 ```bash
-hangman
+bet
 ```
 
 1. **Select your language:** Press `1-5` to choose from the startup menu.
-2. **Guess letters:** Press any alphabetic key to make a guess. The game responds instantly!
-3. **Beat the clock:** You have a strict time limit per turn. Make your move before the timer hits 0.0s!
-4. **Survive:** 6 wrong attempts and the hangman will be complete.
+2. **Select your game:** Press `1` for Hangman or `2` for Tic-Tac-Toe.
+3. **Hangman:** Press any alphabetic key to make a guess before the timer hits 0.0s!
+4. **Tic-Tac-Toe:** Use the Arrow Keys to move the cursor, and press `Enter` or `Space` to place your 'X'.
 
 ## 🛠️ Tech Stack Highlights
 
 This project stands as a testament to modern CLI development:
 - **[Rust](https://www.rust-lang.org/):** Core logic, blazing fast, and memory-safe.
-- **[Ratatui](https://ratatui.rs/):** Next-generation Terminal User Interface library, replacing older TUI crates.
-- **[Crossterm](https://github.com/crossterm-rs/crossterm):** Cross-platform terminal manipulation (handling raw modes, key events, and graceful exits).
+- **[Ratatui](https://ratatui.rs/):** Next-generation Terminal User Interface library.
+- **[Crossterm](https://github.com/crossterm-rs/crossterm):** Cross-platform terminal manipulation.
 
 ## 🤝 Contributing
 

@@ -13,6 +13,7 @@ use ratatui::{
 
 use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
+use crate::tictactoe::{Cell, GameStatus, Player, TicTacToe};
 
 // Helper function to center a rect
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
@@ -37,8 +38,10 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 pub enum AppState {
     LanguageSelection,
-    Playing,
-    GameOver(bool), // true if won, false if lost
+    GameSelection,
+    Playing, // Hangman
+    GameOver(bool), // Hangman true if won, false if lost
+    PlayingTicTacToe,
     DiscordQr,
     EasterEgg,
 }
@@ -47,6 +50,8 @@ pub struct App {
     pub state: AppState,
     pub lang: Option<Lang>,
     pub game: Option<Hangman>,
+    pub tictactoe: Option<TicTacToe>,
+    pub tictactoe_cursor: usize,
     pub timer: f64,
     pub last_tick: Instant,
     pub should_quit: bool,
@@ -60,6 +65,8 @@ impl App {
             state: AppState::LanguageSelection,
             lang: None,
             game: None,
+            tictactoe: None,
+            tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
             should_quit: false,
@@ -88,7 +95,7 @@ impl App {
                         return Ok(());
                     }
 
-                    if !matches!(self.state, AppState::Playing) && !matches!(self.state, AppState::EasterEgg) {
+                    if !matches!(self.state, AppState::Playing) && !matches!(self.state, AppState::PlayingTicTacToe) && !matches!(self.state, AppState::EasterEgg) {
                         if let KeyCode::Char(c) = key.code {
                             self.easter_egg_buffer.push(c);
                             if self.easter_egg_buffer.len() > 50 {
@@ -97,7 +104,6 @@ impl App {
                             if self.easter_egg_buffer.to_lowercase().ends_with("lyff") {
                                 #[cfg(target_os = "linux")]
                                 {
-                                    // Best effort on Linux using gio open which integrates tightly with GNOME/GTK
                                     let _ = std::process::Command::new("gio")
                                         .args(["open", "https://lyffseba.xyz"])
                                         .spawn();
@@ -109,7 +115,7 @@ impl App {
                                 
                                 self.easter_egg_buffer.clear();
                                 self.state = AppState::EasterEgg;
-                                return Ok(()); // Avoid falling through to other key handlers
+                                return Ok(());
                             }
                         }
                     }
@@ -117,30 +123,78 @@ impl App {
                     match self.state {
                         AppState::LanguageSelection => {
                             match key.code {
-                                KeyCode::Char('1') => self.start_game(Language::English),
-                                KeyCode::Char('2') => self.start_game(Language::Spanish),
-                                KeyCode::Char('3') => self.start_game(Language::Portuguese),
-                                KeyCode::Char('4') => self.start_game(Language::German),
-                                KeyCode::Char('5') => self.start_game(Language::Dutch),
+                                KeyCode::Char('1') => self.select_language(Language::English),
+                                KeyCode::Char('2') => self.select_language(Language::Spanish),
+                                KeyCode::Char('3') => self.select_language(Language::Portuguese),
+                                KeyCode::Char('4') => self.select_language(Language::German),
+                                KeyCode::Char('5') => self.select_language(Language::Dutch),
                                 KeyCode::Char('6') => self.state = AppState::DiscordQr,
                                 KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             }
                         }
+                        AppState::GameSelection => {
+                            match key.code {
+                                KeyCode::Char('1') => self.start_hangman(),
+                                KeyCode::Char('2') => self.start_tictactoe(),
+                                KeyCode::Char('3') | KeyCode::Esc => {
+                                    self.state = AppState::LanguageSelection;
+                                    self.lang = None;
+                                }
+                                _ => {}
+                            }
+                        }
                         AppState::Playing => {
                             if key.code == KeyCode::Esc {
-                                self.should_quit = true;
+                                self.state = AppState::GameSelection;
                             } else if let KeyCode::Char(c) = key.code {
                                 if c.is_alphabetic() {
-                                    self.make_guess(c);
+                                    self.make_guess_hangman(c);
+                                }
+                            }
+                        }
+                        AppState::PlayingTicTacToe => {
+                            if key.code == KeyCode::Esc {
+                                self.state = AppState::GameSelection;
+                            } else if let Some(ttt) = &mut self.tictactoe {
+                                if ttt.status == GameStatus::Ongoing {
+                                    match key.code {
+                                        KeyCode::Up => {
+                                            if self.tictactoe_cursor >= 3 {
+                                                self.tictactoe_cursor -= 3;
+                                            }
+                                        }
+                                        KeyCode::Down => {
+                                            if self.tictactoe_cursor <= 5 {
+                                                self.tictactoe_cursor += 3;
+                                            }
+                                        }
+                                        KeyCode::Left => {
+                                            if self.tictactoe_cursor % 3 != 0 {
+                                                self.tictactoe_cursor -= 1;
+                                            }
+                                        }
+                                        KeyCode::Right => {
+                                            if self.tictactoe_cursor % 3 != 2 {
+                                                self.tictactoe_cursor += 1;
+                                            }
+                                        }
+                                        KeyCode::Enter | KeyCode::Char(' ') => {
+                                            ttt.make_move(self.tictactoe_cursor);
+                                        }
+                                        _ => {}
+                                    }
+                                } else {
+                                    if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                        ttt.reset_game();
+                                    }
                                 }
                             }
                         }
                         AppState::GameOver(_) => {
                             if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
-                                self.state = AppState::LanguageSelection;
+                                self.state = AppState::GameSelection;
                                 self.game = None;
-                                self.lang = None;
                             }
                         }
                         AppState::DiscordQr => {
@@ -177,17 +231,27 @@ impl App {
         }
     }
 
-    fn start_game(&mut self, language: Language) {
-        let lang = Lang::from_language(language);
+    fn select_language(&mut self, language: Language) {
+        self.lang = Some(Lang::from_language(language));
+        self.state = AppState::GameSelection;
+    }
+
+    fn start_hangman(&mut self) {
+        let lang = self.lang.as_ref().unwrap();
         let game = Hangman::random(lang.movies);
-        self.lang = Some(lang);
         self.game = Some(game);
         self.timer = 30.0;
         self.error_msg = None;
         self.state = AppState::Playing;
     }
 
-    fn make_guess(&mut self, letter: char) {
+    fn start_tictactoe(&mut self) {
+        self.tictactoe = Some(TicTacToe::new());
+        self.tictactoe_cursor = 4;
+        self.state = AppState::PlayingTicTacToe;
+    }
+
+    fn make_guess_hangman(&mut self, letter: char) {
         let mut won = false;
         let mut lost = false;
         let mut err = None;
@@ -239,16 +303,33 @@ impl App {
                     Line::from(vec![Span::styled("Press 1-6 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
                 ];
                 let p = Paragraph::new(text).alignment(Alignment::Center).block(
-                    Block::default().borders(Borders::ALL).title("Hangman"),
+                    Block::default().borders(Borders::ALL).title("bet Hub"),
                 );
                 f.render_widget(Clear, rect); // Clear background
                 f.render_widget(p, rect);
 
-                // Extremely subtle cursive watermark/easter egg in the bottom right corner
                 let bottom_rect = ratatui::layout::Rect::new(0, area.height.saturating_sub(1), area.width, 1);
                 let watermark = Paragraph::new(Span::styled("lyffseba.xyz", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)))
                     .alignment(Alignment::Right);
                 f.render_widget(watermark, bottom_rect);
+            }
+            AppState::GameSelection => {
+                if let Some(lang) = &self.lang {
+                    let rect = centered_rect(70, 60, area);
+                    let text = vec![
+                        Line::from(vec![Span::styled(lang.menu_game_selection, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
+                        Line::from(""),
+                        Line::from(lang.menu_hangman),
+                        Line::from(lang.menu_tictactoe),
+                        Line::from(""),
+                        Line::from(vec![Span::styled(lang.menu_go_back, Style::default().fg(Color::DarkGray))]),
+                    ];
+                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                        Block::default().borders(Borders::ALL).title("bet Hub"),
+                    );
+                    f.render_widget(Clear, rect);
+                    f.render_widget(p, rect);
+                }
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
@@ -267,7 +348,7 @@ impl App {
                         ])
                         .split(game_area);
 
-                    f.render_widget(Clear, game_area); // Clear background
+                    f.render_widget(Clear, game_area);
 
                     // Title
                     f.render_widget(
@@ -323,6 +404,87 @@ impl App {
                     );
                 }
             }
+            AppState::PlayingTicTacToe => {
+                if let (Some(_lang), Some(ttt)) = (&self.lang, &self.tictactoe) {
+                    let rect = centered_rect(70, 70, area);
+                    f.render_widget(Clear, rect);
+
+                    let layout = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Length(3),  // Title
+                            Constraint::Length(7),  // Board
+                            Constraint::Length(2),  // Status
+                            Constraint::Length(2),  // Stats
+                            Constraint::Min(1),     // Instructions
+                        ])
+                        .split(rect);
+
+                    // Title
+                    f.render_widget(
+                        Paragraph::new("TIC-TAC-TOE").alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        layout[0],
+                    );
+
+                    // Board
+                    let mut board_lines = vec![];
+                    for row in 0..3 {
+                        let mut line_spans = vec![];
+                        for col in 0..3 {
+                            let idx = row * 3 + col;
+                            let cell_str = match ttt.board[idx] {
+                                Cell::Empty => "   ",
+                                Cell::Occupied(Player::X) => " X ",
+                                Cell::Occupied(Player::O) => " O ",
+                            };
+                            
+                            let mut style = Style::default();
+                            if ttt.board[idx] == Cell::Occupied(Player::X) {
+                                style = style.fg(Color::Yellow);
+                            } else if ttt.board[idx] == Cell::Occupied(Player::O) {
+                                style = style.fg(Color::Magenta);
+                            }
+
+                            if ttt.status == GameStatus::Ongoing && idx == self.tictactoe_cursor {
+                                style = style.bg(Color::DarkGray);
+                            }
+
+                            line_spans.push(Span::styled(cell_str, style));
+
+                            if col < 2 {
+                                line_spans.push(Span::raw("|"));
+                            }
+                        }
+                        board_lines.push(Line::from(line_spans));
+                        if row < 2 {
+                            board_lines.push(Line::from("---+---+---"));
+                        }
+                    }
+
+                    f.render_widget(Paragraph::new(board_lines).alignment(Alignment::Center), layout[1]);
+
+                    // Status
+                    let status_msg = match ttt.status {
+                        GameStatus::Ongoing => Span::styled("Your turn (X)", Style::default().fg(Color::White)),
+                        GameStatus::Win(Player::X) => Span::styled("You win!", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                        GameStatus::Win(Player::O) => Span::styled("Computer wins!", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                        GameStatus::Draw => Span::styled("Draw!", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    };
+                    f.render_widget(Paragraph::new(Line::from(status_msg)).alignment(Alignment::Center), layout[2]);
+
+                    // Stats
+                    let stats = format!("Wins: {} | Losses: {} | Draws: {}", ttt.wins, ttt.losses, ttt.draws);
+                    f.render_widget(Paragraph::new(stats).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan)), layout[3]);
+
+                    // Instructions
+                    let instructions = if ttt.status == GameStatus::Ongoing {
+                        "Arrow keys to move, Enter/Space to place X. ESC to go back."
+                    } else {
+                        "Press Enter/Space to play again. ESC to go back."
+                    };
+                    f.render_widget(Paragraph::new(instructions).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[4]);
+                }
+            }
             AppState::GameOver(won) => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
                     let rect = centered_rect(70, 50, area);
@@ -359,7 +521,6 @@ impl App {
                 let width = code.width();
 
                 let mut qr_lines = Vec::new();
-                // Add a top and bottom quiet zone using spaces
                 let quiet_line = " ".repeat(width + 4);
                 qr_lines.push(quiet_line.clone());
                 
@@ -393,7 +554,6 @@ impl App {
                 ];
 
                 for line in qr_lines {
-                    // Set black background for the QR code so the blocks are always visible
                     lines.push(Line::from(Span::styled(line, Style::default().fg(Color::White).bg(Color::Black))));
                 }
 
