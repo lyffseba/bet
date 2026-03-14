@@ -66,6 +66,7 @@ pub enum RecommenderCategory {
     Manga,
     Book,
     Anime,
+    Cartoon,
 }
 
 pub enum AppState {
@@ -146,6 +147,7 @@ impl App {
         let wants_manga = exec_name.contains("manga") || args.iter().skip(1).any(|a| a.to_lowercase() == "manga");
         let wants_book = exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
         let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
+        let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
         let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
 
         if wants_hangman {
@@ -175,6 +177,9 @@ impl App {
         } else if wants_anime {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::Anime);
+        } else if wants_cartoon {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Cartoon);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -258,7 +263,7 @@ impl App {
                                 KeyCode::Char('3') => self.start_chess(),
                                 KeyCode::Char('4') => self.start_pong(),
                                 KeyCode::Char('5') => self.state = AppState::RecommenderMenu,
-                                KeyCode::Char('6') | KeyCode::Esc => {
+                                KeyCode::Char('7') | KeyCode::Esc => {
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -391,7 +396,8 @@ impl App {
                                     KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::Manga),
                                     KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::Book),
                                     KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::Anime),
-                                    KeyCode::Char('6') | KeyCode::Esc => self.state = AppState::GameSelection,
+                                    KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::Cartoon),
+                                    KeyCode::Char('7') | KeyCode::Esc => self.state = AppState::GameSelection,
                                     _ => {}
                                 }
                             }
@@ -496,6 +502,7 @@ impl App {
                 RecommenderCategory::Manga => lang.mangas.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Book => lang.books.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Anime => lang.animes.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Cartoon => lang.cartoons.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"
@@ -1104,9 +1111,10 @@ impl App {
                         ratatui::text::Line::from(lang.recommender_menu_manga),
                         ratatui::text::Line::from(lang.recommender_menu_books),
                         ratatui::text::Line::from(lang.recommender_menu_anime),
+                        ratatui::text::Line::from(lang.recommender_menu_cartoons),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            "6. Go Back (ESC)",
+                            "7. Go Back (ESC)",
                             Style::default().fg(Color::DarkGray),
                         )]),
                     ];
