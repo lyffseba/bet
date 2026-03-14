@@ -76,6 +76,10 @@ anime
 cartoon
 # or
 music
+# or
+salsa
+# or
+reggae
 ```
 
 1. **Select your language:** Press `1-5` to choose from the startup menu.

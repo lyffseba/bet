@@ -72,6 +72,8 @@ pub enum RecommenderCategory {
     MusicPop,
     MusicElectronic,
     MusicClassical,
+    MusicSalsa,
+    MusicReggae,
 }
 
 pub enum AppState {
@@ -155,6 +157,8 @@ impl App {
         let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
         let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
         let wants_music = exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
+        let wants_salsa = exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
+        let wants_reggae = exec_name.contains("reggae") || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
         let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
 
         if wants_hangman {
@@ -191,6 +195,12 @@ impl App {
             self.select_language(Language::English);
             // Default to rock for general music command, or they can use the menu
             self.state = AppState::MusicMenu;
+        } else if wants_salsa {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::MusicSalsa);
+        } else if wants_reggae {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::MusicReggae);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -420,7 +430,9 @@ impl App {
                                     KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::MusicPop),
                                     KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::MusicElectronic),
                                     KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::MusicClassical),
-                                    KeyCode::Char('6') | KeyCode::Esc => self.state = AppState::RecommenderMenu,
+                                    KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::MusicSalsa),
+                                    KeyCode::Char('7') => self.show_recommendation(RecommenderCategory::MusicReggae),
+                                    KeyCode::Char('8') | KeyCode::Esc => self.state = AppState::RecommenderMenu,
                                     _ => {}
                                 }
                             }
@@ -531,6 +543,8 @@ impl App {
                 RecommenderCategory::MusicPop => lang.music_pop.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::MusicElectronic => lang.music_electronic.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::MusicClassical => lang.music_classical.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicSalsa => lang.music_salsa.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicReggae => lang.music_reggae.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"
@@ -1127,7 +1141,7 @@ impl App {
             }
                         AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(70, 60, area);
+                    let rect = centered_rect(75, 70, area);
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
@@ -1161,7 +1175,7 @@ impl App {
             }
             AppState::MusicMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(70, 60, area);
+                    let rect = centered_rect(75, 70, area);
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
@@ -1173,6 +1187,8 @@ impl App {
                         ratatui::text::Line::from(lang.music_menu_pop),
                         ratatui::text::Line::from(lang.music_menu_electronic),
                         ratatui::text::Line::from(lang.music_menu_classical),
+                        ratatui::text::Line::from(lang.music_menu_salsa),
+                        ratatui::text::Line::from(lang.music_menu_reggae),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.music_go_back,
