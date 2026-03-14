@@ -137,7 +137,12 @@ impl App {
         
         let mut text = Vec::new();
         let mut pause_points = Vec::new();
-        for quote in crate::wordlist::POETRY_QUOTES {
+        
+        let mut quotes = crate::wordlist::POETRY_QUOTES.to_vec();
+        use rand::seq::SliceRandom;
+        quotes.shuffle(&mut rand::thread_rng());
+        
+        for quote in quotes {
             let margin = 5;
             let next_start = text.len();
             if next_start >= margin {
@@ -699,7 +704,7 @@ impl App {
                 text.push(Line::from(""));
                 text.push(Line::from(vec![Span::styled(
                     "9. Join our Discord! (QR)",
-                    Style::default().fg(Color::White),
+                    Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
                 )]));
                 text.push(Line::from(""));
                 text.push(Line::from(vec![Span::styled(
@@ -789,7 +794,7 @@ impl App {
                     f.render_widget(
                         Paragraph::new(art)
                             .alignment(Alignment::Center)
-                            .style(Style::default().fg(Color::White)),
+                            .style(Style::default().fg(Color::Rgb(180, 255, 50))), // Neon Yellow Green
                         layout[1],
                     );
 
@@ -1074,10 +1079,10 @@ impl App {
                                     bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray };
                                 }
                                 if is_selected {
-                                    bg = Color::White;
+                                    bg = Color::Rgb(180, 255, 50); // Neon Yellow Green
                                 }
                                 if is_cursor {
-                                    bg = Color::Gray;
+                                    bg = Color::Rgb(180, 255, 50); // Neon Yellow Green
                                 }
 
                                 // 5 chars wide per cell
@@ -1162,7 +1167,7 @@ impl App {
                                 y: pong.ball_y - 1.0,
                                 width: 2.0,
                                 height: 2.0,
-                                color: Color::White,
+                                color: Color::Rgb(180, 255, 50),
                             });
                             // Center dashed line
                             for i in (0..100).step_by(5) {
@@ -1196,7 +1201,7 @@ impl App {
                         Span::styled(
                             lang.win_msg,
                             Style::default()
-                                .fg(Color::White)
+                                .fg(Color::Rgb(180, 255, 50)) // Neon Yellow Green
                                 .add_modifier(Modifier::BOLD),
                         )
                     } else {
@@ -1562,6 +1567,7 @@ mod theme_tests {
         Color::Red,
         Color::DarkGray,
         Color::Gray,
+        Color::Rgb(180, 255, 50), // Neon Yellow Green
     ];
 
     #[test]
