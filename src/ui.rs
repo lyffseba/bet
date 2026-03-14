@@ -103,11 +103,13 @@ pub struct App {
     pub pong: Option<PongGame>,
     pub timer: f64,
     pub last_tick: Instant,
-    pub start_time: Instant,
     pub should_quit: bool,
     pub error_msg: Option<String>,
     pub easter_egg_buffer: String,
     pub ticker_text: Vec<char>,
+    pub ticker_pos: f64,
+    pub ticker_pause_timer: f64,
+    pub ticker_pause_points: Vec<usize>,
 }
 
 impl App {
@@ -124,12 +126,31 @@ impl App {
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
-            start_time: Instant::now(),
             should_quit: false,
             error_msg: None,
             easter_egg_buffer: String::new(),
-            ticker_text: (crate::wordlist::POETRY_QUOTES.join("        ✦        ") + "        ✦        ").chars().collect(),
+            ticker_text: Vec::new(),
+            ticker_pos: 0.0,
+            ticker_pause_timer: 0.0,
+            ticker_pause_points: Vec::new(),
         };
+        
+        let mut text = Vec::new();
+        let mut pause_points = Vec::new();
+        for quote in crate::wordlist::POETRY_QUOTES {
+            let margin = 5;
+            let next_start = text.len();
+            if next_start >= margin {
+                pause_points.push(next_start - margin);
+            } else {
+                pause_points.push(0);
+            }
+            text.extend(quote.chars());
+            text.extend("            ✦            ".chars());
+        }
+        app.ticker_text = text;
+        app.ticker_pause_points = pause_points;
+
         app.parse_args();
         app
     }
@@ -478,6 +499,24 @@ impl App {
         let dt = now.duration_since(self.last_tick).as_secs_f64();
         self.last_tick = now;
 
+        if self.ticker_pause_timer > 0.0 {
+            self.ticker_pause_timer -= dt;
+        } else if !self.ticker_text.is_empty() {
+            let old_pos = self.ticker_pos;
+            self.ticker_pos += 5.0 * dt; // 5 characters per second
+            
+            let old_idx = old_pos as usize;
+            let new_idx = self.ticker_pos as usize;
+            
+            if new_idx > old_idx && self.ticker_pause_points.contains(&new_idx) {
+                self.ticker_pause_timer = 3.0; // Pause for 3 seconds
+            }
+            
+            if self.ticker_pos >= self.ticker_text.len() as f64 {
+                self.ticker_pos = 0.0;
+            }
+        }
+
         if let AppState::PlayingPong = self.state
             && let Some(pong) = &mut self.pong
         {
@@ -592,12 +631,14 @@ impl App {
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
         
+        // Render ticker at the top
         let ticker_area = ratatui::layout::Rect {
             x: 0,
-            y: area.height.saturating_sub(1),
+            y: 0,
             width: area.width,
             height: 1,
         };
+        area.y += 1;
         area.height = area.height.saturating_sub(1);
 
         match self.state {
@@ -1435,16 +1476,14 @@ LLLLL     Y   F     F    "#
 
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
-            // Speed = 4 characters per second, very slow, contemplative reading
-            let t = self.start_time.elapsed().as_secs_f64() * 4.0; 
-            let offset = (t as usize) % self.ticker_text.len();
+            let offset = self.ticker_pos as usize;
             
-            let mut display_text = String::with_capacity(ticker_area.width as usize * 2);
+            let mut display_text = String::with_capacity(ticker_area.width as usize);
             for i in 0..ticker_area.width as usize {
                 display_text.push(self.ticker_text[(offset + i) % self.ticker_text.len()]);
             }
             
-            // Sober floating gray text tracking across the bottom
+            // Sober floating gray text tracking across the top
             let ticker_p = Paragraph::new(Span::styled(
                 display_text,
                 Style::default().fg(Color::Gray)
