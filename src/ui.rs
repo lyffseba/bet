@@ -86,6 +86,20 @@ impl App {
                         self.should_quit = true;
                         return Ok(());
                     }
+
+                    if !matches!(self.state, AppState::Playing) {
+                        if let KeyCode::Char(c) = key.code {
+                            self.easter_egg_buffer.push(c);
+                            if self.easter_egg_buffer.len() > 50 {
+                                self.easter_egg_buffer = self.easter_egg_buffer.chars().skip(self.easter_egg_buffer.chars().count() - 20).collect();
+                            }
+                            if self.easter_egg_buffer.to_lowercase().ends_with("lyff") {
+                                let _ = open::that_detached("https://lyffseba.xyz");
+                                self.easter_egg_buffer.clear();
+                            }
+                        }
+                    }
+
                     match self.state {
                         AppState::LanguageSelection => {
                             match key.code {
@@ -96,16 +110,6 @@ impl App {
                                 KeyCode::Char('5') => self.start_game(Language::Dutch),
                                 KeyCode::Char('6') => self.state = AppState::DiscordQr,
                                 KeyCode::Esc => self.should_quit = true,
-                                KeyCode::Char(c) => {
-                                    self.easter_egg_buffer.push(c);
-                                    if self.easter_egg_buffer.len() > 50 {
-                                        self.easter_egg_buffer = self.easter_egg_buffer.chars().skip(self.easter_egg_buffer.chars().count() - 20).collect();
-                                    }
-                                    if self.easter_egg_buffer.ends_with("lyfflives") {
-                                        let _ = open::that_detached("https://lyffseba.xyz");
-                                        self.easter_egg_buffer.clear();
-                                    }
-                                }
                                 _ => {}
                             }
                         }
