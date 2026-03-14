@@ -96,6 +96,8 @@ pub struct App {
     pub lang: Option<Lang>,
     pub language_cursor: usize,
     pub game_cursor: usize,
+    pub recommender_cursor: usize,
+    pub music_cursor: usize,
     pub game: Option<Hangman>,
     pub tictactoe: Option<TicTacToe>,
     pub tictactoe_cursor: usize,
@@ -121,6 +123,8 @@ impl App {
             lang: None,
             language_cursor: 0,
             game_cursor: 0,
+            recommender_cursor: 0,
+            music_cursor: 0,
             game: None,
             tictactoe: None,
             chess: None,
@@ -885,15 +889,19 @@ impl App {
                     );
 
                     // Word
-                    let word_text = vec![Line::from(vec![
-                        Span::raw(lang.word_label),
-                        Span::styled(
-                            game.display_word(),
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                    ])];
+                    let mut word_spans = vec![Span::raw(lang.word_label)];
+                    for c in game.word().chars() {
+                        if c.is_alphabetic() {
+                            if game.guessed_letters().contains(&c) {
+                                word_spans.push(Span::styled(format!("{} ", c), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                            } else {
+                                word_spans.push(Span::styled("_ ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                            }
+                        } else {
+                            word_spans.push(Span::styled(format!("{} ", c), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                        }
+                    }
+                    let word_text = vec![Line::from(word_spans)];
                     f.render_widget(
                         Paragraph::new(word_text).alignment(Alignment::Center),
                         layout[2],
@@ -1326,25 +1334,35 @@ impl App {
                         AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
                     let rect = centered_rect(75, 70, area);
-                    let text = vec![
+                    let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
                             Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(lang.recommender_menu_movies),
-                        ratatui::text::Line::from(lang.recommender_menu_series),
-                        ratatui::text::Line::from(lang.recommender_menu_manga),
-                        ratatui::text::Line::from(lang.recommender_menu_books),
-                        ratatui::text::Line::from(lang.recommender_menu_anime),
-                        ratatui::text::Line::from(lang.recommender_menu_cartoons),
-                        ratatui::text::Line::from(lang.recommender_menu_music),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            lang.recommender_go_back,
-                            Style::default().fg(Color::DarkGray),
-                        )]),
                     ];
+                    
+                    let options = [
+                        lang.recommender_menu_movies,
+                        lang.recommender_menu_series,
+                        lang.recommender_menu_manga,
+                        lang.recommender_menu_books,
+                        lang.recommender_menu_anime,
+                        lang.recommender_menu_cartoons,
+                        lang.recommender_menu_music,
+                        lang.recommender_go_back,
+                    ];
+                    
+                    for (i, opt) in options.iter().enumerate() {
+                        if i == 7 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
+                        
+                        if i == self.recommender_cursor {
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                        } else {
+                            let color = if i == 7 { Color::DarkGray } else { Color::White };
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
+                        }
+                    }
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1360,25 +1378,35 @@ impl App {
             AppState::MusicMenu => {
                 if let Some(lang) = &self.lang {
                     let rect = centered_rect(75, 70, area);
-                    let text = vec![
+                    let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
                             Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(lang.music_menu_rock),
-                        ratatui::text::Line::from(lang.music_menu_hiphop),
-                        ratatui::text::Line::from(lang.music_menu_pop),
-                        ratatui::text::Line::from(lang.music_menu_electronic),
-                        ratatui::text::Line::from(lang.music_menu_classical),
-                        ratatui::text::Line::from(lang.music_menu_salsa),
-                        ratatui::text::Line::from(lang.music_menu_reggae),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            lang.music_go_back,
-                            Style::default().fg(Color::DarkGray),
-                        )]),
                     ];
+                    
+                    let options = [
+                        lang.music_menu_rock,
+                        lang.music_menu_hiphop,
+                        lang.music_menu_pop,
+                        lang.music_menu_electronic,
+                        lang.music_menu_classical,
+                        lang.music_menu_salsa,
+                        lang.music_menu_reggae,
+                        lang.music_go_back,
+                    ];
+                    
+                    for (i, opt) in options.iter().enumerate() {
+                        if i == 7 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
+                        
+                        if i == self.music_cursor {
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                        } else {
+                            let color = if i == 7 { Color::DarkGray } else { Color::White };
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
+                        }
+                    }
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)

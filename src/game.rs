@@ -61,6 +61,7 @@ impl Hangman {
         self.attempts_left == 0
     }
 
+    #[allow(dead_code)]
     pub fn display_word(&self) -> String {
         self.word
             .chars()
@@ -91,6 +92,10 @@ impl Hangman {
 
     pub fn max_attempts(&self) -> usize {
         self.max_attempts
+    }
+
+    pub fn guessed_letters(&self) -> &Vec<char> {
+        &self.guessed_letters
     }
 
     pub fn word(&self) -> &str {

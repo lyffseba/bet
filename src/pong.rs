@@ -142,7 +142,7 @@ impl PongGame {
     }
 
     pub fn move_player(&mut self, up: bool) {
-        let speed = 8.0;
+        let speed = 16.0;
         if up {
             self.player_y += speed;
         } else {
