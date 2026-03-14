@@ -67,6 +67,7 @@ pub enum AppState {
     PlayingTicTacToe,
     PlayingChess,
     PlayingPong,
+    MovieRecommendation(String),
     DiscordQr,
     EasterEgg,
 }
@@ -130,6 +131,8 @@ impl App {
             || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
         let wants_pong = exec_name.contains("pong")
             || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
+        let wants_movie = exec_name.contains("movie")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -143,6 +146,9 @@ impl App {
         } else if wants_pong {
             self.select_language(Language::English);
             self.start_pong();
+        } else if wants_movie {
+            self.select_language(Language::English);
+            self.show_movie_recommendation();
         }
     }
 
@@ -222,7 +228,8 @@ impl App {
                                 KeyCode::Char('2') => self.start_tictactoe(),
                                 KeyCode::Char('3') => self.start_chess(),
                                 KeyCode::Char('4') => self.start_pong(),
-                                KeyCode::Char('5') | KeyCode::Esc => {
+                                KeyCode::Char('5') => self.show_movie_recommendation(),
+                                KeyCode::Char('6') | KeyCode::Esc => {
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -347,6 +354,13 @@ impl App {
                                         self.start_pong();
                                     }
                                 }
+                            },
+                            AppState::MovieRecommendation(_) => {
+                                if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                    self.show_movie_recommendation();
+                                } else if key.code == KeyCode::Esc {
+                                    self.state = AppState::GameSelection;
+                                }
                             }
                             AppState::GameOver(_) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
@@ -430,6 +444,13 @@ impl App {
     fn start_pong(&mut self) {
         self.pong = Some(PongGame::new());
         self.state = AppState::PlayingPong;
+    }
+
+    fn show_movie_recommendation(&mut self) {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let movie = self.lang.as_ref().map_or("BET", |l| l.movies.choose(&mut rng).unwrap_or(&"BET"));
+        self.state = AppState::MovieRecommendation(movie.to_string());
     }
 
     fn make_guess_hangman(&mut self, letter: char) {
@@ -527,6 +548,7 @@ impl App {
                         Line::from(lang.menu_tictactoe),
                         Line::from(lang.menu_chess),
                         Line::from(lang.menu_pong),
+                        Line::from(lang.menu_movie),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
@@ -1018,6 +1040,38 @@ impl App {
                     f.render_widget(p, rect);
                 }
             }
+            AppState::MovieRecommendation(ref movie) => {
+                if let Some(lang) = &self.lang {
+                    let rect = centered_rect(60, 30, area);
+                    
+                    let text = vec![
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            lang.movie_subtitle,
+                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            movie.as_str(),
+                            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            "Press Enter for another, or ESC to go back.",
+                            Style::default().fg(Color::DarkGray),
+                        )]),
+                    ];
+
+                    let p = Paragraph::new(text)
+                        .alignment(Alignment::Center)
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.movie_title));
+                    
+                    f.render_widget(Clear, rect);
+                    f.render_widget(p, rect);
+                }
+            },
             AppState::DiscordQr => {
                 let rect = centered_rect(80, 80, area);
 
