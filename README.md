@@ -50,6 +50,14 @@ Start bet simply by running:
 bet
 ```
 
+You can also jump directly into a game using the installed aliases (or by passing arguments like `bet hangman`):
+
+```bash
+hangman
+# or
+tictactoe
+```
+
 1. **Select your language:** Press `1-5` to choose from the startup menu.
 2. **Select your game:** Press `1` for Hangman or `2` for Tic-Tac-Toe.
 3. **Hangman:** Press any alphabetic key to make a guess before the timer hits 0.0s!

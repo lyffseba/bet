@@ -14,12 +14,17 @@ clean:
 install: build
 	install -d ~/.local/bin
 	install -m 755 target/release/bet ~/.local/bin/
+	ln -sf ~/.local/bin/bet ~/.local/bin/hangman
+	ln -sf ~/.local/bin/bet ~/.local/bin/tictactoe
 
 install-system: build
+	install -d /usr/local/bin
 	install -m 755 target/release/bet /usr/local/bin/
+	ln -sf /usr/local/bin/bet /usr/local/bin/hangman
+	ln -sf /usr/local/bin/bet /usr/local/bin/tictactoe
 
 uninstall:
-	rm -f ~/.local/bin/bet
+	rm -f ~/.local/bin/bet ~/.local/bin/hangman ~/.local/bin/tictactoe
 
 uninstall-system:
-	rm -f /usr/local/bin/bet
+	rm -f /usr/local/bin/bet /usr/local/bin/hangman /usr/local/bin/tictactoe

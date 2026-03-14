@@ -80,7 +80,7 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        Self {
+        let mut app = Self {
             state: AppState::LanguageSelection,
             lang: None,
             game: None,
@@ -91,6 +91,34 @@ impl App {
             should_quit: false,
             error_msg: None,
             easter_egg_buffer: String::new(),
+        };
+        app.parse_args();
+        app
+    }
+
+    fn parse_args(&mut self) {
+        let args: Vec<String> = std::env::args().collect();
+        if args.is_empty() {
+            return;
+        }
+
+        let exec_name = std::path::Path::new(&args[0])
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+
+        let wants_hangman = exec_name.contains("hangman")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "hangman");
+        let wants_tictactoe = exec_name.contains("tictactoe")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "tictactoe");
+
+        if wants_hangman {
+            self.select_language(Language::English);
+            self.start_hangman();
+        } else if wants_tictactoe {
+            self.select_language(Language::English);
+            self.start_tictactoe();
         }
     }
 
