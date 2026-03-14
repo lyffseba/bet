@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub fn get_big_char(c: char) -> [&'static str; 4] {
     match c.to_ascii_uppercase() {
         'A' => [" ██ ", "█  █", "████", "█  █"],

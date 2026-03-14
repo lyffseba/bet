@@ -17,7 +17,7 @@ use crate::lang::{Lang, Language};
 use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
 use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
 use crate::pong::{GameStatus as PongStatus, PongGame};
-use shakmaty::{Square, Role, Color as ChessColor, Position};
+use shakmaty::{Square, Color as ChessColor, Position};
 
 fn is_utf8_supported() -> bool {
     #[cfg(windows)]
@@ -89,6 +89,7 @@ pub enum AppState {
     RecommenderMenu,
     MusicMenu,
     Recommendation(RecommenderCategory, String),
+    Meme(String),
     DiscordQr,
     EasterEgg,
 }
@@ -116,6 +117,12 @@ pub struct App {
     pub ticker_text: Vec<char>,
     pub ticker_pos: f64,
     pub ticker_pause_timer: f64,
+    pub bouncer_x: f64,
+    pub bouncer_y: f64,
+    pub bouncer_dx: f64,
+    pub bouncer_dy: f64,
+    pub bouncer_timer: f64,
+    pub bouncer_active: bool,
     pub ticker_pause_points: Vec<usize>,
 }
 
@@ -148,6 +155,12 @@ impl App {
             ticker_text: Vec::new(),
             ticker_pos: 0.0,
             ticker_pause_timer: 0.0,
+            bouncer_x: 10.0,
+            bouncer_y: 10.0,
+            bouncer_dx: 20.0,
+            bouncer_dy: 12.0,
+            bouncer_timer: 0.0,
+            bouncer_active: false,
             ticker_pause_points: Vec::new(),
         };
         
@@ -588,6 +601,13 @@ impl App {
                                     self.state = AppState::RecommenderMenu;
                                 }
                             }
+                            AppState::Meme(_) => {
+                                if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                    self.show_meme();
+                                } else if key.code == KeyCode::Esc {
+                                    self.state = AppState::GameSelection;
+                                }
+                            }
                             AppState::GameOver(_) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
                                     self.state = AppState::GameSelection;
@@ -641,6 +661,36 @@ impl App {
             && let Some(pong) = &mut self.pong
         {
             pong.update(dt);
+        }
+
+        if self.bouncer_active {
+            self.bouncer_x += self.bouncer_dx * dt;
+            self.bouncer_y += self.bouncer_dy * dt;
+            
+            let term_w = 120.0;
+            let term_h = 24.0; // Estimate
+            
+            if self.bouncer_x <= 0.0 || self.bouncer_x + 35.0 >= term_w {
+                self.bouncer_dx *= -1.0;
+                let max_x = if term_w > 35.0 { term_w - 35.0 } else { 0.0 };
+                self.bouncer_x = self.bouncer_x.clamp(0.0, max_x);
+            }
+            if self.bouncer_y <= 0.0 || self.bouncer_y + 18.0 >= term_h {
+                self.bouncer_dy *= -1.0;
+                let max_y = if term_h > 18.0 { term_h - 18.0 } else { 0.0 };
+                self.bouncer_y = self.bouncer_y.clamp(0.0, max_y);
+            }
+            
+            self.bouncer_timer -= dt;
+            if self.bouncer_timer <= 0.0 {
+                self.bouncer_active = false;
+            }
+        } else {
+            use rand::Rng;
+            if rand::thread_rng().gen_bool(0.001) {
+                self.bouncer_active = true;
+                self.bouncer_timer = 20.0;
+            }
         }
 
         if let AppState::Playing = self.state {
@@ -715,6 +765,17 @@ impl App {
             "BET"
         };
         self.state = AppState::Recommendation(category, item.to_string());
+    }
+
+    fn show_meme(&mut self) {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let item = if let Some(_lang) = &self.lang {
+            crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"BET")
+        } else {
+            crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"BET")
+        };
+        self.state = AppState::Meme(item.to_string());
     }
 
     fn make_guess_hangman(&mut self, letter: char) {
@@ -900,14 +961,14 @@ impl App {
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
-                    let game_area = centered_rect(90, 85, area);
+                    let game_area = centered_rect(70, 24, area);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
                             Constraint::Length(3),  // Title
                             Constraint::Length(10), // Hangman art
-                            Constraint::Length(5),  // Giant Word
+                            Constraint::Length(3),  // Word
                             Constraint::Length(2),  // Guessed
                             Constraint::Length(2),  // Attempts & Time
                             Constraint::Length(2),  // Error msg
@@ -951,32 +1012,21 @@ impl App {
                         layout[1],
                     );
 
-                    // Giant ASCII Word
-                    let mut word_lines = vec![
-                        vec![], vec![], vec![], vec![]
-                    ];
-                    
+                    // Compact, Highly Readable, AAA Word Rendering
+                    let mut word_spans = vec![];
                     for c in game.word().chars() {
                         let is_revealed = c.is_alphabetic() && game.guessed_letters().contains(&c);
-                        let is_alphabetic = c.is_alphabetic();
                         
-                        let display_c = if is_revealed { c } else if is_alphabetic { '_' } else { c };
-                        let big_c = crate::big_text::get_big_char(display_c);
-                        
-                        for i in 0..4 {
-                            let style = if is_revealed {
-                                Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)
-                            } else {
-                                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
-                            };
-                            word_lines[i].push(Span::styled(format!("{} ", big_c[i]), style));
+                        if is_revealed {
+                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().bg(Color::Rgb(180, 255, 50)).fg(Color::Black).add_modifier(Modifier::BOLD)));
+                        } else if c.is_alphabetic() {
+                            word_spans.push(Span::styled(" _ ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                        } else {
+                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)));
                         }
                     }
                     
-                    let mut final_word_text = vec![];
-                    for row in word_lines {
-                        final_word_text.push(Line::from(row));
-                    }
+                    let final_word_text = vec![Line::from(""), Line::from(word_spans), Line::from("")];
                     
                     f.render_widget(
                         Paragraph::new(final_word_text).alignment(Alignment::Center),
@@ -1170,7 +1220,7 @@ impl App {
                         .direction(Direction::Vertical)
                         .constraints([
                             Constraint::Length(3),  // Title
-                            Constraint::Length(20), // Board (larger now, 18 lines + margins)
+                            Constraint::Length(11), // Board
                             Constraint::Length(2),  // Status
                             Constraint::Min(1),     // Instructions
                         ])
@@ -1184,92 +1234,70 @@ impl App {
 
                     // Board
                     let mut board_lines = vec![];
-                    for rank in (0..8).rev() { // 7 down to 0
-                        for row_within_cell in 0..2 {
-                            let mut line_spans = vec![];
+                    for rank in (0..8).rev() { 
+                        let mut line_spans = vec![];
+                        line_spans.push(Span::raw(format!(" {} ", rank + 1))); 
+                        
+                        for file in 0..8 {
+                            let sq = crate::ui::Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
+                            let is_cursor = self.chess_cursor == sq;
+                            let is_selected = self.chess_selected == Some(sq);
                             
-                            // Rank label only on top row of the cell
-                            if row_within_cell == 0 {
-                                line_spans.push(Span::raw(format!(" {} ", rank + 1))); 
-                            } else {
-                                line_spans.push(Span::raw("   ")); 
+                            let mut is_valid_dest = false;
+                            if let Some(sel) = self.chess_selected {
+                                let moves = chess.get_moves_from(sel);
+                                is_valid_dest = moves.iter().any(|m| m.to() == sq);
                             }
-                            
-                            for file in 0..8 {
-                                let sq = Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
-                                let is_cursor = self.chess_cursor == sq;
-                                let is_selected = self.chess_selected == Some(sq);
-                                
-                                // Highlight valid moves
-                                let mut is_valid_dest = false;
-                                if let Some(sel) = self.chess_selected {
-                                    let moves = chess.get_moves_from(sel);
-                                    is_valid_dest = moves.iter().any(|m| m.to() == sq);
-                                }
 
-                                let piece_str = match chess.pos.board().piece_at(sq) {
-                                    Some(piece) => {
-                                        if is_utf8_supported() {
-                                            match (piece.color, piece.role) {
-                                                (ChessColor::White, Role::Pawn) => "♙",
-                                                (ChessColor::White, Role::Knight) => "♘",
-                                                (ChessColor::White, Role::Bishop) => "♗",
-                                                (ChessColor::White, Role::Rook) => "♖",
-                                                (ChessColor::White, Role::Queen) => "♕",
-                                                (ChessColor::White, Role::King) => "♔",
-                                                (ChessColor::Black, Role::Pawn) => "♟",
-                                                (ChessColor::Black, Role::Knight) => "♞",
-                                                (ChessColor::Black, Role::Bishop) => "♝",
-                                                (ChessColor::Black, Role::Rook) => "♜",
-                                                (ChessColor::Black, Role::Queen) => "♛",
-                                                (ChessColor::Black, Role::King) => "♚",
-                                            }
-                                        } else {
-                                            match (piece.color, piece.role) {
-                                                (ChessColor::White, Role::Pawn) => "P",
-                                                (ChessColor::White, Role::Knight) => "N",
-                                                (ChessColor::White, Role::Bishop) => "B",
-                                                (ChessColor::White, Role::Rook) => "R",
-                                                (ChessColor::White, Role::Queen) => "Q",
-                                                (ChessColor::White, Role::King) => "K",
-                                                (ChessColor::Black, Role::Pawn) => "p",
-                                                (ChessColor::Black, Role::Knight) => "n",
-                                                (ChessColor::Black, Role::Bishop) => "b",
-                                                (ChessColor::Black, Role::Rook) => "r",
-                                                (ChessColor::Black, Role::Queen) => "q",
-                                                (ChessColor::Black, Role::King) => "k",
-                                            }
+                            let piece_str = match chess.pos.board().piece_at(sq) {
+                                Some(piece) => {
+                                    if is_utf8_supported() {
+                                        match (piece.color, piece.role) {
+                                            (shakmaty::Color::White, shakmaty::Role::Pawn) => "♙",
+                                            (shakmaty::Color::White, shakmaty::Role::Knight) => "♘",
+                                            (shakmaty::Color::White, shakmaty::Role::Bishop) => "♗",
+                                            (shakmaty::Color::White, shakmaty::Role::Rook) => "♖",
+                                            (shakmaty::Color::White, shakmaty::Role::Queen) => "♕",
+                                            (shakmaty::Color::White, shakmaty::Role::King) => "♔",
+                                            (shakmaty::Color::Black, shakmaty::Role::Pawn) => "♟",
+                                            (shakmaty::Color::Black, shakmaty::Role::Knight) => "♞",
+                                            (shakmaty::Color::Black, shakmaty::Role::Bishop) => "♝",
+                                            (shakmaty::Color::Black, shakmaty::Role::Rook) => "♜",
+                                            (shakmaty::Color::Black, shakmaty::Role::Queen) => "♛",
+                                            (shakmaty::Color::Black, shakmaty::Role::King) => "♚",
                                         }
-                                    },
-                                    None => " ",
-                                };
+                                    } else {
+                                        match (piece.color, piece.role) {
+                                            (shakmaty::Color::White, shakmaty::Role::Pawn) => "P",
+                                            (shakmaty::Color::White, shakmaty::Role::Knight) => "N",
+                                            (shakmaty::Color::White, shakmaty::Role::Bishop) => "B",
+                                            (shakmaty::Color::White, shakmaty::Role::Rook) => "R",
+                                            (shakmaty::Color::White, shakmaty::Role::Queen) => "Q",
+                                            (shakmaty::Color::White, shakmaty::Role::King) => "K",
+                                            (shakmaty::Color::Black, shakmaty::Role::Pawn) => "p",
+                                            (shakmaty::Color::Black, shakmaty::Role::Knight) => "n",
+                                            (shakmaty::Color::Black, shakmaty::Role::Bishop) => "b",
+                                            (shakmaty::Color::Black, shakmaty::Role::Rook) => "r",
+                                            (shakmaty::Color::Black, shakmaty::Role::Queen) => "q",
+                                            (shakmaty::Color::Black, shakmaty::Role::King) => "k",
+                                        }
+                                    }
+                                },
+                                None => " ",
+                            };
 
-                                let mut bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray }; // Escher marble colors
-                                if is_valid_dest {
-                                    bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray };
-                                }
-                                if is_selected {
-                                    bg = Color::Rgb(180, 255, 50); // Neon Yellow Green
-                                }
-                                if is_cursor {
-                                    bg = Color::Rgb(180, 255, 50); // Neon Yellow Green
-                                }
+                            let mut bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray }; 
+                            if is_valid_dest { bg = if (rank + file) % 2 == 1 { Color::Blue } else { Color::LightBlue }; }
+                            if is_selected { bg = Color::Rgb(180, 255, 50); }
+                            if is_cursor { bg = Color::Rgb(180, 255, 50); }
 
-                                // 5 chars wide per cell
-                                let text = if row_within_cell == 0 { format!("  {}  ", piece_str) } else { "     ".to_string() };
-                                let fg = if is_selected || is_cursor {
-                                    Color::Black
-                                } else if piece_str == " " || row_within_cell == 1 { 
-                                    Color::White 
-                                } else {
-                                    Color::Black 
-                                };
-                                line_spans.push(Span::styled(text, Style::default().bg(bg).fg(fg)));
-                            }
-                            board_lines.push(Line::from(line_spans));
+                            let text = format!(" {} ", piece_str);
+                            let fg = Color::Black;
+                            line_spans.push(Span::styled(text, Style::default().bg(bg).fg(fg).add_modifier(Modifier::BOLD)));
                         }
+                        board_lines.push(Line::from(line_spans));
                     }
-                    let file_labels = Line::from("       A    B    C    D    E    F    G    H");
+                    let file_labels = Line::from("    A  B  C  D  E  F  G  H ");
                     board_lines.push(file_labels);
                     
                     f.render_widget(Paragraph::new(board_lines).alignment(Alignment::Center), layout[1]);
@@ -1289,14 +1317,14 @@ impl App {
             }
             AppState::PlayingPong => {
                 if let (Some(lang), Some(pong)) = (&self.lang, &self.pong) {
-                    let rect = centered_rect(80, 60, area);
+                    let rect = centered_rect(65, 24, area);
                     f.render_widget(Clear, rect);
 
                     let layout = ratatui::layout::Layout::default()
                         .direction(ratatui::layout::Direction::Vertical)
                         .constraints([
                             ratatui::layout::Constraint::Length(3),  // Title and Score
-                            ratatui::layout::Constraint::Min(20),    // Canvas
+                            ratatui::layout::Constraint::Min(12),    // Canvas
                             ratatui::layout::Constraint::Length(2),  // Status/Instructions
                         ])
                         .split(rect);
@@ -1409,7 +1437,7 @@ impl App {
             }
                         AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(75, 80, area);
+                    let rect = centered_rect(65, 24, area);
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
@@ -1455,7 +1483,7 @@ impl App {
             }
             AppState::MusicMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(75, 80, area);
+                    let rect = centered_rect(65, 24, area);
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
@@ -1526,6 +1554,39 @@ impl App {
                         .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title(lang.recommender_title));
                     
                     f.render_widget(Clear, rect);
+                    f.render_widget(p, rect);
+                }
+            }
+            AppState::Meme(ref item) => {
+                if let Some(_lang) = &self.lang {
+                    let rect = centered_rect(60, 20, area);
+                    
+                    let text = vec![
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            "Internet Culture:",
+                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            item.as_str(),
+                            Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            "Press Enter for another, or ESC to go back.",
+                            Style::default().fg(Color::DarkGray),
+                        )]),
+                    ];
+
+                    let p = Paragraph::new(text)
+                        .alignment(Alignment::Center)
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title("MEME GENERATOR"));
+                    
+                    let clear_block = ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
+                    f.render_widget(clear_block, rect);
                     f.render_widget(p, rect);
                 }
             },
@@ -1671,6 +1732,49 @@ LLLLL     Y   F     F    "#
             }
         }
 
+                if self.bouncer_active && area.width > 40 && area.height > 20 {
+            let b_rect = ratatui::layout::Rect {
+                x: self.bouncer_x as u16,
+                y: self.bouncer_y as u16,
+                width: 33,
+                height: 17,
+            };
+            
+            let url = "https://discord.gg/MF6fMFURyC";
+            if let Ok(code) = qrcode::QrCode::new(url) {
+                let colors = code.to_colors();
+                let width = code.width();
+                
+                let mut qr_lines = vec![];
+                qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(" [ DISCORD QR ] ", Style::default().bg(Color::Rgb(180,255,50)).fg(Color::Black).add_modifier(Modifier::BOLD))));
+                
+                for y in (0..width).step_by(2) {
+                    let mut line = String::new();
+                    for x in 0..width {
+                        let top = colors[y * width + x] == qrcode::Color::Dark;
+                        let bottom = if y + 1 < width {
+                            colors[(y + 1) * width + x] == qrcode::Color::Dark
+                        } else {
+                            false
+                        };
+                        let c = match (top, bottom) {
+                            (true, true) => '█',
+                            (true, false) => '▀',
+                            (false, true) => '▄',
+                            (false, false) => ' ',
+                        };
+                        line.push(c);
+                    }
+                    qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(line, Style::default().fg(Color::Rgb(180,255,50)))));
+                }
+                
+                let bouncer_p = Paragraph::new(qr_lines).block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick));
+                let cb = ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
+                f.render_widget(cb, b_rect);
+                f.render_widget(bouncer_p, b_rect);
+            }
+        }
+        
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
             let offset = self.ticker_pos as usize;
