@@ -1,9 +1,8 @@
 use std::io::{self, Write};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use crossterm::{
-    cursor::MoveTo,
-    event::{self, Event, KeyCode},
+    cursor::{MoveTo, Hide, Show},
     execute,
     style::{Print, SetForegroundColor, Color, ResetColor},
     terminal::{self, Clear, ClearType},
@@ -11,13 +10,6 @@ use crossterm::{
 
 use crate::game::{Hangman, GuessError};
 use crate::lang::{Language, Lang};
-
-#[derive(Debug)]
-enum GuessResult {
-    Letter(char),
-    Quit,
-    Timeout,
-}
 
 pub fn clear_screen() -> io::Result<()> {
     let mut stdout = io::stdout();
@@ -70,67 +62,67 @@ fn select_language() -> io::Result<Language> {
 const HANGMAN_ART: [&str; 7] = [
     // Stage 0
     "
-  ┌───┐
-  │   │
-      │
-      │
-      │
-      │
-═══════════",
+  +---+
+  |   |
+      |
+      |
+      |
+      |
+=========",
     // Stage 1
     "
-  ┌───┐
-  │   │
-  O   │
-      │
-      │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+      |
+      |
+      |
+=========",
     // Stage 2
     "
-  ┌───┐
-  │   │
-  O   │
-  │   │
-      │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+  |   |
+      |
+      |
+=========",
     // Stage 3
     "
-  ┌───┐
-  │   │
-  O   │
- /│   │
-      │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+ /|   |
+      |
+      |
+=========",
     // Stage 4
     "
-  ┌───┐
-  │   │
-  O   │
- /│\\  │
-      │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+ /|\\  |
+      |
+      |
+=========",
     // Stage 5
     "
-  ┌───┐
-  │   │
-  O   │
- /│\\  │
- /    │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+ /|\\  |
+ /    |
+      |
+=========",
     // Stage 6
     "
-  ┌───┐
-  │   │
-  O   │
- /│\\  │
- / \\  │
-      │
-═══════════",
+  +---+
+  |   |
+  O   |
+ /|\\  |
+ / \\  |
+      |
+=========",
 ];
 
 pub fn draw_hangman(attempts_left: usize, max_attempts: usize) -> io::Result<()> {
@@ -167,7 +159,7 @@ fn draw_hangman_with_delay(
     }
 }
 
-pub fn draw_game_state(game: &Hangman, lang: &Lang, timer_seconds: Option<u64>) -> io::Result<()> {
+pub fn draw_game_state(game: &Hangman, lang: &Lang) -> io::Result<()> {
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
@@ -193,17 +185,8 @@ pub fn draw_game_state(game: &Hangman, lang: &Lang, timer_seconds: Option<u64>) 
         SetForegroundColor(Color::Red),
         Print(game.attempts_left()),
         ResetColor,
+        Print("\n\n")
     )?;
-    if let Some(sec) = timer_seconds {
-        execute!(
-            stdout,
-            Print("\n\n"),
-            SetForegroundColor(Color::Yellow),
-            Print(format!("Time left: {}s", sec)),
-            ResetColor,
-        )?;
-    }
-    execute!(stdout, Print("\n\n"))?;
     Ok(())
 }
 
@@ -233,116 +216,11 @@ fn get_guess(lang: &Lang) -> io::Result<Option<char>> {
     Ok(Some('\0')) // invalid
 }
 
-fn get_guess_with_timeout(_lang: &Lang, timeout_seconds: u64) -> io::Result<GuessResult> {
-    let mut stdout = io::stdout();
-    let mut remaining = timeout_seconds;
-    let mut input = String::new();
-    // Print initial prompt
-    let color = if remaining <= 3 { Color::Red } else if remaining <= 10 { Color::Yellow } else { Color::White };
-    execute!(
-        stdout,
-        SetForegroundColor(color),
-        Print(format!("Enter a letter (time left: {}s): ", remaining)),
-        ResetColor,
-    )?;
-    stdout.flush()?;
-    let start = Instant::now();
-    loop {
-        // Calculate remaining time
-        let elapsed = start.elapsed().as_secs();
-        if elapsed >= timeout_seconds {
-            // Timeout
-                        execute!(stdout, Print("\r\n"))?;
-            return Ok(GuessResult::Timeout);
-        }
-        let new_remaining = timeout_seconds - elapsed;
-        if new_remaining != remaining {
-            remaining = new_remaining;
-            // Update prompt on same line
-            let color = if remaining <= 3 { Color::Red } else if remaining <= 10 { Color::Yellow } else { Color::White };
-            execute!(
-                stdout,
-                Print("\r"),
-                Clear(ClearType::CurrentLine),
-                SetForegroundColor(color),
-                Print(format!("Enter a letter (time left: {}s): {}", remaining, input)),
-                ResetColor,
-            )?;
-            stdout.flush()?;
-        }
-        // Poll for key event with 1 second timeout
-        if event::poll(Duration::from_secs(1))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char(c) if c.is_alphabetic() => {
-                        input.push(c);
-                        // Echo the character
-                        execute!(stdout, Print(c))?;
-                    }
-                    KeyCode::Backspace => {
-                        if input.pop().is_some() {
-                            // Move cursor back, print space, move back again
-                            execute!(
-                                stdout,
-                                Print("\x08 \x08"),
-                            )?;
-                        }
-                    }
-                    KeyCode::Enter => {
-                        // Process input
-            execute!(stdout, Print("\r\n"))?;
-                        if input.is_empty() {
-                            // No input, treat as timeout? Let's treat as invalid and continue
-                            continue;
-                        }
-                        // Check for quit words
-                        let trimmed = input.trim().to_lowercase();
-                        if trimmed == "salir" || trimmed == "quit" || trimmed == "sair" || trimmed == "q" {
-                            return Ok(GuessResult::Quit);
-                        }
-                        // Find first alphabetic character
-                        for ch in input.chars() {
-                            if ch.is_alphabetic() {
-                                return Ok(GuessResult::Letter(ch));
-                            }
-                        }
-                        // No alphabetic character, clear input and continue
-                        input.clear();
-                        let color = if remaining <= 3 { Color::Red } else if remaining <= 10 { Color::Yellow } else { Color::White };
-                        execute!(
-                            stdout,
-                            Print("\r"),
-                            Clear(ClearType::CurrentLine),
-                            SetForegroundColor(color),
-                            Print(format!("Enter a letter (time left: {}s): ", remaining)),
-                            ResetColor,
-                        )?;
-                        stdout.flush()?;
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-}
-
 pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
-    const TIMEOUT_SECONDS: u64 = 30;
-    let raw_guard = terminal::enable_raw_mode();
-    let raw = raw_guard.is_ok();
-    if !raw {
-        let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            SetForegroundColor(Color::Yellow),
-            Print("Note: Raw mode not available, timer disabled.\n"),
-            ResetColor,
-        )?;
-    }
     let mut previous_attempts_left = game.attempts_left();
     loop {
         // Draw the game state (including hangman)
-        draw_game_state(&game, lang, None)?;
+        draw_game_state(&game, lang)?;
         if game.is_won() {
             let mut stdout = io::stdout();
             execute!(
@@ -369,40 +247,12 @@ pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
             wait_for_enter()?;
             break;
         }
-        let guess_result = if raw {
-            get_guess_with_timeout(lang, TIMEOUT_SECONDS)?
-        } else {
-            // Fallback to line input without timeout
-            match get_guess(lang)? {
-                Some(c) => GuessResult::Letter(c),
-                None => GuessResult::Quit,
+        match get_guess(lang)? {
+            None => break, // quit
+            Some('\0') => {
+                // invalid input, ignore
             }
-        };
-        match guess_result {
-            GuessResult::Quit => break,
-            GuessResult::Timeout => {
-                // Lose an attempt
-                let mut stdout = io::stdout();
-                execute!(
-                    stdout,
-                    SetForegroundColor(Color::Yellow),
-                    Print("Time's up! You lose an attempt.\n"),
-                    ResetColor,
-                )?;
-                wait_for_enter()?;
-                // Lose an attempt
-                game.lose_attempt();
-                let new_attempts_left = game.attempts_left();
-                if new_attempts_left < previous_attempts_left {
-                    draw_hangman_with_delay(
-                        new_attempts_left,
-                        game.max_attempts(),
-                        previous_attempts_left,
-                    )?;
-                    previous_attempts_left = new_attempts_left;
-                }
-            }
-            GuessResult::Letter(letter) => {
+            Some(letter) => {
                 match game.guess(letter) {
                     Ok(true) => {
                         // correct guess, continue
@@ -439,21 +289,16 @@ pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
             }
         }
     }
-    if raw {
-        // raw_guard will disable raw mode when dropped
-    }
     Ok(())
 }
 
 pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
+    let raw_guard = terminal::enable_raw_mode();
+    let raw = raw_guard.is_ok();
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
         stdout,
-        SetForegroundColor(Color::Yellow),
-        Print(lang.word_input_warning),
-        Print("\n\n"),
-        ResetColor,
         SetForegroundColor(Color::Cyan),
         Print(lang.word_input_prompt),
         Print("\n"),
@@ -461,9 +306,16 @@ pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
         Print(lang.word_input_instruction),
         Print("\n"),
     )?;
-    stdout.flush()?;
+    // Hide input only if raw mode enabled
+    if raw {
+        execute!(stdout, Hide)?;
+    }
     let mut word = String::new();
     io::stdin().read_line(&mut word)?;
+    if raw {
+        execute!(stdout, Show)?;
+    }
+    // raw_guard dropped, disabling raw mode if enabled.
     Ok(word.trim().to_string())
 }
 

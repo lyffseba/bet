@@ -10,7 +10,6 @@ A simple, fast, and reliable terminal hangman game written in Rust.
 - Full UI translation (menu, prompts, messages) in selected language
 - Colorful terminal UI with Unicode box‑drawing art
 - Smooth animation: body parts appear with a subtle delay
-- 30‑second timer per guess with visual warnings at 10s and 3s (timeout loses an attempt)
 - Line input: type a letter, see it, then press Enter (allows backspace)
 - Supports accented letters (e.g., é, ñ, á, ã)
 - Lightweight with minimal dependencies (crossterm + rand)
@@ -67,8 +66,8 @@ You will be prompted to select a language (English, Spanish, or Portuguese). The
 ## Multiplayer
 
 When selecting multiplayer mode, Player 1 will be prompted to enter a word.
-A warning will ask Player 2 to look away, and the word will be visible as it is typed.
-After entering the word, Player 2 can start guessing.
+The word will not be displayed (hidden input). After entering the word,
+Player 2 can start guessing.
 
 ## License
 
