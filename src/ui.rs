@@ -314,7 +314,7 @@ impl App {
             AppState::DiscordQr => {
                 let rect = centered_rect(80, 80, area);
                 
-                let url = "https://discord.gg/bet-games";
+                let url = "https://discord.gg/MF6fMFURyC";
                 let code = qrcode::QrCode::new(url).unwrap();
                 let colors = code.to_colors();
                 let width = code.width();
