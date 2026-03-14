@@ -173,3 +173,39 @@ pub const PORTUGUESE_MOVIES: &[&str] = &[
     "Mães Paralelas",
     "O Interior da Noite",
 ];
+
+pub const GERMAN_MOVIES: &[&str] = &[
+    "Der Pate",
+    "Die Verurteilten",
+    "Der Dunkle Ritter",
+    "Pulp Fiction",
+    "Forrest Gump",
+    "Inception",
+    "Matrix",
+    "Interstellar",
+    "Fight Club",
+    "Das Schweigen der Lämmer",
+    "Der Soldat James Ryan",
+    "The Green Mile",
+    "Schindlers Liste",
+    "Departed",
+    "Prestige",
+];
+
+pub const DUTCH_MOVIES: &[&str] = &[
+    "De Peetvader",
+    "De Veroordeelden",
+    "De Donkere Ridder",
+    "Pulp Fiction",
+    "Forrest Gump",
+    "Inception",
+    "Matrix",
+    "Interstellar",
+    "Fight Club",
+    "De Stilte van de Lammeren",
+    "Saving Private Ryan",
+    "The Green Mile",
+    "Schindlers List",
+    "The Departed",
+    "The Prestige",
+];

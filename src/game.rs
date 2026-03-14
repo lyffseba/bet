@@ -96,6 +96,12 @@ impl Hangman {
     pub fn word(&self) -> &str {
         &self.word
     }
+
+    pub fn decrease_attempts(&mut self) {
+        if self.attempts_left > 0 {
+            self.attempts_left -= 1;
+        }
+    }
 }
 
 #[cfg(test)]

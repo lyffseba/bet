@@ -1,371 +1,290 @@
-use std::io::{self, Write};
-use std::thread;
-use std::time::Duration;
-use crossterm::{
-    cursor::{MoveTo, Hide, Show},
-    execute,
-    style::{Print, SetForegroundColor, Color, ResetColor},
-    terminal::{self, Clear, ClearType},
+use std::io;
+use std::time::{Duration, Instant};
+
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::{
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout},
+    style::{Color, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 
-use crate::game::{Hangman, GuessError};
-use crate::lang::{Language, Lang};
+use crate::game::{GuessError, Hangman};
+use crate::lang::{Lang, Language};
 
-pub fn clear_screen() -> io::Result<()> {
-    let mut stdout = io::stdout();
-    execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))
+pub enum AppState {
+    LanguageSelection,
+    Playing,
+    GameOver(bool), // true if won, false if lost
 }
 
-/// Wait for user to press Enter (line input).
-fn wait_for_enter() -> io::Result<()> {
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    Ok(())
+pub struct App {
+    pub state: AppState,
+    pub lang: Option<Lang>,
+    pub game: Option<Hangman>,
+    pub timer: f64,
+    pub last_tick: Instant,
+    pub should_quit: bool,
+    pub error_msg: Option<String>,
 }
 
-fn select_language() -> io::Result<Language> {
-    loop {
-        clear_screen()?;
-        let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            SetForegroundColor(Color::Cyan),
-            Print("SELECT LANGUAGE / SELECCIONE IDIOMA / SELECIONE O IDIOMA\n\n"),
-            ResetColor,
-            Print("1. English\n"),
-            Print("2. Español\n"),
-            Print("3. Português\n\n"),
-            SetForegroundColor(Color::White),
-            Print("Choose option / Elige una opción / Escolha uma opção: "),
-            ResetColor,
-        )?;
-        stdout.flush()?;
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        match input.trim() {
-            "1" => return Ok(Language::English),
-            "2" => return Ok(Language::Spanish),
-            "3" => return Ok(Language::Portuguese),
-            _ => {}
+impl App {
+    pub fn new() -> Self {
+        Self {
+            state: AppState::LanguageSelection,
+            lang: None,
+            game: None,
+            timer: 30.0,
+            last_tick: Instant::now(),
+            should_quit: false,
+            error_msg: None,
         }
     }
-}
 
-/// Hangman ASCII art for each stage (0..6).
-/// Stage 0: empty gallows
-/// Stage 1: head
-/// Stage 2: torso
-/// Stage 3: left arm
-/// Stage 4: right arm
-/// Stage 5: left leg
-/// Stage 6: right leg (game over)
-const HANGMAN_ART: [&str; 7] = [
-    // Stage 0
-    "
-  +---+
-  |   |
-      |
-      |
-      |
-      |
-=========",
-    // Stage 1
-    "
-  +---+
-  |   |
-  O   |
-      |
-      |
-      |
-=========",
-    // Stage 2
-    "
-  +---+
-  |   |
-  O   |
-  |   |
-      |
-      |
-=========",
-    // Stage 3
-    "
-  +---+
-  |   |
-  O   |
- /|   |
-      |
-      |
-=========",
-    // Stage 4
-    "
-  +---+
-  |   |
-  O   |
- /|\\  |
-      |
-      |
-=========",
-    // Stage 5
-    "
-  +---+
-  |   |
-  O   |
- /|\\  |
- /    |
-      |
-=========",
-    // Stage 6
-    "
-  +---+
-  |   |
-  O   |
- /|\\  |
- / \\  |
-      |
-=========",
-];
-
-pub fn draw_hangman(attempts_left: usize, max_attempts: usize) -> io::Result<()> {
-    let mut stdout = io::stdout();
-    let stage = max_attempts - attempts_left;
-    let art = HANGMAN_ART[stage.min(6)];
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Yellow),
-        Print(art),
-        ResetColor,
-        Print("\n\n")
-    )?;
-    Ok(())
-}
-
-/// Draw the hangman with a short delay after drawing a new body part.
-/// Returns true if a new part was drawn (i.e., stage changed).
-fn draw_hangman_with_delay(
-    attempts_left: usize,
-    max_attempts: usize,
-    previous_attempts_left: usize,
-) -> io::Result<bool> {
-    let stage = max_attempts - attempts_left;
-    let prev_stage = max_attempts - previous_attempts_left;
-    if stage > prev_stage {
-        // New body part added: draw with a short delay
-        clear_screen()?;
-        draw_hangman(attempts_left, max_attempts)?;
-        thread::sleep(Duration::from_millis(200));
-        Ok(true)
-    } else {
-        Ok(false)
-    }
-}
-
-pub fn draw_game_state(game: &Hangman, lang: &Lang) -> io::Result<()> {
-    let mut stdout = io::stdout();
-    clear_screen()?;
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Cyan),
-        Print(format!("{}\n\n", lang.title)),
-        ResetColor
-    )?;
-    draw_hangman(game.attempts_left(), game.max_attempts())?;
-    execute!(
-        stdout,
-        Print(lang.word_label),
-        SetForegroundColor(Color::Green),
-        Print(game.display_word()),
-        ResetColor,
-        Print("\n\n"),
-        Print(lang.guessed_label),
-        SetForegroundColor(Color::Magenta),
-        Print(game.display_guessed()),
-        ResetColor,
-        Print("\n\n"),
-        Print(lang.attempts_label),
-        SetForegroundColor(Color::Red),
-        Print(game.attempts_left()),
-        ResetColor,
-        Print("\n\n")
-    )?;
-    Ok(())
-}
-
-/// Get a guess from the user via line input.
-/// Returns Some(letter) if valid, None if user wants to quit.
-fn get_guess(lang: &Lang) -> io::Result<Option<char>> {
-    let mut stdout = io::stdout();
-    execute!(
-        stdout,
-        SetForegroundColor(Color::White),
-        Print(lang.prompt_guess),
-        ResetColor
-    )?;
-    stdout.flush()?;
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    let input = input.trim().to_lowercase();
-    if input == "salir" || input == "quit" || input == "sair" || input == "q" {
-        return Ok(None);
-    }
-    // Find the first alphabetic character
-    for c in input.chars() {
-        if c.is_alphabetic() {
-            return Ok(Some(c));
+    pub fn run<B: Backend>(&mut self, terminal: &mut ratatui::Terminal<B>) -> io::Result<()> {
+        self.last_tick = Instant::now();
+        while !self.should_quit {
+            terminal.draw(|f| self.draw(f))?;
+            self.handle_events()?;
+            self.tick();
         }
+        Ok(())
     }
-    Ok(Some('\0')) // invalid
-}
 
-pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
-    let mut previous_attempts_left = game.attempts_left();
-    loop {
-        // Draw the game state (including hangman)
-        draw_game_state(&game, lang)?;
-        if game.is_won() {
-            let mut stdout = io::stdout();
-            execute!(
-                stdout,
-                SetForegroundColor(Color::Green),
-                Print(format!("{}\n", lang.win_msg)),
-                ResetColor,
-                Print(lang.press_enter),
-            )?;
-            wait_for_enter()?;
-            break;
-        }
-        if game.is_lost() {
-            let mut stdout = io::stdout();
-            execute!(
-                stdout,
-                SetForegroundColor(Color::Red),
-                Print(lang.lose_msg),
-                SetForegroundColor(Color::Yellow),
-                Print(game.word()),
-                ResetColor,
-                Print(format!("\n{}", lang.press_enter)),
-            )?;
-            wait_for_enter()?;
-            break;
-        }
-        match get_guess(lang)? {
-            None => break, // quit
-            Some('\0') => {
-                // invalid input, ignore
-            }
-            Some(letter) => {
-                match game.guess(letter) {
-                    Ok(true) => {
-                        // correct guess, continue
-                    }
-                    Ok(false) => {
-                        // wrong guess: attempts decreased
-                        // Check if a new body part should be drawn with delay
-                        let new_attempts_left = game.attempts_left();
-                        if new_attempts_left < previous_attempts_left {
-                            // Redraw with delay
-                            draw_hangman_with_delay(
-                                new_attempts_left,
-                                game.max_attempts(),
-                                previous_attempts_left,
-                            )?;
-                            previous_attempts_left = new_attempts_left;
+    fn handle_events(&mut self) -> io::Result<()> {
+        let timeout = Duration::from_millis(50);
+        if event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind == event::KeyEventKind::Press {
+                    match self.state {
+                        AppState::LanguageSelection => {
+                            match key.code {
+                                KeyCode::Char('1') => self.start_game(Language::English),
+                                KeyCode::Char('2') => self.start_game(Language::Spanish),
+                                KeyCode::Char('3') => self.start_game(Language::Portuguese),
+                                KeyCode::Char('4') => self.start_game(Language::German),
+                                KeyCode::Char('5') => self.start_game(Language::Dutch),
+                                KeyCode::Esc => self.should_quit = true,
+                                _ => {}
+                            }
+                        }
+                        AppState::Playing => {
+                            if key.code == KeyCode::Esc {
+                                self.should_quit = true;
+                            } else if let KeyCode::Char(c) = key.code {
+                                if c.is_alphabetic() {
+                                    self.make_guess(c);
+                                }
+                            }
+                        }
+                        AppState::GameOver(_) => {
+                            if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
+                                self.state = AppState::LanguageSelection;
+                                self.game = None;
+                                self.lang = None;
+                            }
                         }
                     }
-                    Err(err) => {
-                        let msg = match err {
-                            GuessError::NotLetter => lang.error_not_letter,
-                            GuessError::AlreadyGuessed => lang.error_already_guessed,
-                        };
-                        let mut stdout = io::stdout();
-                        execute!(
-                            stdout,
-                            SetForegroundColor(Color::Yellow),
-                            Print(format!("{}\n", msg)),
-                            ResetColor,
-                        )?;
-                        wait_for_enter()?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn tick(&mut self) {
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_tick).as_secs_f64();
+        self.last_tick = now;
+
+        if let AppState::Playing = self.state {
+            self.timer -= dt;
+            if self.timer <= 0.0 {
+                if let Some(game) = &mut self.game {
+                    game.decrease_attempts();
+                    self.timer = 30.0;
+                    if game.is_lost() {
+                        self.state = AppState::GameOver(false);
                     }
                 }
             }
         }
     }
-    Ok(())
-}
 
-pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
-    let raw_guard = terminal::enable_raw_mode();
-    let raw = raw_guard.is_ok();
-    let mut stdout = io::stdout();
-    clear_screen()?;
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Cyan),
-        Print(lang.word_input_prompt),
-        Print("\n"),
-        ResetColor,
-        Print(lang.word_input_instruction),
-        Print("\n"),
-    )?;
-    // Hide input only if raw mode enabled
-    if raw {
-        execute!(stdout, Hide)?;
+    fn start_game(&mut self, language: Language) {
+        let lang = Lang::from_language(language);
+        let game = Hangman::random(lang.movies);
+        self.lang = Some(lang);
+        self.game = Some(game);
+        self.timer = 30.0;
+        self.error_msg = None;
+        self.state = AppState::Playing;
     }
-    let mut word = String::new();
-    io::stdin().read_line(&mut word)?;
-    if raw {
-        execute!(stdout, Show)?;
-    }
-    // raw_guard dropped, disabling raw mode if enabled.
-    Ok(word.trim().to_string())
-}
 
-pub fn draw_menu(lang: &Lang) -> io::Result<()> {
-    let mut stdout = io::stdout();
-    clear_screen()?;
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Cyan),
-        Print(format!("{}\n\n", lang.title)),
-        ResetColor,
-        Print(format!("{}\n", lang.menu_solo)),
-        Print(format!("{}\n", lang.menu_multi)),
-        Print(format!("{}\n\n", lang.menu_quit)),
-        SetForegroundColor(Color::White),
-        Print(lang.prompt_option),
-        ResetColor,
-    )?;
-    stdout.flush()?;
-    Ok(())
-}
+    fn make_guess(&mut self, letter: char) {
+        let mut won = false;
+        let mut lost = false;
+        let mut err = None;
 
-pub fn run_menu() -> io::Result<()> {
-    let language = select_language()?;
-    let lang = Lang::from_language(language);
-    loop {
-        draw_menu(&lang)?;
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let choice = input.trim();
-        match choice {
-            "1" => {
-                let game = Hangman::random(lang.movies);
-                play_game(game, &lang)?;
+        if let Some(game) = &mut self.game {
+            match game.guess(letter) {
+                Ok(_) => {
+                    won = game.is_won();
+                    lost = game.is_lost();
+                }
+                Err(e) => err = Some(e),
             }
-            "2" => {
-                let word = get_word_from_player(&lang)?;
-                if word.is_empty() {
-                    let game = Hangman::random(lang.movies);
-                    play_game(game, &lang)?;
-                } else {
-                    let game = Hangman::new(&word, 6);
-                    play_game(game, &lang)?;
+        }
+
+        if err.is_none() {
+            self.timer = 30.0;
+            self.error_msg = None;
+            if won {
+                self.state = AppState::GameOver(true);
+            } else if lost {
+                self.state = AppState::GameOver(false);
+            }
+        } else {
+            let lang = self.lang.as_ref().unwrap();
+            self.error_msg = Some(match err.unwrap() {
+                GuessError::NotLetter => lang.error_not_letter.to_string(),
+                GuessError::AlreadyGuessed => lang.error_already_guessed.to_string(),
+            });
+        }
+    }
+
+    fn draw(&self, f: &mut Frame) {
+        let area = f.size();
+
+        match self.state {
+            AppState::LanguageSelection => {
+                let text = vec![
+                    Line::from(vec![Span::styled("Select Language", Style::default().fg(Color::Cyan))]),
+                    Line::from(""),
+                    Line::from("1. English"),
+                    Line::from("2. Español"),
+                    Line::from("3. Português"),
+                    Line::from("4. Deutsch"),
+                    Line::from("5. Nederlands"),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("Press 1-5 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
+                ];
+                let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                    Block::default().borders(Borders::ALL).title("Hangman"),
+                );
+                f.render_widget(p, area);
+            }
+            AppState::Playing => {
+                if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
+                    let layout = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Length(3),  // Title
+                            Constraint::Length(10), // Hangman art
+                            Constraint::Length(2),  // Word
+                            Constraint::Length(2),  // Guessed
+                            Constraint::Length(2),  // Attempts & Time
+                            Constraint::Length(2),  // Error msg
+                            Constraint::Min(1),     // Prompt
+                        ])
+                        .split(area);
+
+                    // Title
+                    f.render_widget(
+                        Paragraph::new(lang.title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan)),
+                        layout[0],
+                    );
+
+                    // Art
+                    let stage = game.max_attempts() - game.attempts_left();
+                    let art = HANGMAN_ART[stage.min(6)];
+                    f.render_widget(
+                        Paragraph::new(art).alignment(Alignment::Center).style(Style::default().fg(Color::Yellow)),
+                        layout[1],
+                    );
+
+                    // Word
+                    let word_text = vec![Line::from(vec![
+                        Span::raw(lang.word_label),
+                        Span::styled(game.display_word(), Style::default().fg(Color::Green)),
+                    ])];
+                    f.render_widget(Paragraph::new(word_text).alignment(Alignment::Center), layout[2]);
+
+                    // Guessed
+                    let guessed_text = vec![Line::from(vec![
+                        Span::raw(lang.guessed_label),
+                        Span::styled(game.display_guessed(), Style::default().fg(Color::Magenta)),
+                    ])];
+                    f.render_widget(Paragraph::new(guessed_text).alignment(Alignment::Center), layout[3]);
+
+                    // Stats (Attempts & Timer)
+                    let stats_text = vec![Line::from(vec![
+                        Span::raw(lang.attempts_label),
+                        Span::styled(game.attempts_left().to_string(), Style::default().fg(Color::Red)),
+                        Span::raw(" | "),
+                        Span::raw(lang.time_left_label),
+                        Span::styled(format!("{:.1}s", self.timer), Style::default().fg(Color::LightCyan)),
+                    ])];
+                    f.render_widget(Paragraph::new(stats_text).alignment(Alignment::Center), layout[4]);
+
+                    // Error msg
+                    if let Some(err) = &self.error_msg {
+                        f.render_widget(
+                            Paragraph::new(err.as_str()).alignment(Alignment::Center).style(Style::default().fg(Color::LightRed)),
+                            layout[5],
+                        );
+                    }
+
+                    // Prompt
+                    f.render_widget(
+                        Paragraph::new(lang.prompt_guess).alignment(Alignment::Center).style(Style::default().fg(Color::White)),
+                        layout[6],
+                    );
                 }
             }
-            "3" | "quit" | "q" => break,
-            _ => {
-                // ignore
+            AppState::GameOver(won) => {
+                if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
+                    let msg = if won {
+                        Span::styled(lang.win_msg, Style::default().fg(Color::Green))
+                    } else {
+                        Span::styled(lang.lose_msg, Style::default().fg(Color::Red))
+                    };
+
+                    let text = vec![
+                        Line::from(msg),
+                        Line::from(""),
+                        Line::from(vec![
+                            Span::raw("Word: "),
+                            Span::styled(game.word(), Style::default().fg(Color::Yellow)),
+                        ]),
+                        Line::from(""),
+                        Line::from(vec![Span::styled(lang.press_enter, Style::default().fg(Color::DarkGray))]),
+                    ];
+
+                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                        Block::default().borders(Borders::ALL).title(lang.title),
+                    );
+                    f.render_widget(p, area);
+                }
             }
         }
     }
-    Ok(())
 }
+
+const HANGMAN_ART: [&str; 7] = [
+    // Stage 0
+    "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========",
+    // Stage 1
+    "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========",
+    // Stage 2
+    "  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========",
+    // Stage 3
+    "  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========",
+    // Stage 4
+    "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========",
+    // Stage 5
+    "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========",
+    // Stage 6
+    "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========",
+];
