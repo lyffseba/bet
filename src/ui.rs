@@ -1476,7 +1476,7 @@ impl App {
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             item.as_str(),
-                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(""),
