@@ -1,7 +1,18 @@
 [package]
-name = "bet"
-version = "0.1.0"
+name = "bet-cli"
+version = "0.1.1"
 edition = "2024"
+description = "A lightning-fast, zero-flicker terminal game hub containing Hangman, Tic-Tac-Toe, and Chess"
+authors = ["lyffseba"]
+license = "MIT"
+repository = "https://github.com/lyffseba/bet"
+readme = "README.md"
+categories = ["games", "command-line-utilities"]
+keywords = ["terminal", "games", "hangman", "tictactoe", "chess"]
+
+[[bin]]
+name = "bet"
+path = "src/main.rs"
 
 [dependencies]
 crossterm = "0.28"

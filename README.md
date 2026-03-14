@@ -23,7 +23,13 @@
 
 ### Using Cargo (Recommended)
 
-If you have Rust installed, you can build and install bet directly from the source:
+If you have Rust installed, you can build and install bet directly from crates.io!
+
+```bash
+cargo install bet-cli
+```
+
+Or install directly from the source:
 
 ```bash
 cargo install --path .
@@ -81,11 +87,18 @@ Pull requests are fully welcome! Feel free to open issues to discuss bugs or new
 Are you a fan of terminal games, Rust, or just looking to vibe with cool developers? Join our official **BET Discord Community**! 
 We've even built a dope **Terminal QR Generator** right into the game—just press `6` on the main menu to scan and join instantly from your CLI. 
 
+Or simply click the link/scan the QR code below:
+
+[![Discord](https://img.shields.io/discord/1339678126786215987?color=7289da&logo=discord&logoColor=white)](https://discord.gg/MF6fMFURyC)  
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://discord.gg/MF6fMFURyC" width="150" height="150" alt="Discord QR" />
+
 Come hang out, bet on your skills, and check out what we're building next! 🚀
 
 ---
-**Created by lyffseba** ✨
+**LYffseba**
 
 ## 📝 License
 
 This project is licensed under the **MIT** License.
+
+*(Note: Having an explicit MIT license guarantees that this project is fully open-source. It provides immense value by allowing other developers, organizations, and package managers (like `cargo`) to freely distribute, modify, and integrate `bet` into their own systems without legal friction or liability concerns!)*
