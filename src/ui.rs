@@ -15,10 +15,24 @@ pub fn clear_screen() -> io::Result<()> {
 }
 
 pub fn wait_for_key() -> io::Result<()> {
-    loop {
-        if let Event::Key(_) = event::read()? {
-            break;
+    if terminal::is_raw_mode_enabled()? {
+        loop {
+            if let Event::Key(_) = event::read()? {
+                break;
+            }
         }
+    } else {
+        // Fallback: press Enter to continue
+        let mut stdout = io::stdout();
+        execute!(
+            stdout,
+            SetForegroundColor(Color::White),
+            Print("Press Enter to continue..."),
+            ResetColor
+        )?;
+        stdout.flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
     }
     Ok(())
 }
@@ -146,7 +160,20 @@ pub fn get_guess() -> io::Result<Option<char>> {
 }
 
 pub fn play_game(mut game: Hangman) -> io::Result<()> {
-    terminal::enable_raw_mode()?;
+    let raw = match terminal::enable_raw_mode() {
+        Ok(_) => true,
+        Err(_) => {
+            // Raw mode not available (e.g., stdin not a TTY)
+            let mut stdout = io::stdout();
+            execute!(
+                stdout,
+                SetForegroundColor(Color::Yellow),
+                Print("Note: Raw mode not available, using line input (Enter after each letter).\n"),
+                ResetColor
+            )?;
+            false
+        }
+    };
     loop {
         draw_game_state(&game)?;
         if game.is_won() {
@@ -202,12 +229,17 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
             }
         }
     }
-    terminal::disable_raw_mode()?;
+    if raw {
+        terminal::disable_raw_mode()?;
+    }
     Ok(())
 }
 
 pub fn get_word_from_player() -> io::Result<String> {
-    terminal::enable_raw_mode()?;
+    let raw = match terminal::enable_raw_mode() {
+        Ok(_) => true,
+        Err(_) => false,
+    };
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
@@ -217,12 +249,16 @@ pub fn get_word_from_player() -> io::Result<String> {
         ResetColor,
         Print("(Type the word and press Enter)\n"),
     )?;
-    // Hide input
-    execute!(stdout, Hide)?;
+    // Hide input only if raw mode enabled
+    if raw {
+        execute!(stdout, Hide)?;
+    }
     let mut word = String::new();
     io::stdin().read_line(&mut word)?;
-    execute!(stdout, Show)?;
-    terminal::disable_raw_mode()?;
+    if raw {
+        execute!(stdout, Show)?;
+        terminal::disable_raw_mode()?;
+    }
     Ok(word.trim().to_string())
 }
 
