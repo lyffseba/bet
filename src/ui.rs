@@ -136,7 +136,8 @@ impl App {
         }
     }
 
-    pub fn run<B: Backend>(&mut self, terminal: &mut ratatui::Terminal<B>) -> io::Result<()> {
+    pub fn run<B: Backend>(&mut self, terminal: &mut ratatui::Terminal<B>) -> io::Result<()> 
+    where std::io::Error: From<<B as Backend>::Error> {
         self.last_tick = Instant::now();
         while !self.should_quit {
             terminal.draw(|f| self.draw(f))?;
@@ -428,7 +429,7 @@ impl App {
     }
 
     fn draw(&self, f: &mut Frame) {
-        let area = f.size();
+        let area = f.area();
 
         match self.state {
             AppState::LanguageSelection => {
