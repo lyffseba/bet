@@ -83,6 +83,7 @@ pub enum AppState {
     PlayingChess,
     PlayingPong,
     RecommenderMenu,
+    MusicMenu,
     Recommendation(RecommenderCategory, String),
     DiscordQr,
     EasterEgg,
@@ -189,7 +190,7 @@ impl App {
         } else if wants_music {
             self.select_language(Language::English);
             // Default to rock for general music command, or they can use the menu
-            self.show_recommendation(RecommenderCategory::MusicRock);
+            self.state = AppState::MusicMenu;
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -407,12 +408,19 @@ impl App {
                                     KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::Book),
                                     KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::Anime),
                                     KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::Cartoon),
-                                    KeyCode::Char('7') => self.show_recommendation(RecommenderCategory::MusicRock),
-                                    KeyCode::Char('8') => self.show_recommendation(RecommenderCategory::MusicHipHop),
-                                    KeyCode::Char('9') => self.show_recommendation(RecommenderCategory::MusicPop),
-                                    KeyCode::Char('a') | KeyCode::Char('A') => self.show_recommendation(RecommenderCategory::MusicElectronic),
-                                    KeyCode::Char('b') | KeyCode::Char('B') => self.show_recommendation(RecommenderCategory::MusicClassical),
-                                    KeyCode::Esc => self.state = AppState::GameSelection,
+                                    KeyCode::Char('7') => self.state = AppState::MusicMenu,
+                                    KeyCode::Char('8') | KeyCode::Esc => self.state = AppState::GameSelection,
+                                    _ => {}
+                                }
+                            }
+                            AppState::MusicMenu => {
+                                match key.code {
+                                    KeyCode::Char('1') => self.show_recommendation(RecommenderCategory::MusicRock),
+                                    KeyCode::Char('2') => self.show_recommendation(RecommenderCategory::MusicHipHop),
+                                    KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::MusicPop),
+                                    KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::MusicElectronic),
+                                    KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::MusicClassical),
+                                    KeyCode::Char('6') | KeyCode::Esc => self.state = AppState::RecommenderMenu,
                                     _ => {}
                                 }
                             }
@@ -1117,9 +1125,9 @@ impl App {
                     f.render_widget(p, rect);
                 }
             }
-            AppState::RecommenderMenu => {
+                        AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(80, 80, area);
+                    let rect = centered_rect(70, 60, area);
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
@@ -1132,21 +1140,53 @@ impl App {
                         ratatui::text::Line::from(lang.recommender_menu_books),
                         ratatui::text::Line::from(lang.recommender_menu_anime),
                         ratatui::text::Line::from(lang.recommender_menu_cartoons),
-                        ratatui::text::Line::from(lang.recommender_menu_music_rock),
-                        ratatui::text::Line::from(lang.recommender_menu_music_hiphop),
-                        ratatui::text::Line::from(lang.recommender_menu_music_pop),
-                        ratatui::text::Line::from(lang.recommender_menu_music_electronic),
-                        ratatui::text::Line::from(lang.recommender_menu_music_classical),
+                        ratatui::text::Line::from(lang.recommender_menu_music),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            "Go Back (ESC)",
+                            lang.recommender_go_back,
                             Style::default().fg(Color::DarkGray),
                         )]),
                     ];
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.recommender_title));
+                        .block(
+                            Block::default()
+                                .borders(ratatui::widgets::Borders::ALL)
+                                .title(lang.recommender_title),
+                        );
+                    f.render_widget(Clear, rect);
+                    f.render_widget(p, rect);
+                }
+            }
+            AppState::MusicMenu => {
+                if let Some(lang) = &self.lang {
+                    let rect = centered_rect(70, 60, area);
+                    let text = vec![
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            lang.recommender_menu_music,
+                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(lang.music_menu_rock),
+                        ratatui::text::Line::from(lang.music_menu_hiphop),
+                        ratatui::text::Line::from(lang.music_menu_pop),
+                        ratatui::text::Line::from(lang.music_menu_electronic),
+                        ratatui::text::Line::from(lang.music_menu_classical),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            lang.music_go_back,
+                            Style::default().fg(Color::DarkGray),
+                        )]),
+                    ];
+
+                    let p = Paragraph::new(text)
+                        .alignment(Alignment::Center)
+                        .block(
+                            Block::default()
+                                .borders(ratatui::widgets::Borders::ALL)
+                                .title(lang.music_menu_title),
+                        );
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
