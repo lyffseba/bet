@@ -316,12 +316,35 @@ impl App {
                 
                 let url = "https://discord.gg/bet-games";
                 let code = qrcode::QrCode::new(url).unwrap();
-                let qr_string = code.render::<char>()
-                    .quiet_zone(false)
-                    .module_dimensions(2, 1)
-                    .light_color(' ')
-                    .dark_color('█')
-                    .build();
+                let colors = code.to_colors();
+                let width = code.width();
+
+                let mut qr_lines = Vec::new();
+                // Add a top and bottom quiet zone using spaces
+                let quiet_line = " ".repeat(width + 4);
+                qr_lines.push(quiet_line.clone());
+                
+                for y in (0..width).step_by(2) {
+                    let mut line = String::from("  "); // Left quiet zone
+                    for x in 0..width {
+                        let top = colors[y * width + x] == qrcode::Color::Dark;
+                        let bottom = if y + 1 < width {
+                            colors[(y + 1) * width + x] == qrcode::Color::Dark
+                        } else {
+                            false
+                        };
+                        let c = match (top, bottom) {
+                            (true, true) => '█',
+                            (true, false) => '▀',
+                            (false, true) => '▄',
+                            (false, false) => ' ',
+                        };
+                        line.push(c);
+                    }
+                    line.push_str("  "); // Right quiet zone
+                    qr_lines.push(line);
+                }
+                qr_lines.push(quiet_line);
 
                 let mut lines = vec![
                     Line::from(vec![Span::styled("Join our Discord group: BET", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
@@ -330,8 +353,9 @@ impl App {
                     Line::from(""),
                 ];
 
-                for line in qr_string.lines() {
-                    lines.push(Line::from(Span::styled(line.to_string(), Style::default().fg(Color::White))));
+                for line in qr_lines {
+                    // Set black background for the QR code so the blocks are always visible
+                    lines.push(Line::from(Span::styled(line, Style::default().fg(Color::White).bg(Color::Black))));
                 }
 
                 lines.push(Line::from(""));
