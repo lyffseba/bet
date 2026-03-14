@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 use crossterm::{
-    cursor::{MoveTo, Hide, Show},
+    cursor::MoveTo,
     event::{self, Event, KeyCode},
     execute,
     style::{Print, SetForegroundColor, Color, ResetColor},
@@ -437,12 +437,14 @@ pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
 }
 
 pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
-    let raw_guard = terminal::enable_raw_mode();
-    let raw = raw_guard.is_ok();
     let mut stdout = io::stdout();
     clear_screen()?;
     execute!(
         stdout,
+        SetForegroundColor(Color::Yellow),
+        Print(lang.word_input_warning),
+        Print("\n\n"),
+        ResetColor,
         SetForegroundColor(Color::Cyan),
         Print(lang.word_input_prompt),
         Print("\n"),
@@ -450,16 +452,9 @@ pub fn get_word_from_player(lang: &Lang) -> io::Result<String> {
         Print(lang.word_input_instruction),
         Print("\n"),
     )?;
-    // Hide input only if raw mode enabled
-    if raw {
-        execute!(stdout, Hide)?;
-    }
+    stdout.flush()?;
     let mut word = String::new();
     io::stdin().read_line(&mut word)?;
-    if raw {
-        execute!(stdout, Show)?;
-    }
-    // raw_guard dropped, disabling raw mode if enabled.
     Ok(word.trim().to_string())
 }
 
