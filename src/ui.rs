@@ -482,7 +482,7 @@ impl App {
                         Line::from(""),
                         Line::from(lang.menu_hangman),
                         Line::from(lang.menu_tictactoe),
-                        Line::from("3. Chess"),
+                        Line::from(lang.menu_chess),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
@@ -731,15 +731,15 @@ impl App {
                 }
             }
             AppState::PlayingChess => {
-                if let (Some(_lang), Some(chess)) = (&self.lang, &self.chess) {
-                    let rect = centered_rect(80, 80, area);
+                if let (Some(lang), Some(chess)) = (&self.lang, &self.chess) {
+                    let rect = centered_rect(80, 90, area);
                     f.render_widget(Clear, rect);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
                             Constraint::Length(3),  // Title
-                            Constraint::Length(10), // Board
+                            Constraint::Length(20), // Board (larger now, 18 lines + margins)
                             Constraint::Length(2),  // Status
                             Constraint::Min(1),     // Instructions
                         ])
@@ -747,93 +747,114 @@ impl App {
 
                     // Title
                     f.render_widget(
-                        Paragraph::new("CHESS").alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
                     // Board
                     let mut board_lines = vec![];
                     for rank in (0..8).rev() { // 7 down to 0
-                        let mut line_spans = vec![];
-                        line_spans.push(Span::raw(format!("{} ", rank + 1))); // Rank label
-                        
-                        for file in 0..8 {
-                            let sq = Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
-                            let is_cursor = self.chess_cursor == sq;
-                            let is_selected = self.chess_selected == Some(sq);
+                        for row_within_cell in 0..2 {
+                            let mut line_spans = vec![];
                             
-                            // Highlight valid moves
-                            let mut is_valid_dest = false;
-                            if let Some(sel) = self.chess_selected {
-                                let moves = chess.get_moves_from(sel);
-                                is_valid_dest = moves.iter().any(|m| m.to() == sq);
+                            // Rank label only on top row of the cell
+                            if row_within_cell == 0 {
+                                line_spans.push(Span::raw(format!(" {} ", rank + 1))); 
+                            } else {
+                                line_spans.push(Span::raw("   ")); 
                             }
+                            
+                            for file in 0..8 {
+                                let sq = Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
+                                let is_cursor = self.chess_cursor == sq;
+                                let is_selected = self.chess_selected == Some(sq);
+                                
+                                // Highlight valid moves
+                                let mut is_valid_dest = false;
+                                if let Some(sel) = self.chess_selected {
+                                    let moves = chess.get_moves_from(sel);
+                                    is_valid_dest = moves.iter().any(|m| m.to() == sq);
+                                }
 
-                            let piece_str = match chess.pos.board().piece_at(sq) {
-                                Some(piece) => {
-                                    if is_utf8_supported() {
-                                        match (piece.color, piece.role) {
-                                            (ChessColor::White, Role::Pawn) => "♙",
-                                            (ChessColor::White, Role::Knight) => "♘",
-                                            (ChessColor::White, Role::Bishop) => "♗",
-                                            (ChessColor::White, Role::Rook) => "♖",
-                                            (ChessColor::White, Role::Queen) => "♕",
-                                            (ChessColor::White, Role::King) => "♔",
-                                            (ChessColor::Black, Role::Pawn) => "♟",
-                                            (ChessColor::Black, Role::Knight) => "♞",
-                                            (ChessColor::Black, Role::Bishop) => "♝",
-                                            (ChessColor::Black, Role::Rook) => "♜",
-                                            (ChessColor::Black, Role::Queen) => "♛",
-                                            (ChessColor::Black, Role::King) => "♚",
+                                let piece_str = match chess.pos.board().piece_at(sq) {
+                                    Some(piece) => {
+                                        if is_utf8_supported() {
+                                            match (piece.color, piece.role) {
+                                                (ChessColor::White, Role::Pawn) => "♙",
+                                                (ChessColor::White, Role::Knight) => "♘",
+                                                (ChessColor::White, Role::Bishop) => "♗",
+                                                (ChessColor::White, Role::Rook) => "♖",
+                                                (ChessColor::White, Role::Queen) => "♕",
+                                                (ChessColor::White, Role::King) => "♔",
+                                                (ChessColor::Black, Role::Pawn) => "♟",
+                                                (ChessColor::Black, Role::Knight) => "♞",
+                                                (ChessColor::Black, Role::Bishop) => "♝",
+                                                (ChessColor::Black, Role::Rook) => "♜",
+                                                (ChessColor::Black, Role::Queen) => "♛",
+                                                (ChessColor::Black, Role::King) => "♚",
+                                            }
+                                        } else {
+                                            match (piece.color, piece.role) {
+                                                (ChessColor::White, Role::Pawn) => "P",
+                                                (ChessColor::White, Role::Knight) => "N",
+                                                (ChessColor::White, Role::Bishop) => "B",
+                                                (ChessColor::White, Role::Rook) => "R",
+                                                (ChessColor::White, Role::Queen) => "Q",
+                                                (ChessColor::White, Role::King) => "K",
+                                                (ChessColor::Black, Role::Pawn) => "p",
+                                                (ChessColor::Black, Role::Knight) => "n",
+                                                (ChessColor::Black, Role::Bishop) => "b",
+                                                (ChessColor::Black, Role::Rook) => "r",
+                                                (ChessColor::Black, Role::Queen) => "q",
+                                                (ChessColor::Black, Role::King) => "k",
+                                            }
                                         }
-                                    } else {
-                                        match (piece.color, piece.role) {
-                                            (ChessColor::White, Role::Pawn) => "P",
-                                            (ChessColor::White, Role::Knight) => "N",
-                                            (ChessColor::White, Role::Bishop) => "B",
-                                            (ChessColor::White, Role::Rook) => "R",
-                                            (ChessColor::White, Role::Queen) => "Q",
-                                            (ChessColor::White, Role::King) => "K",
-                                            (ChessColor::Black, Role::Pawn) => "p",
-                                            (ChessColor::Black, Role::Knight) => "n",
-                                            (ChessColor::Black, Role::Bishop) => "b",
-                                            (ChessColor::Black, Role::Rook) => "r",
-                                            (ChessColor::Black, Role::Queen) => "q",
-                                            (ChessColor::Black, Role::King) => "k",
-                                        }
-                                    }
-                                },
-                                None => " ",
-                            };
+                                    },
+                                    None => " ",
+                                };
 
-                            let mut bg = if (rank + file) % 2 == 1 { Color::Rgb(181,136,99) } else { Color::Rgb(240,217,181) }; // Wood colors
-                            if is_valid_dest {
-                                bg = if (rank + file) % 2 == 1 { Color::Rgb(100,160,100) } else { Color::Rgb(130,190,130) };
-                            }
-                            if is_selected {
-                                bg = Color::Rgb(200, 200, 100);
-                            }
-                            if is_cursor {
-                                bg = Color::Cyan;
-                            }
+                                let mut bg = if (rank + file) % 2 == 1 { Color::Rgb(181,136,99) } else { Color::Rgb(240,217,181) }; // Wood colors
+                                if is_valid_dest {
+                                    bg = if (rank + file) % 2 == 1 { Color::Rgb(100,160,100) } else { Color::Rgb(130,190,130) };
+                                }
+                                if is_selected {
+                                    bg = Color::Rgb(200, 200, 100);
+                                }
+                                if is_cursor {
+                                    bg = Color::Cyan;
+                                }
 
-                            line_spans.push(Span::styled(format!(" {} ", piece_str), Style::default().bg(bg).fg(if piece_str == " " { Color::White } else { Color::Black })));
+                                // 5 chars wide per cell
+                                let text = if row_within_cell == 0 { format!("  {}  ", piece_str) } else { "     ".to_string() };
+                                let mut fg = Color::Black;
+                                if piece_str == " " || row_within_cell == 1 { 
+                                    fg = Color::White; 
+                                } else {
+                                    // if it's white piece, maybe keep it white on black, or dark on light.
+                                    // By default terminal fonts draw Unicode pieces correctly, but let's force Black.
+                                    fg = Color::Black; 
+                                }
+                                line_spans.push(Span::styled(text, Style::default().bg(bg).fg(fg)));
+                            }
+                            board_lines.push(Line::from(line_spans));
                         }
-                        board_lines.push(Line::from(line_spans));
                     }
-                    let file_labels = Line::from("   A  B  C  D  E  F  G  H");
+                    let file_labels = Line::from("       A    B    C    D    E    F    G    H");
                     board_lines.push(file_labels);
                     
                     f.render_widget(Paragraph::new(board_lines).alignment(Alignment::Center), layout[1]);
 
                     let status_msg = match chess.status {
-                        ChessStatus::Ongoing => "Your turn",
-                        ChessStatus::Win(c) => if c == ChessColor::White { "White wins!" } else { "Black wins!" },
-                        ChessStatus::Stalemate => "Stalemate",
-                        ChessStatus::Draw => "Draw",
+                        ChessStatus::Ongoing => lang.chess_your_turn,
+                        ChessStatus::Win(c) => if c == ChessColor::White { lang.chess_white_wins } else { lang.chess_black_wins },
+                        ChessStatus::Stalemate => lang.chess_stalemate,
+                        ChessStatus::Draw => lang.chess_draw,
                     };
-                    f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center), layout[2]);
-                    f.render_widget(Paragraph::new("Arrow keys to move, Enter to select/move. ESC to go back.").alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
+                    
+                    let instr = if chess.status == ChessStatus::Ongoing { lang.chess_instructions_ongoing } else { lang.chess_instructions_over };
+                    
+                    f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center).style(Style::default().fg(Color::White)), layout[2]);
+                    f.render_widget(Paragraph::new(instr).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
                 }
             }
             AppState::GameOver(won) => {
