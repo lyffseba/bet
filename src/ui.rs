@@ -252,7 +252,7 @@ fn get_guess_with_timeout(_lang: &Lang, timeout_seconds: u64) -> io::Result<Gues
         let elapsed = start.elapsed().as_secs();
         if elapsed >= timeout_seconds {
             // Timeout
-            execute!(stdout, Print("\n"))?;
+                        execute!(stdout, Print("\r\n"))?;
             return Ok(GuessResult::Timeout);
         }
         let new_remaining = timeout_seconds - elapsed;
@@ -290,7 +290,7 @@ fn get_guess_with_timeout(_lang: &Lang, timeout_seconds: u64) -> io::Result<Gues
                     }
                     KeyCode::Enter => {
                         // Process input
-                        execute!(stdout, Print("\n"))?;
+            execute!(stdout, Print("\r\n"))?;
                         if input.is_empty() {
                             // No input, treat as timeout? Let's treat as invalid and continue
                             continue;
@@ -330,6 +330,15 @@ pub fn play_game(mut game: Hangman, lang: &Lang) -> io::Result<()> {
     const TIMEOUT_SECONDS: u64 = 30;
     let raw_guard = terminal::enable_raw_mode();
     let raw = raw_guard.is_ok();
+    if !raw {
+        let mut stdout = io::stdout();
+        execute!(
+            stdout,
+            SetForegroundColor(Color::Yellow),
+            Print("Note: Raw mode not available, timer disabled.\n"),
+            ResetColor,
+        )?;
+    }
     let mut previous_attempts_left = game.attempts_left();
     loop {
         // Draw the game state (including hangman)
