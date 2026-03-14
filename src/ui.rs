@@ -349,7 +349,7 @@ impl App {
                 let mut lines = vec![
                     Line::from(vec![Span::styled("Join our Discord group: BET", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
-                    Line::from(vec![Span::styled("We have hangman and will get more classic games!", Style::default().fg(Color::White))]),
+                    Line::from(vec![Span::styled("Hangman and more classic games incoming!", Style::default().fg(Color::White))]),
                     Line::from(""),
                 ];
 
