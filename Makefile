@@ -26,8 +26,10 @@ install: build
 	ln -sf ~/.local/bin/bet ~/.local/bin/cartoon
 	ln -sf ~/.local/bin/bet ~/.local/bin/videogame
 	ln -sf ~/.local/bin/bet ~/.local/bin/game
+	ln -sf ~/.local/bin/bet ~/.local/bin/meme
 	ln -sf ~/.local/bin/bet ~/.local/bin/videogame
 	ln -sf ~/.local/bin/bet ~/.local/bin/game
+	ln -sf ~/.local/bin/bet ~/.local/bin/meme
 	ln -sf ~/.local/bin/bet ~/.local/bin/recommend
 	ln -sf ~/.local/bin/bet ~/.local/bin/music
 	ln -sf ~/.local/bin/bet ~/.local/bin/salsa
@@ -48,15 +50,17 @@ install-system: build
 	ln -sf /usr/local/bin/bet /usr/local/bin/cartoon
 	ln -sf /usr/local/bin/bet /usr/local/bin/videogame
 	ln -sf /usr/local/bin/bet /usr/local/bin/game
+	ln -sf /usr/local/bin/bet /usr/local/bin/meme
 	ln -sf /usr/local/bin/bet /usr/local/bin/videogame
 	ln -sf /usr/local/bin/bet /usr/local/bin/game
+	ln -sf /usr/local/bin/bet /usr/local/bin/meme
 	ln -sf /usr/local/bin/bet /usr/local/bin/recommend
 	ln -sf /usr/local/bin/bet /usr/local/bin/music
 	ln -sf /usr/local/bin/bet /usr/local/bin/salsa
 	ln -sf /usr/local/bin/bet /usr/local/bin/reggae
 
 uninstall:
-	rm -f ~/.local/bin/bet ~/.local/bin/hangman ~/.local/bin/tictactoe ~/.local/bin/chess ~/.local/bin/pong ~/.local/bin/movie ~/.local/bin/series ~/.local/bin/manga ~/.local/bin/book ~/.local/bin/anime ~/.local/bin/cartoon ~/.local/bin/videogame ~/.local/bin/game ~/.local/bin/recommend ~/.local/bin/music ~/.local/bin/salsa ~/.local/bin/reggae
+	rm -f ~/.local/bin/bet ~/.local/bin/hangman ~/.local/bin/tictactoe ~/.local/bin/chess ~/.local/bin/pong ~/.local/bin/movie ~/.local/bin/series ~/.local/bin/manga ~/.local/bin/book ~/.local/bin/anime ~/.local/bin/cartoon ~/.local/bin/videogame ~/.local/bin/game ~/.local/bin/meme ~/.local/bin/recommend ~/.local/bin/music ~/.local/bin/salsa ~/.local/bin/reggae
 
 uninstall-system:
-	rm -f /usr/local/bin/bet /usr/local/bin/hangman /usr/local/bin/tictactoe /usr/local/bin/chess /usr/local/bin/pong /usr/local/bin/movie /usr/local/bin/series /usr/local/bin/manga /usr/local/bin/book /usr/local/bin/anime /usr/local/bin/cartoon /usr/local/bin/videogame /usr/local/bin/game /usr/local/bin/recommend /usr/local/bin/music /usr/local/bin/salsa /usr/local/bin/reggae
+	rm -f /usr/local/bin/bet /usr/local/bin/hangman /usr/local/bin/tictactoe /usr/local/bin/chess /usr/local/bin/pong /usr/local/bin/movie /usr/local/bin/series /usr/local/bin/manga /usr/local/bin/book /usr/local/bin/anime /usr/local/bin/cartoon /usr/local/bin/videogame /usr/local/bin/game /usr/local/bin/meme /usr/local/bin/recommend /usr/local/bin/music /usr/local/bin/salsa /usr/local/bin/reggae

@@ -75,6 +75,7 @@ pub enum RecommenderCategory {
     MusicSalsa,
     MusicReggae,
     VideoGame,
+    Meme,
 }
 
 pub enum AppState {
@@ -94,6 +95,7 @@ pub enum AppState {
 
 pub struct App {
     pub state: AppState,
+    pub main_menu_meme: &'static str,
     pub lang: Option<Lang>,
     pub language_cursor: usize,
     pub game_cursor: usize,
@@ -121,6 +123,11 @@ impl App {
     pub fn new() -> Self {
         let mut app = Self {
             state: AppState::LanguageSelection,
+            main_menu_meme: {
+                let mut rng = rand::thread_rng();
+                use rand::seq::SliceRandom;
+                crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
+            },
             lang: None,
             language_cursor: 0,
             game_cursor: 0,
@@ -211,6 +218,7 @@ impl App {
         let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
         let wants_music = exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
         let wants_videogame = exec_name.contains("videogame") || exec_name.contains("game") || args.iter().skip(1).any(|a| a.to_lowercase() == "videogame" || a.to_lowercase() == "game");
+        let wants_meme = exec_name.contains("meme") || args.iter().skip(1).any(|a| a.to_lowercase() == "meme");
         let wants_salsa = exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
         let wants_reggae = exec_name.contains("reggae") || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
         let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
@@ -247,7 +255,6 @@ impl App {
             self.show_recommendation(RecommenderCategory::Cartoon);
         } else if wants_music {
             self.select_language(Language::English);
-            // Default to rock for general music command, or they can use the menu
             self.state = AppState::MusicMenu;
         } else if wants_salsa {
             self.select_language(Language::English);
@@ -258,6 +265,9 @@ impl App {
         } else if wants_videogame {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::VideoGame);
+        } else if wants_meme {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Meme);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -699,6 +709,7 @@ impl App {
                 RecommenderCategory::MusicSalsa => lang.music_salsa.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::MusicReggae => lang.music_reggae.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::VideoGame => lang.videogames.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Meme => lang.memes.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"
@@ -834,6 +845,16 @@ impl App {
                     "Press 1-5 to select, 9 for Discord, or ESC to quit",
                     Style::default().fg(Color::DarkGray),
                 )]));
+                
+                text.push(Line::from(""));
+                text.push(Line::from(vec![
+                    Span::styled("MEME:", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+                    Span::raw(" "),
+                    Span::styled(
+                        self.main_menu_meme,
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    )
+                ]));
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
                     .block(Block::default().borders(Borders::ALL).title("bet"));
@@ -886,7 +907,7 @@ impl App {
                         .constraints([
                             Constraint::Length(3),  // Title
                             Constraint::Length(10), // Hangman art
-                            Constraint::Length(2),  // Word
+                            Constraint::Length(5),  // Giant Word
                             Constraint::Length(2),  // Guessed
                             Constraint::Length(2),  // Attempts & Time
                             Constraint::Length(2),  // Error msg
@@ -930,22 +951,35 @@ impl App {
                         layout[1],
                     );
 
-                    // Word
-                    let mut word_spans = vec![Span::raw(lang.word_label)];
+                    // Giant ASCII Word
+                    let mut word_lines = vec![
+                        vec![], vec![], vec![], vec![]
+                    ];
+                    
                     for c in game.word().chars() {
-                        if c.is_alphabetic() {
-                            if game.guessed_letters().contains(&c) {
-                                word_spans.push(Span::styled(format!("{} ", c), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                        let is_revealed = c.is_alphabetic() && game.guessed_letters().contains(&c);
+                        let is_alphabetic = c.is_alphabetic();
+                        
+                        let display_c = if is_revealed { c } else if is_alphabetic { '_' } else { c };
+                        let big_c = crate::big_text::get_big_char(display_c);
+                        
+                        for i in 0..4 {
+                            let style = if is_revealed {
+                                Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)
                             } else {
-                                word_spans.push(Span::styled("_ ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
-                            }
-                        } else {
-                            word_spans.push(Span::styled(format!("{} ", c), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+                            };
+                            word_lines[i].push(Span::styled(format!("{} ", big_c[i]), style));
                         }
                     }
-                    let word_text = vec![Line::from(word_spans)];
+                    
+                    let mut final_word_text = vec![];
+                    for row in word_lines {
+                        final_word_text.push(Line::from(row));
+                    }
+                    
                     f.render_widget(
-                        Paragraph::new(word_text).alignment(Alignment::Center),
+                        Paragraph::new(final_word_text).alignment(Alignment::Center),
                         layout[2],
                     );
 
@@ -1276,7 +1310,7 @@ impl App {
 
                     // Canvas
                     let canvas = Canvas::default()
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL))
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick))
                         .marker(ratatui::symbols::Marker::Braille)
                         .x_bounds([0.0, 100.0])
                         .y_bounds([0.0, 100.0])
@@ -1392,6 +1426,7 @@ impl App {
                         lang.recommender_menu_anime,
                         lang.recommender_menu_cartoons,
                         lang.recommender_menu_videogames,
+                        lang.recommender_menu_memes,
                         lang.recommender_menu_music,
                         lang.recommender_go_back,
                     ];
@@ -1411,7 +1446,7 @@ impl App {
                         .alignment(Alignment::Center)
                         .block(
                             Block::default()
-                                .borders(ratatui::widgets::Borders::ALL)
+                                .borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick)
                                 .title(lang.recommender_title),
                         );
                     f.render_widget(Clear, rect);
@@ -1441,12 +1476,12 @@ impl App {
                     ];
                     
                     for (i, opt) in options.iter().enumerate() {
-                        if i == 7 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
+                        if i == 9 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.music_cursor {
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
-                            let color = if i == 7 { Color::DarkGray } else { Color::White };
+                            let color = if i == 9 { Color::DarkGray } else { Color::White };
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
                         }
                     }
@@ -1455,7 +1490,7 @@ impl App {
                         .alignment(Alignment::Center)
                         .block(
                             Block::default()
-                                .borders(ratatui::widgets::Borders::ALL)
+                                .borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick)
                                 .title(lang.music_menu_title),
                         );
                     f.render_widget(Clear, rect);
@@ -1488,7 +1523,7 @@ impl App {
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.recommender_title));
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title(lang.recommender_title));
                     
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
