@@ -274,7 +274,7 @@ impl App {
                                 KeyCode::Char('3') => self.select_language(Language::Portuguese),
                                 KeyCode::Char('4') => self.select_language(Language::German),
                                 KeyCode::Char('5') => self.select_language(Language::Dutch),
-                                KeyCode::Char('6') => self.state = AppState::DiscordQr,
+                                KeyCode::Char('9') => self.state = AppState::DiscordQr,
                                 KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             },
@@ -591,30 +591,58 @@ impl App {
         match self.state {
             AppState::LanguageSelection => {
                 let rect = centered_rect(80, 80, area);
-                let text = vec![
-                    Line::from(vec![Span::styled(
-                        "Select Language",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    )]),
-                    Line::from(""),
-                    Line::from("1. English"),
-                    Line::from("2. Español"),
-                    Line::from("3. Português"),
-                    Line::from("4. Deutsch"),
-                    Line::from("5. Nederlands"),
-                    Line::from(""),
-                    Line::from(vec![Span::styled(
-                        "6. Join our Discord! (QR)",
-                        Style::default().fg(Color::LightMagenta),
-                    )]),
-                    Line::from(""),
-                    Line::from(vec![Span::styled(
-                        "Press 1-6 to select, or ESC to quit",
-                        Style::default().fg(Color::DarkGray),
-                    )]),
-                ];
+                
+                let ascii_banner = if is_utf8_supported() {
+                    r#"
+██╗  ██╗   ██╗███████╗███████╗    ██████╗ ███████╗████████╗
+██║  ╚██╗ ██╔╝██╔════╝██╔════╝    ██╔══██╗██╔════╝╚══██╔══╝
+██║   ╚████╔╝ █████╗  █████╗      ██████╔╝█████╗     ██║   
+██║    ╚██╔╝  ██╔══╝  ██╔══╝      ██╔══██╗██╔══╝     ██║   
+███████╗██║   ██║     ██║         ██████╔╝███████╗   ██║   
+╚══════╝╚═╝   ╚═╝     ╚═╝         ╚═════╝ ╚══════╝   ╚═╝   "#
+                } else {
+                    r#"
+L       Y   Y FFFFF FFFFF   BBB   EEEEE TTTTT
+L        Y Y  F     F       B  B  E       T  
+L         Y   FFF   FFF     BBB   EEE     T  
+L         Y   F     F       B  B  E       T  
+LLLLL     Y   F     F       BBB   EEEEE   T  "#
+                };
+
+                let mut text = vec![];
+                
+                for line in ascii_banner.lines() {
+                    text.push(Line::from(vec![Span::styled(
+                        line,
+                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    )]));
+                }
+                text.push(Line::from(""));
+                text.push(Line::from(""));
+                
+                text.push(Line::from(vec![Span::styled(
+                    "Select Language",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                )]));
+                text.push(Line::from(""));
+                text.push(Line::from("1. English"));
+                text.push(Line::from("2. Español"));
+                text.push(Line::from("3. Português"));
+                text.push(Line::from("4. Deutsch"));
+                text.push(Line::from("5. Nederlands"));
+                text.push(Line::from(""));
+                text.push(Line::from(""));
+                text.push(Line::from(vec![Span::styled(
+                    "9. Join our Discord! (QR)",
+                    Style::default().fg(Color::LightMagenta),
+                )]));
+                text.push(Line::from(""));
+                text.push(Line::from(vec![Span::styled(
+                    "Press 1-5 to select, 9 for Discord, or ESC to quit",
+                    Style::default().fg(Color::DarkGray),
+                )]));
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
                     .block(Block::default().borders(Borders::ALL).title("bet"));
