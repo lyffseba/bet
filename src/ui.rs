@@ -1,7 +1,8 @@
 use std::io::{self, Write};
+use std::thread;
+use std::time::Duration;
 use crossterm::{
     cursor::{MoveTo, Hide, Show},
-    event::{self, Event, KeyCode, KeyEvent},
     execute,
     style::{Print, SetForegroundColor, Color, ResetColor},
     terminal::{self, Clear, ClearType},
@@ -14,89 +15,119 @@ pub fn clear_screen() -> io::Result<()> {
     execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))
 }
 
-/// Wait for any key press and return the key event.
-fn wait_for_key_event() -> io::Result<KeyEvent> {
-    loop {
-        if let Event::Key(key) = event::read()? {
-            return Ok(key);
-        }
-    }
-}
-
-/// Wait for any key press (ignores the key). Used for "Press any key to continue".
-pub fn wait_for_key() -> io::Result<()> {
-    wait_for_key_event()?;
+/// Wait for user to press Enter (line input).
+fn wait_for_enter() -> io::Result<()> {
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
     Ok(())
 }
 
+/// Hangman ASCII art for each stage (0..6).
+/// Stage 0: empty gallows
+/// Stage 1: head
+/// Stage 2: torso
+/// Stage 3: left arm
+/// Stage 4: right arm
+/// Stage 5: left leg
+/// Stage 6: right leg (game over)
+const HANGMAN_ART: [&str; 7] = [
+    // Stage 0
+    "
+  ┌───┐
+  │   │
+      │
+      │
+      │
+      │
+═══════════",
+    // Stage 1
+    "
+  ┌───┐
+  │   │
+  O   │
+      │
+      │
+      │
+═══════════",
+    // Stage 2
+    "
+  ┌───┐
+  │   │
+  O   │
+  │   │
+      │
+      │
+═══════════",
+    // Stage 3
+    "
+  ┌───┐
+  │   │
+  O   │
+ /│   │
+      │
+      │
+═══════════",
+    // Stage 4
+    "
+  ┌───┐
+  │   │
+  O   │
+ /│\\  │
+      │
+      │
+═══════════",
+    // Stage 5
+    "
+  ┌───┐
+  │   │
+  O   │
+ /│\\  │
+ /    │
+      │
+═══════════",
+    // Stage 6
+    "
+  ┌───┐
+  │   │
+  O   │
+ /│\\  │
+ / \\  │
+      │
+═══════════",
+];
+
 pub fn draw_hangman(attempts_left: usize, max_attempts: usize) -> io::Result<()> {
     let mut stdout = io::stdout();
-    let stage = match max_attempts - attempts_left {
-        0 => "
-  +---+
-  |   |
-      |
-      |
-      |
-      |
-=========",
-        1 => "
-  +---+
-  |   |
-  O   |
-      |
-      |
-      |
-=========",
-        2 => "
-  +---+
-  |   |
-  O   |
-  |   |
-      |
-      |
-=========",
-        3 => "
-  +---+
-  |   |
-  O   |
- /|   |
-      |
-      |
-=========",
-        4 => "
-  +---+
-  |   |
-  O   |
- /|\\  |
-      |
-      |
-=========",
-        5 => "
-  +---+
-  |   |
-  O   |
- /|\\  |
- /    |
-      |
-=========",
-        _ => "
-  +---+
-  |   |
-  O   |
- /|\\  |
- / \\  |
-      |
-=========",
-    };
+    let stage = max_attempts - attempts_left;
+    let art = HANGMAN_ART[stage.min(6)];
     execute!(
         stdout,
         SetForegroundColor(Color::Yellow),
-        Print(stage),
+        Print(art),
         ResetColor,
         Print("\n\n")
     )?;
     Ok(())
+}
+
+/// Draw the hangman with a short delay after drawing a new body part.
+/// Returns true if a new part was drawn (i.e., stage changed).
+fn draw_hangman_with_delay(
+    attempts_left: usize,
+    max_attempts: usize,
+    previous_attempts_left: usize,
+) -> io::Result<bool> {
+    let stage = max_attempts - attempts_left;
+    let prev_stage = max_attempts - previous_attempts_left;
+    if stage > prev_stage {
+        // New body part added: draw with a short delay
+        clear_screen()?;
+        draw_hangman(attempts_left, max_attempts)?;
+        thread::sleep(Duration::from_millis(200));
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 pub fn draw_game_state(game: &Hangman) -> io::Result<()> {
@@ -128,97 +159,36 @@ pub fn draw_game_state(game: &Hangman) -> io::Result<()> {
     Ok(())
 }
 
-/// Read a single key press, returning the character if it's a letter.
-/// Returns None if the user wants to quit (e.g., Esc).
-fn read_single_char() -> io::Result<Option<char>> {
-    let key = wait_for_key_event()?;
-    match key.code {
-        KeyCode::Char(c) if c.is_ascii_alphabetic() => Ok(Some(c)),
-        KeyCode::Esc => Ok(None), // allow Escape to quit
-        _ => Ok(Some('\0')), // ignore other keys (like arrows)
+/// Get a guess from the user via line input.
+/// Returns Some(letter) if valid, None if user wants to quit.
+fn get_guess() -> io::Result<Option<char>> {
+    let mut stdout = io::stdout();
+    execute!(
+        stdout,
+        SetForegroundColor(Color::White),
+        Print("Enter a letter (or 'quit' to exit): "),
+        ResetColor
+    )?;
+    stdout.flush()?;
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let input = input.trim().to_lowercase();
+    if input == "quit" || input == "q" {
+        return Ok(None);
     }
+    // Find the first alphabetic character
+    for c in input.chars() {
+        if c.is_ascii_alphabetic() {
+            return Ok(Some(c));
+        }
+    }
+    Ok(Some('\0')) // invalid
 }
 
 pub fn play_game(mut game: Hangman) -> io::Result<()> {
-    // Use a RAII guard for raw mode to ensure it's always restored.
-    let raw_guard = terminal::enable_raw_mode();
-    let raw = raw_guard.is_ok();
-    if !raw {
-        let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            SetForegroundColor(Color::Yellow),
-            Print("Note: Raw mode not available, using line input (Enter after each letter).\n"),
-            ResetColor
-        )?;
-        // If raw mode failed, we cannot use event-driven input.
-        // Fall back to line-based input (similar to before but with proper cleanup).
-        return play_game_fallback(game);
-    }
-
+    let mut previous_attempts_left = game.attempts_left();
     loop {
-        draw_game_state(&game)?;
-        if game.is_won() {
-            let mut stdout = io::stdout();
-            execute!(
-                stdout,
-                SetForegroundColor(Color::Green),
-                Print("Congratulations! You won!\n"),
-                ResetColor,
-                Print("Press any key to continue..."),
-            )?;
-            wait_for_key()?;
-            break;
-        }
-        if game.is_lost() {
-            let mut stdout = io::stdout();
-            execute!(
-                stdout,
-                SetForegroundColor(Color::Red),
-                Print("Game over! The word was: "),
-                SetForegroundColor(Color::Yellow),
-                Print(game.word()),
-                ResetColor,
-                Print("\nPress any key to continue..."),
-            )?;
-            wait_for_key()?;
-            break;
-        }
-        match read_single_char()? {
-            None => break, // Escape pressed
-            Some('\0') => {
-                // ignore non-letter keys
-            }
-            Some(letter) => {
-                match game.guess(letter) {
-                    Ok(true) => {
-                        // correct guess, continue
-                    }
-                    Ok(false) => {
-                        // wrong guess, attempts decreased
-                    }
-                    Err(msg) => {
-                        let mut stdout = io::stdout();
-                        execute!(
-                            stdout,
-                            SetForegroundColor(Color::Yellow),
-                            Print(format!("{}\n", msg)),
-                            ResetColor,
-                        )?;
-                        wait_for_key()?;
-                    }
-                }
-            }
-        }
-    }
-    // raw_guard will be dropped, disabling raw mode automatically.
-    Ok(())
-}
-
-/// Fallback for when raw mode is not available (e.g., piped input).
-/// Uses line-based input.
-fn play_game_fallback(mut game: Hangman) -> io::Result<()> {
-    loop {
+        // Draw the game state (including hangman)
         draw_game_state(&game)?;
         if game.is_won() {
             let mut stdout = io::stdout();
@@ -229,8 +199,7 @@ fn play_game_fallback(mut game: Hangman) -> io::Result<()> {
                 ResetColor,
                 Print("Press Enter to continue..."),
             )?;
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
+            wait_for_enter()?;
             break;
         }
         if game.is_lost() {
@@ -244,39 +213,42 @@ fn play_game_fallback(mut game: Hangman) -> io::Result<()> {
                 ResetColor,
                 Print("\nPress Enter to continue..."),
             )?;
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
+            wait_for_enter()?;
             break;
         }
-        // Fallback line input
-        let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            SetForegroundColor(Color::White),
-            Print("Enter a letter (or 'quit' to exit): "),
-            ResetColor
-        )?;
-        stdout.flush()?;
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim().to_lowercase();
-        if input == "quit" || input == "q" {
-            break;
-        }
-        if let Some(c) = input.chars().next() {
-            if c.is_ascii_alphabetic() {
-                match game.guess(c) {
-                    Ok(true) => {}
-                    Ok(false) => {}
+        match get_guess()? {
+            None => break, // quit
+            Some('\0') => {
+                // invalid input, ignore
+            }
+            Some(letter) => {
+                match game.guess(letter) {
+                    Ok(true) => {
+                        // correct guess, continue
+                    }
+                    Ok(false) => {
+                        // wrong guess: attempts decreased
+                        // Check if a new body part should be drawn with delay
+                        let new_attempts_left = game.attempts_left();
+                        if new_attempts_left < previous_attempts_left {
+                            // Redraw with delay
+                            draw_hangman_with_delay(
+                                new_attempts_left,
+                                game.max_attempts(),
+                                previous_attempts_left,
+                            )?;
+                            previous_attempts_left = new_attempts_left;
+                        }
+                    }
                     Err(msg) => {
+                        let mut stdout = io::stdout();
                         execute!(
                             stdout,
                             SetForegroundColor(Color::Yellow),
                             Print(format!("{}\n", msg)),
                             ResetColor,
                         )?;
-                        let mut dummy = String::new();
-                        io::stdin().read_line(&mut dummy)?;
+                        wait_for_enter()?;
                     }
                 }
             }
