@@ -626,13 +626,10 @@ impl App {
                 
                 // Basquiat x Escher static stark contrast
                 let colors = [
-                    Color::Yellow,  // Basquiat Crown Yellow
-                    Color::Cyan,
-                    Color::Magenta,
                     Color::White,
-                    Color::Cyan,
-                    Color::Magenta,
-                    Color::Yellow,
+                    Color::Gray,
+                    Color::DarkGray,
+                    Color::Gray,
                 ];
                 
                 for (i, line) in ascii_banner.lines().enumerate() {
@@ -761,7 +758,7 @@ impl App {
                         Span::styled(
                             game.display_word(),
                             Style::default()
-                                .fg(Color::Cyan)
+                                .fg(Color::White)
                                 .add_modifier(Modifier::BOLD),
                         ),
                     ])];
@@ -869,13 +866,13 @@ impl App {
 
                             let mut style = Style::default();
                             if ttt.board[idx] == Cell::Occupied(Player::X) {
-                                style = style.fg(Color::Cyan);
+                                style = style.fg(Color::White);
                             } else if ttt.board[idx] == Cell::Occupied(Player::O) {
-                                style = style.fg(Color::Magenta);
+                                style = style.fg(Color::Gray);
                             }
 
                             if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
-                                style = style.bg(Color::Yellow).fg(Color::Black); // Mango Biche Neon
+                                style = style.bg(Color::White).fg(Color::Black);
                             }
 
                             line_spans.push(Span::styled(cell_str, style));
@@ -903,7 +900,7 @@ impl App {
                         TicTacToeStatus::Win(Player::X) => Span::styled(
                             "You win!",
                             Style::default()
-                                .fg(Color::Cyan)
+                                .fg(Color::White)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         TicTacToeStatus::Win(Player::O) => Span::styled(
@@ -965,7 +962,7 @@ impl App {
 
                     // Title
                     f.render_widget(
-                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
@@ -1033,13 +1030,13 @@ impl App {
 
                                 let mut bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray }; // Escher marble colors
                                 if is_valid_dest {
-                                    bg = if (rank + file) % 2 == 1 { Color::Blue } else { Color::LightBlue };
+                                    bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray };
                                 }
                                 if is_selected {
-                                    bg = Color::Yellow; // Mango Biche Neon
+                                    bg = Color::White;
                                 }
                                 if is_cursor {
-                                    bg = Color::Yellow; // Mango Biche Neon
+                                    bg = Color::Gray;
                                 }
 
                                 // 5 chars wide per cell
@@ -1091,7 +1088,7 @@ impl App {
                     // Title & Score
                     let title = format!("{}  |  {} - {}", lang.pong_title, pong.player_score, pong.computer_score);
                     f.render_widget(
-                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
@@ -1158,7 +1155,7 @@ impl App {
                         Span::styled(
                             lang.win_msg,
                             Style::default()
-                                .fg(Color::Cyan)
+                                .fg(Color::White)
                                 .add_modifier(Modifier::BOLD),
                         )
                     } else {
@@ -1200,7 +1197,7 @@ impl App {
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
-                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(lang.recommender_menu_movies),
@@ -1234,7 +1231,7 @@ impl App {
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
-                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(lang.music_menu_rock),
@@ -1438,8 +1435,8 @@ LLLLL     Y   F     F    "#
 
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
-            // Speed = 15 characters per second, smoothly offset
-            let t = self.start_time.elapsed().as_secs_f64() * 15.0; 
+            // Speed = 8 characters per second, slower, more sobering reading
+            let t = self.start_time.elapsed().as_secs_f64() * 8.0; 
             let offset = (t as usize) % self.ticker_text.len();
             
             let mut display_text = String::with_capacity(ticker_area.width as usize * 2);
@@ -1447,10 +1444,10 @@ LLLLL     Y   F     F    "#
                 display_text.push(self.ticker_text[(offset + i) % self.ticker_text.len()]);
             }
             
-            // No background color, just clean floating yellow text tracking across the bottom
+            // Sober floating gray text tracking across the bottom
             let ticker_p = Paragraph::new(Span::styled(
                 display_text,
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::Gray)
             ));
             f.render_widget(ticker_p, ticker_area);
         }
@@ -1523,20 +1520,13 @@ mod theme_tests {
         Color::Black,
         Color::White,
         Color::Yellow,
-        Color::Cyan,
-        Color::Magenta,
         Color::Red,
         Color::DarkGray,
         Color::Gray,
-        Color::Blue,
-        Color::LightBlue,
-        Color::LightMagenta,
-        Color::LightCyan,
-        Color::LightGreen,
     ];
 
     #[test]
-    fn test_strict_basquiat_escher_theme_compliance() {
+    fn test_strict_sober_theme_compliance() {
         // Ensures that no arbitrary RGB colors or unapproved standard colors
         // leak into the UI drawing across ANY state of the application.
         // This is a 100-year test for design system adherence.
