@@ -1004,3 +1004,26 @@ pub const MUSIC_REGGAE: &[&str] = &[
     "Dennis Brown - Wolf & Leopards",
     "Barrington Levy - Too Experienced",
 ];
+
+pub const POETRY_QUOTES: &[&str] = &[
+    "Tudo vale a pena se a alma não é pequena. - Fernando Pessoa",
+    "O poeta é um fingidor. Finge tão completamente que chega a fingir que é dor a dor que deveras sente. - Fernando Pessoa",
+    "Para ser grande, sê inteiro: nada teu exagera ou exclui. - Fernando Pessoa",
+    "Puedo escribir los versos más tristes esta noche. - Pablo Neruda",
+    "Es tan corto el amor, y es tan largo el olvido. - Pablo Neruda",
+    "Caminante, no hay camino, se hace camino al andar. - Antonio Machado",
+    "Lasciate ogne speranza, voi ch'intrate. - Dante Alighieri",
+    "Amor, ch'a nullo amato amar perdona. - Dante Alighieri",
+    "Nel mezzo del cammin di nostra vita mi ritrovai per una selva oscura. - Dante Alighieri",
+    "Du musst dein Leben ändern. - Rainer Maria Rilke",
+    "Wer spricht von Siegen? Überstehn ist alles. - Rainer Maria Rilke",
+    "Zwei Seelen wohnen, ach! in meiner Brust. - Johann Wolfgang von Goethe",
+    "Enivrez-vous. - Charles Baudelaire",
+    "Le beau est toujours bizarre. - Charles Baudelaire",
+    "L'homme y passe à travers des forêts de symboles. - Charles Baudelaire",
+    "I sound my barbaric yawp over the roofs of the world. - Walt Whitman",
+    "Do I contradict myself? Very well, then I contradict myself, I am large, I contain multitudes. - Walt Whitman",
+    "Hope is the thing with feathers that perches in the soul. - Emily Dickinson",
+    "古池や蛙飛び込む水の音 - Matsuo Bashō",
+    "秋深き隣は何をする人ぞ - Matsuo Bashō",
+];

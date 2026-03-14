@@ -106,6 +106,7 @@ pub struct App {
     pub should_quit: bool,
     pub error_msg: Option<String>,
     pub easter_egg_buffer: String,
+    pub ticker_text: Vec<char>,
 }
 
 impl App {
@@ -125,6 +126,7 @@ impl App {
             should_quit: false,
             error_msg: None,
             easter_egg_buffer: String::new(),
+            ticker_text: (crate::wordlist::POETRY_QUOTES.join("        ✦        ") + "        ✦        ").chars().collect(),
         };
         app.parse_args();
         app
@@ -586,9 +588,15 @@ impl App {
     }
 
     fn draw(&self, f: &mut Frame) {
-        let area = f.area();
-
-
+        let mut area = f.area();
+        
+        let ticker_area = ratatui::layout::Rect {
+            x: 0,
+            y: area.height.saturating_sub(1),
+            width: area.width,
+            height: 1,
+        };
+        area.height = area.height.saturating_sub(1);
 
         match self.state {
             AppState::LanguageSelection => {
@@ -1424,6 +1432,25 @@ LLLLL     Y   F     F    "#
                 f.render_widget(Clear, area);
                 f.render_widget(p, rect);
             }
+        }
+
+        // --- Render the infinite scrolling Poetry / News Ticker ---
+        if !self.ticker_text.is_empty() && ticker_area.width > 0 {
+            // Speed = 12 characters per second
+            let t = self.last_tick.elapsed().as_secs_f64() * 12.0; 
+            let offset = (t as usize) % self.ticker_text.len();
+            
+            let mut display_text = String::with_capacity(ticker_area.width as usize);
+            for i in 0..ticker_area.width as usize {
+                display_text.push(self.ticker_text[(offset + i) % self.ticker_text.len()]);
+            }
+            
+            // Black text on Yellow background (AD/WARNING tape style, fitting Basquiat/Cyberpunk stark colors)
+            let ticker_p = Paragraph::new(Span::styled(
+                display_text,
+                Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)
+            ));
+            f.render_widget(ticker_p, ticker_area);
         }
     }
 }
