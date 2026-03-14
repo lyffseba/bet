@@ -74,6 +74,7 @@ pub enum RecommenderCategory {
     MusicClassical,
     MusicSalsa,
     MusicReggae,
+    VideoGame,
 }
 
 pub enum AppState {
@@ -209,6 +210,7 @@ impl App {
         let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
         let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
         let wants_music = exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
+        let wants_videogame = exec_name.contains("videogame") || exec_name.contains("game") || args.iter().skip(1).any(|a| a.to_lowercase() == "videogame" || a.to_lowercase() == "game");
         let wants_salsa = exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
         let wants_reggae = exec_name.contains("reggae") || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
         let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
@@ -253,6 +255,9 @@ impl App {
         } else if wants_reggae {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::MusicReggae);
+        } else if wants_videogame {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::VideoGame);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -506,27 +511,63 @@ impl App {
                             },
                             AppState::RecommenderMenu => {
                                 match key.code {
-                                    KeyCode::Char('1') => self.show_recommendation(RecommenderCategory::Movie),
-                                    KeyCode::Char('2') => self.show_recommendation(RecommenderCategory::Series),
-                                    KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::Manga),
-                                    KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::Book),
-                                    KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::Anime),
-                                    KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::Cartoon),
-                                    KeyCode::Char('7') => self.state = AppState::MusicMenu,
-                                    KeyCode::Char('8') | KeyCode::Esc => self.state = AppState::GameSelection,
+                                    KeyCode::Up => self.recommender_cursor = self.recommender_cursor.saturating_sub(1),
+                                    KeyCode::Down => {
+                                        if self.recommender_cursor < 8 {
+                                            self.recommender_cursor += 1;
+                                        }
+                                    }
+                                    KeyCode::Enter | KeyCode::Char(' ') => match self.recommender_cursor {
+                                        0 => self.show_recommendation(RecommenderCategory::Movie),
+                                        1 => self.show_recommendation(RecommenderCategory::Series),
+                                        2 => self.show_recommendation(RecommenderCategory::Manga),
+                                        3 => self.show_recommendation(RecommenderCategory::Book),
+                                        4 => self.show_recommendation(RecommenderCategory::Anime),
+                                        5 => self.show_recommendation(RecommenderCategory::Cartoon),
+                                        6 => self.show_recommendation(RecommenderCategory::VideoGame),
+                                        7 => self.state = AppState::MusicMenu,
+                                        8 => self.state = AppState::GameSelection,
+                                        _ => {}
+                                    },
+                                    KeyCode::Char('1') => { self.recommender_cursor = 0; self.show_recommendation(RecommenderCategory::Movie); }
+                                    KeyCode::Char('2') => { self.recommender_cursor = 1; self.show_recommendation(RecommenderCategory::Series); }
+                                    KeyCode::Char('3') => { self.recommender_cursor = 2; self.show_recommendation(RecommenderCategory::Manga); }
+                                    KeyCode::Char('4') => { self.recommender_cursor = 3; self.show_recommendation(RecommenderCategory::Book); }
+                                    KeyCode::Char('5') => { self.recommender_cursor = 4; self.show_recommendation(RecommenderCategory::Anime); }
+                                    KeyCode::Char('6') => { self.recommender_cursor = 5; self.show_recommendation(RecommenderCategory::Cartoon); }
+                                    KeyCode::Char('7') => { self.recommender_cursor = 6; self.show_recommendation(RecommenderCategory::VideoGame); }
+                                    KeyCode::Char('8') => { self.recommender_cursor = 7; self.state = AppState::MusicMenu; }
+                                    KeyCode::Char('9') | KeyCode::Esc => { self.recommender_cursor = 8; self.state = AppState::GameSelection; }
                                     _ => {}
                                 }
                             }
                             AppState::MusicMenu => {
                                 match key.code {
-                                    KeyCode::Char('1') => self.show_recommendation(RecommenderCategory::MusicRock),
-                                    KeyCode::Char('2') => self.show_recommendation(RecommenderCategory::MusicHipHop),
-                                    KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::MusicPop),
-                                    KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::MusicElectronic),
-                                    KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::MusicClassical),
-                                    KeyCode::Char('6') => self.show_recommendation(RecommenderCategory::MusicSalsa),
-                                    KeyCode::Char('7') => self.show_recommendation(RecommenderCategory::MusicReggae),
-                                    KeyCode::Char('8') | KeyCode::Esc => self.state = AppState::RecommenderMenu,
+                                    KeyCode::Up => self.music_cursor = self.music_cursor.saturating_sub(1),
+                                    KeyCode::Down => {
+                                        if self.music_cursor < 7 {
+                                            self.music_cursor += 1;
+                                        }
+                                    }
+                                    KeyCode::Enter | KeyCode::Char(' ') => match self.music_cursor {
+                                        0 => self.show_recommendation(RecommenderCategory::MusicRock),
+                                        1 => self.show_recommendation(RecommenderCategory::MusicHipHop),
+                                        2 => self.show_recommendation(RecommenderCategory::MusicPop),
+                                        3 => self.show_recommendation(RecommenderCategory::MusicElectronic),
+                                        4 => self.show_recommendation(RecommenderCategory::MusicClassical),
+                                        5 => self.show_recommendation(RecommenderCategory::MusicSalsa),
+                                        6 => self.show_recommendation(RecommenderCategory::MusicReggae),
+                                        7 => self.state = AppState::RecommenderMenu,
+                                        _ => {}
+                                    },
+                                    KeyCode::Char('1') => { self.music_cursor = 0; self.show_recommendation(RecommenderCategory::MusicRock); }
+                                    KeyCode::Char('2') => { self.music_cursor = 1; self.show_recommendation(RecommenderCategory::MusicHipHop); }
+                                    KeyCode::Char('3') => { self.music_cursor = 2; self.show_recommendation(RecommenderCategory::MusicPop); }
+                                    KeyCode::Char('4') => { self.music_cursor = 3; self.show_recommendation(RecommenderCategory::MusicElectronic); }
+                                    KeyCode::Char('5') => { self.music_cursor = 4; self.show_recommendation(RecommenderCategory::MusicClassical); }
+                                    KeyCode::Char('6') => { self.music_cursor = 5; self.show_recommendation(RecommenderCategory::MusicSalsa); }
+                                    KeyCode::Char('7') => { self.music_cursor = 6; self.show_recommendation(RecommenderCategory::MusicReggae); }
+                                    KeyCode::Char('8') | KeyCode::Esc => { self.music_cursor = 7; self.state = AppState::RecommenderMenu; }
                                     _ => {}
                                 }
                             }
@@ -657,6 +698,7 @@ impl App {
                 RecommenderCategory::MusicClassical => lang.music_classical.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::MusicSalsa => lang.music_salsa.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::MusicReggae => lang.music_reggae.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::VideoGame => lang.videogames.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"
@@ -1333,7 +1375,7 @@ impl App {
             }
                         AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(75, 70, area);
+                    let rect = centered_rect(75, 80, area);
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
@@ -1349,17 +1391,18 @@ impl App {
                         lang.recommender_menu_books,
                         lang.recommender_menu_anime,
                         lang.recommender_menu_cartoons,
+                        lang.recommender_menu_videogames,
                         lang.recommender_menu_music,
                         lang.recommender_go_back,
                     ];
                     
                     for (i, opt) in options.iter().enumerate() {
-                        if i == 7 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
+                        if i == 8 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.recommender_cursor {
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
-                            let color = if i == 7 { Color::DarkGray } else { Color::White };
+                            let color = if i == 8 { Color::DarkGray } else { Color::White };
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
                         }
                     }
@@ -1377,7 +1420,7 @@ impl App {
             }
             AppState::MusicMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(75, 70, area);
+                    let rect = centered_rect(75, 80, area);
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
