@@ -25,12 +25,12 @@ impl Hangman {
     }
 
     pub fn guess(&mut self, letter: char) -> Result<bool, &str> {
-        let letter = letter.to_ascii_uppercase();
-        if !letter.is_ascii_alphabetic() {
-            return Err("Please enter a letter A-Z");
+        let letter = letter.to_uppercase().next().unwrap(); // get the uppercase char
+        if !letter.is_alphabetic() {
+            return Err("Por favor ingresa una letra");
         }
         if self.guessed_letters.contains(&letter) {
-            return Err("You already guessed that letter");
+            return Err("Ya adivinaste esa letra");
         }
         self.guessed_letters.push(letter);
         if self.word.contains(letter) {
@@ -43,7 +43,7 @@ impl Hangman {
 
     pub fn is_won(&self) -> bool {
         self.word.chars().all(|c| {
-            if c.is_ascii_alphabetic() {
+            if c.is_alphabetic() {
                 self.guessed_letters.contains(&c)
             } else {
                 // Non‑alphabetic characters are always considered "guessed"
@@ -60,7 +60,7 @@ impl Hangman {
         self.word
             .chars()
             .map(|c| {
-                if c.is_ascii_alphabetic() {
+                if c.is_alphabetic() {
                     if self.guessed_letters.contains(&c) {
                         c
                     } else {
@@ -124,5 +124,18 @@ mod tests {
         assert!(!game.is_won());
         game.guess('B').unwrap();
         assert!(game.is_won());
+    }
+
+    #[test]
+    fn test_accented_letters() {
+        let mut game = Hangman::new("café", 6);
+        // The word is stored as uppercase: "CAFÉ"
+        game.guess('c').unwrap(); // should become 'C'
+        game.guess('a').unwrap();
+        game.guess('f').unwrap();
+        game.guess('é').unwrap(); // should become 'É'
+        assert!(game.is_won());
+        // Display should show "CAFÉ"
+        assert_eq!(game.display_word(), "CAFÉ");
     }
 }

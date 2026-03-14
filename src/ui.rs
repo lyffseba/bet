@@ -136,21 +136,21 @@ pub fn draw_game_state(game: &Hangman) -> io::Result<()> {
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("HANGMAN\n\n"),
+        Print("AHORCADO\n\n"),
         ResetColor
     )?;
     draw_hangman(game.attempts_left(), game.max_attempts())?;
     execute!(
         stdout,
-        Print("Word: "),
+        Print("Palabra: "),
         SetForegroundColor(Color::Green),
         Print(game.display_word()),
         ResetColor,
-        Print("\n\nGuessed letters: "),
+        Print("\n\nLetras adivinadas: "),
         SetForegroundColor(Color::Magenta),
         Print(game.display_guessed()),
         ResetColor,
-        Print("\n\nAttempts left: "),
+        Print("\n\nIntentos restantes: "),
         SetForegroundColor(Color::Red),
         Print(game.attempts_left()),
         ResetColor,
@@ -166,14 +166,14 @@ fn get_guess() -> io::Result<Option<char>> {
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("Enter a letter (or 'quit' to exit): "),
+        Print("Ingresa una letra (o 'salir' para salir): "),
         ResetColor
     )?;
     stdout.flush()?;
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim().to_lowercase();
-    if input == "quit" || input == "q" {
+    if input == "salir" || input == "quit" || input == "q" {
         return Ok(None);
     }
     // Find the first alphabetic character
@@ -195,9 +195,9 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
             execute!(
                 stdout,
                 SetForegroundColor(Color::Green),
-                Print("Congratulations! You won!\n"),
+                Print("¡Felicidades! ¡Ganaste!\n"),
                 ResetColor,
-                Print("Press Enter to continue..."),
+                Print("Presiona Enter para continuar..."),
             )?;
             wait_for_enter()?;
             break;
@@ -207,11 +207,11 @@ pub fn play_game(mut game: Hangman) -> io::Result<()> {
             execute!(
                 stdout,
                 SetForegroundColor(Color::Red),
-                Print("Game over! The word was: "),
+                Print("¡Juego terminado! La palabra era: "),
                 SetForegroundColor(Color::Yellow),
                 Print(game.word()),
                 ResetColor,
-                Print("\nPress Enter to continue..."),
+                Print("\nPresiona Enter para continuar..."),
             )?;
             wait_for_enter()?;
             break;
@@ -265,9 +265,9 @@ pub fn get_word_from_player() -> io::Result<String> {
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("Enter the word for the other player to guess (will not be shown):\n"),
+        Print("Ingresa la palabra para que el otro jugador adivine (no se mostrará):\n"),
         ResetColor,
-        Print("(Type the word and press Enter)\n"),
+        Print("(Escribe la palabra y presiona Enter)\n"),
     )?;
     // Hide input only if raw mode enabled
     if raw {
@@ -288,13 +288,13 @@ pub fn draw_menu() -> io::Result<()> {
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
-        Print("HANGMAN GAME\n\n"),
+        Print("AHORCADO\n\n"),
         ResetColor,
-        Print("1. Solo (random movie)\n"),
-        Print("2. Multiplayer (one player sets word)\n"),
-        Print("3. Quit\n\n"),
+        Print("1. Solo (película aleatoria)\n"),
+        Print("2. Multijugador (un jugador pone la palabra)\n"),
+        Print("3. Salir\n\n"),
         SetForegroundColor(Color::White),
-        Print("Choose option: "),
+        Print("Elige una opción: "),
         ResetColor,
     )?;
     stdout.flush()?;
