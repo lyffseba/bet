@@ -46,6 +46,12 @@ impl Hangman {
         }
     }
 
+    pub fn lose_attempt(&mut self) {
+        if self.attempts_left > 0 {
+            self.attempts_left -= 1;
+        }
+    }
+
     pub fn is_won(&self) -> bool {
         self.word.chars().all(|c| {
             if c.is_alphabetic() {
