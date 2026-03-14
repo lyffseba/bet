@@ -40,6 +40,7 @@ pub enum AppState {
     Playing,
     GameOver(bool), // true if won, false if lost
     DiscordQr,
+    EasterEgg,
 }
 
 pub struct App {
@@ -87,7 +88,7 @@ impl App {
                         return Ok(());
                     }
 
-                    if !matches!(self.state, AppState::Playing) {
+                    if !matches!(self.state, AppState::Playing) && !matches!(self.state, AppState::EasterEgg) {
                         if let KeyCode::Char(c) = key.code {
                             self.easter_egg_buffer.push(c);
                             if self.easter_egg_buffer.len() > 50 {
@@ -107,6 +108,8 @@ impl App {
                                 }
                                 
                                 self.easter_egg_buffer.clear();
+                                self.state = AppState::EasterEgg;
+                                return Ok(()); // Avoid falling through to other key handlers
                             }
                         }
                     }
@@ -144,6 +147,9 @@ impl App {
                             if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
                                 self.state = AppState::LanguageSelection;
                             }
+                        }
+                        AppState::EasterEgg => {
+                            self.state = AppState::LanguageSelection;
                         }
                     }
                 }
@@ -398,6 +404,34 @@ impl App {
                     Block::default().borders(Borders::ALL).title("Discord"),
                 );
                 f.render_widget(Clear, rect);
+                f.render_widget(p, rect);
+            }
+            AppState::EasterEgg => {
+                let color = Color::Rgb(230, 235, 240);
+                let art = r#"
+██╗     ██╗   ██╗███████╗███████╗
+██║     ╚██╗ ██╔╝██╔════╝██╔════╝
+██║      ╚████╔╝ █████╗  █████╗  
+██║       ╚██╔╝  ██╔══╝  ██╔══╝  
+███████╗   ██║   ██║     ██║     
+╚══════╝   ╚═╝   ╚═╝     ╚═╝     "#;
+                
+                let lines: Vec<Line> = art.lines()
+                    .skip(1) // Skip empty first line from raw string literal
+                    .map(|l| Line::from(Span::styled(l, Style::default().fg(color).add_modifier(Modifier::BOLD))))
+                    .collect();
+                
+                let mut text = lines;
+                text.push(Line::from(""));
+                text.push(Line::from(Span::styled("Love Yourself And Face FEAR", Style::default().fg(color).add_modifier(Modifier::BOLD))));
+                text.push(Line::from(""));
+                text.push(Line::from(Span::styled("Press any key to return...", Style::default().fg(Color::DarkGray))));
+
+                let p = Paragraph::new(text).alignment(Alignment::Center);
+                
+                // We center it vertically, taking ~12 lines
+                let rect = centered_rect(80, 50, area);
+                f.render_widget(Clear, area);
                 f.render_widget(p, rect);
             }
         }
