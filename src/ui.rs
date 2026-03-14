@@ -121,6 +121,8 @@ impl App {
             || args.iter().skip(1).any(|a| a.to_lowercase() == "hangman");
         let wants_tictactoe = exec_name.contains("tictactoe")
             || args.iter().skip(1).any(|a| a.to_lowercase() == "tictactoe");
+        let wants_chess = exec_name.contains("chess")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -128,6 +130,9 @@ impl App {
         } else if wants_tictactoe {
             self.select_language(Language::English);
             self.start_tictactoe();
+        } else if wants_chess {
+            self.select_language(Language::English);
+            self.start_chess();
         }
     }
 
@@ -826,14 +831,11 @@ impl App {
 
                                 // 5 chars wide per cell
                                 let text = if row_within_cell == 0 { format!("  {}  ", piece_str) } else { "     ".to_string() };
-                                let mut fg = Color::Black;
-                                if piece_str == " " || row_within_cell == 1 { 
-                                    fg = Color::White; 
+                                let fg = if piece_str == " " || row_within_cell == 1 { 
+                                    Color::White 
                                 } else {
-                                    // if it's white piece, maybe keep it white on black, or dark on light.
-                                    // By default terminal fonts draw Unicode pieces correctly, but let's force Black.
-                                    fg = Color::Black; 
-                                }
+                                    Color::Black 
+                                };
                                 line_spans.push(Span::styled(text, Style::default().bg(bg).fg(fg)));
                             }
                             board_lines.push(Line::from(line_spans));
