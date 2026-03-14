@@ -56,6 +56,10 @@ impl PongGame {
             return;
         }
 
+        // Store previous position for Continuous Collision Detection (CCD)
+        let prev_x = self.ball_x;
+        let _prev_y = self.ball_y;
+
         // Move ball
         self.ball_x += self.ball_dx * dt;
         self.ball_y += self.ball_dy * dt;
@@ -73,26 +77,37 @@ impl PongGame {
         let player_x = 5.0;
         let computer_x = 95.0;
 
-        // Player collision
-        if self.ball_x - Self::BALL_R < player_x + Self::PADDLE_W / 2.0
+        // Player collision (CCD: if it was in front of paddle, and now is behind it, AND y is within paddle)
+        // Also keep standard bounding box check for edge cases
+        let crossed_player = prev_x - Self::BALL_R >= player_x + Self::PADDLE_W / 2.0 && self.ball_x - Self::BALL_R <= player_x + Self::PADDLE_W / 2.0;
+        let inside_player_y = self.ball_y > self.player_y - Self::PADDLE_H / 2.0 && self.ball_y < self.player_y + Self::PADDLE_H / 2.0;
+        let bounding_player = self.ball_x - Self::BALL_R < player_x + Self::PADDLE_W / 2.0
             && self.ball_x + Self::BALL_R > player_x - Self::PADDLE_W / 2.0
-            && self.ball_y > self.player_y - Self::PADDLE_H / 2.0
-            && self.ball_y < self.player_y + Self::PADDLE_H / 2.0
-        {
+            && inside_player_y;
+
+        if self.ball_dx < 0.0 && (crossed_player || bounding_player) && inside_player_y {
             self.ball_x = player_x + Self::PADDLE_W / 2.0 + Self::BALL_R;
             self.ball_dx *= -1.1; // Speed up slightly
+            // Cap maximum speed to prevent chaotic physics
+            self.ball_dx = self.ball_dx.clamp(-150.0, 150.0); 
+            
             let diff = self.ball_y - self.player_y;
             self.ball_dy += diff * 2.0; // English (spin)
         }
 
         // Computer collision
-        if self.ball_x + Self::BALL_R > computer_x - Self::PADDLE_W / 2.0
+        let crossed_computer = prev_x + Self::BALL_R <= computer_x - Self::PADDLE_W / 2.0 && self.ball_x + Self::BALL_R >= computer_x - Self::PADDLE_W / 2.0;
+        let inside_computer_y = self.ball_y > self.computer_y - Self::PADDLE_H / 2.0 && self.ball_y < self.computer_y + Self::PADDLE_H / 2.0;
+        let bounding_computer = self.ball_x + Self::BALL_R > computer_x - Self::PADDLE_W / 2.0
             && self.ball_x - Self::BALL_R < computer_x + Self::PADDLE_W / 2.0
-            && self.ball_y > self.computer_y - Self::PADDLE_H / 2.0
-            && self.ball_y < self.computer_y + Self::PADDLE_H / 2.0
-        {
+            && inside_computer_y;
+
+        if self.ball_dx > 0.0 && (crossed_computer || bounding_computer) && inside_computer_y {
             self.ball_x = computer_x - Self::PADDLE_W / 2.0 - Self::BALL_R;
             self.ball_dx *= -1.1;
+            // Cap maximum speed
+            self.ball_dx = self.ball_dx.clamp(-150.0, 150.0);
+            
             let diff = self.ball_y - self.computer_y;
             self.ball_dy += diff * 2.0;
         }
