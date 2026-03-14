@@ -204,19 +204,18 @@ impl App {
                     Line::from(vec![Span::styled("6. Join our Discord! (QR)", Style::default().fg(Color::LightMagenta))]),
                     Line::from(""),
                     Line::from(vec![Span::styled("Press 1-6 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
-                    Line::from(""),
-                    Line::from(""),
-                    Line::from(vec![
-                        Span::styled("///", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                        Span::styled(" L Y F F S E B A ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-                        Span::styled("///", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                    ]),
                 ];
                 let p = Paragraph::new(text).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Hangman"),
                 );
                 f.render_widget(Clear, rect); // Clear background
                 f.render_widget(p, rect);
+
+                // Extremely subtle cursive watermark/easter egg in the bottom right corner
+                let bottom_rect = ratatui::layout::Rect::new(0, area.height.saturating_sub(1), area.width, 1);
+                let watermark = Paragraph::new(Span::styled("𝓁𝓎𝒻𝒻𝓈ℯ𝒷𝒶.𝓍𝓎𝓏", Style::default().fg(Color::Rgb(40, 40, 40)).add_modifier(Modifier::DIM)))
+                    .alignment(Alignment::Right);
+                f.render_widget(watermark, bottom_rect);
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
@@ -367,8 +366,6 @@ impl App {
 
                 lines.push(Line::from(""));
                 lines.push(Line::from(vec![Span::styled("Press ESC or Enter to go back", Style::default().fg(Color::DarkGray))]));
-                lines.push(Line::from(""));
-                lines.push(Line::from(vec![Span::styled("https://lyffseba.xyz/", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM))]));
 
                 let p = Paragraph::new(lines).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Discord"),
