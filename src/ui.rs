@@ -588,20 +588,7 @@ impl App {
     fn draw(&self, f: &mut Frame) {
         let area = f.area();
 
-        // Draw deep cyberpunk/Escher background grid
-        let bg_style = Style::default().bg(Color::Rgb(5, 8, 12)).fg(Color::Rgb(25, 35, 45));
-        let bg_block = Block::default().style(bg_style);
-        
-        let t = self.last_tick.elapsed().as_secs_f64() * 3.0;
-        let offset = (t as usize) % 10;
-        let mut bg_lines = vec![];
-        for i in 0..50 {
-            let row_offset = (i + offset) % 10;
-            let padding = " ".repeat(row_offset);
-            bg_lines.push(Line::from(format!("{}{}", padding, r#" \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ \/\ "#)));
-        }
-        let bg_paragraph = Paragraph::new(bg_lines).block(bg_block);
-        f.render_widget(bg_paragraph, area);
+
 
         match self.state {
             AppState::LanguageSelection => {
@@ -625,20 +612,21 @@ impl App {
   \____/ \____/ \_/    \_/      \____/ \____/   \_/  "#
                 };
 
-                let t = self.last_tick.elapsed().as_secs_f64() * 2.0;
-                let offset = (t.sin() * 2.0).round() as i32;
-
                 let mut text = vec![];
                 
+                // Basquiat x Escher static stark contrast
+                let colors = [
+                    Color::Yellow,  // Basquiat Crown Yellow
+                    Color::Cyan,
+                    Color::Magenta,
+                    Color::White,
+                    Color::Cyan,
+                    Color::Magenta,
+                    Color::Yellow,
+                ];
+                
                 for (i, line) in ascii_banner.lines().enumerate() {
-                    let color = if (i as i32 + offset) % 3 == 0 {
-                        Color::White // Bright diamond white
-                    } else if (i as i32 + offset) % 3 == 1 {
-                        Color::Rgb(200, 240, 255) // Icy diamond blue
-                    } else {
-                        Color::Rgb(170, 170, 190) // Sleek silver
-                    };
-                    
+                    let color = colors[i % colors.len()];
                     text.push(Line::from(vec![Span::styled(
                         line,
                         Style::default().fg(color).add_modifier(Modifier::BOLD),
@@ -668,13 +656,12 @@ impl App {
                 text.push(Line::from(""));
                 text.push(Line::from(vec![Span::styled(
                     "Press 1-5 to select, 9 for Discord, or ESC to quit",
-                    Style::default().fg(Color::Rgb(120, 130, 140)),
+                    Style::default().fg(Color::DarkGray),
                 )]));
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
                     .block(Block::default().borders(Borders::ALL).title("bet"));
-                let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
 
                 let bottom_rect =
@@ -682,7 +669,7 @@ impl App {
                 let watermark = Paragraph::new(Span::styled(
                     "lyffseba.xyz",
                     Style::default()
-                        .fg(Color::Rgb(120, 130, 140))
+                        .fg(Color::DarkGray)
                         .add_modifier(Modifier::DIM),
                 ))
                 .alignment(Alignment::Right);
@@ -707,14 +694,13 @@ impl App {
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
-                            Style::default().fg(Color::Rgb(120, 130, 140)),
+                            Style::default().fg(Color::DarkGray),
                         )]),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
                         .block(Block::default().borders(Borders::ALL).title("bet"));
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             }
@@ -765,7 +751,7 @@ impl App {
                         Span::styled(
                             game.display_word(),
                             Style::default()
-                                .fg(Color::Rgb(200, 240, 255))
+                                .fg(Color::Cyan)
                                 .add_modifier(Modifier::BOLD),
                         ),
                     ])];
@@ -777,7 +763,7 @@ impl App {
                     // Guessed
                     let guessed_text = vec![Line::from(vec![
                         Span::raw(lang.guessed_label),
-                        Span::styled(game.display_guessed(), Style::default().fg(Color::Rgb(170, 170, 190))),
+                        Span::styled(game.display_guessed(), Style::default().fg(Color::White)),
                     ])];
                     f.render_widget(
                         Paragraph::new(guessed_text).alignment(Alignment::Center),
@@ -788,7 +774,7 @@ impl App {
                     let timer_color = if self.timer <= 3.0 {
                         Color::Rgb(255, 100, 150)
                     } else if self.timer <= 10.0 {
-                        Color::Rgb(170, 170, 190)
+                        Color::Yellow
                     } else {
                         Color::White
                     };
@@ -834,8 +820,7 @@ impl App {
             AppState::PlayingTicTacToe => {
                 if let (Some(_lang), Some(ttt)) = (&self.lang, &self.tictactoe) {
                     let rect = centered_rect(70, 70, area);
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
@@ -874,13 +859,13 @@ impl App {
 
                             let mut style = Style::default();
                             if ttt.board[idx] == Cell::Occupied(Player::X) {
-                                style = style.fg(Color::Rgb(170, 170, 190));
+                                style = style.fg(Color::Cyan);
                             } else if ttt.board[idx] == Cell::Occupied(Player::O) {
-                                style = style.fg(Color::Rgb(170, 170, 190));
+                                style = style.fg(Color::Magenta);
                             }
 
                             if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
-                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black); // Mango Biche Neon
+                                style = style.bg(Color::Yellow).fg(Color::Black); // Mango Biche Neon
                             }
 
                             line_spans.push(Span::styled(cell_str, style));
@@ -908,7 +893,7 @@ impl App {
                         TicTacToeStatus::Win(Player::X) => Span::styled(
                             "You win!",
                             Style::default()
-                                .fg(Color::Rgb(200, 240, 255))
+                                .fg(Color::Cyan)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         TicTacToeStatus::Win(Player::O) => Span::styled(
@@ -918,7 +903,7 @@ impl App {
                         TicTacToeStatus::Draw => Span::styled(
                             "Draw!",
                             Style::default()
-                                .fg(Color::Rgb(170, 170, 190))
+                                .fg(Color::White)
                                 .add_modifier(Modifier::BOLD),
                         ),
                     };
@@ -948,7 +933,7 @@ impl App {
                     f.render_widget(
                         Paragraph::new(instructions)
                             .alignment(Alignment::Center)
-                            .style(Style::default().fg(Color::Rgb(120, 130, 140))),
+                            .style(Style::default().fg(Color::DarkGray)),
                         layout[4],
                     );
                 }
@@ -956,8 +941,7 @@ impl App {
             AppState::PlayingChess => {
                 if let (Some(lang), Some(chess)) = (&self.lang, &self.chess) {
                     let rect = centered_rect(80, 90, area);
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
@@ -971,7 +955,7 @@ impl App {
 
                     // Title
                     f.render_widget(
-                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::Rgb(200, 240, 255)).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
@@ -1037,15 +1021,15 @@ impl App {
                                     None => " ",
                                 };
 
-                                let mut bg = if (rank + file) % 2 == 1 { Color::Rgb(40, 50, 60) } else { Color::Rgb(220, 230, 240) }; // Escher marble colors
+                                let mut bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray }; // Escher marble colors
                                 if is_valid_dest {
-                                    bg = if (rank + file) % 2 == 1 { Color::Rgb(100, 150, 200) } else { Color::Rgb(150, 200, 255) };
+                                    bg = if (rank + file) % 2 == 1 { Color::Blue } else { Color::LightBlue };
                                 }
                                 if is_selected {
-                                    bg = Color::Rgb(180, 255, 50); // Mango Biche Neon
+                                    bg = Color::Yellow; // Mango Biche Neon
                                 }
                                 if is_cursor {
-                                    bg = Color::Rgb(180, 255, 50); // Mango Biche Neon
+                                    bg = Color::Yellow; // Mango Biche Neon
                                 }
 
                                 // 5 chars wide per cell
@@ -1077,14 +1061,13 @@ impl App {
                     let instr = if chess.status == ChessStatus::Ongoing { lang.chess_instructions_ongoing } else { lang.chess_instructions_over };
                     
                     f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center).style(Style::default().fg(Color::White)), layout[2]);
-                    f.render_widget(Paragraph::new(instr).alignment(Alignment::Center).style(Style::default().fg(Color::Rgb(120, 130, 140))), layout[3]);
+                    f.render_widget(Paragraph::new(instr).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
                 }
             }
             AppState::PlayingPong => {
                 if let (Some(lang), Some(pong)) = (&self.lang, &self.pong) {
                     let rect = centered_rect(80, 60, area);
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
 
                     let layout = ratatui::layout::Layout::default()
                         .direction(ratatui::layout::Direction::Vertical)
@@ -1098,7 +1081,7 @@ impl App {
                     // Title & Score
                     let title = format!("{}  |  {} - {}", lang.pong_title, pong.player_score, pong.computer_score);
                     f.render_widget(
-                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::Rgb(200, 240, 255)).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
                         layout[0],
                     );
 
@@ -1131,7 +1114,7 @@ impl App {
                                 y: pong.ball_y - 1.0,
                                 width: 2.0,
                                 height: 2.0,
-                                color: Color::Rgb(170, 170, 190),
+                                color: Color::White,
                             });
                             // Center dashed line
                             for i in (0..100).step_by(5) {
@@ -1140,7 +1123,7 @@ impl App {
                                     y: i as f64,
                                     width: 1.0,
                                     height: 2.0,
-                                    color: Color::Rgb(120, 130, 140),
+                                    color: Color::DarkGray,
                                 });
                             }
                         });
@@ -1155,7 +1138,7 @@ impl App {
                     let instr = if pong.status != PongStatus::Ongoing { "Press Enter to play again." } else { "" };
                     let combined = format!("{} {}", msg, instr);
                     
-                    f.render_widget(Paragraph::new(combined).alignment(Alignment::Center).style(Style::default().fg(Color::Rgb(120, 130, 140))), layout[2]);
+                    f.render_widget(Paragraph::new(combined).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[2]);
                 }
             }
             AppState::GameOver(won) => {
@@ -1165,7 +1148,7 @@ impl App {
                         Span::styled(
                             lang.win_msg,
                             Style::default()
-                                .fg(Color::Rgb(200, 240, 255))
+                                .fg(Color::Cyan)
                                 .add_modifier(Modifier::BOLD),
                         )
                     } else {
@@ -1183,22 +1166,21 @@ impl App {
                             Span::styled(
                                 game.word(),
                                 Style::default()
-                                    .fg(Color::Rgb(170, 170, 190))
+                                    .fg(Color::White)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.press_enter,
-                            Style::default().fg(Color::Rgb(120, 130, 140)),
+                            Style::default().fg(Color::DarkGray),
                         )]),
                     ];
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
                         .block(Block::default().borders(Borders::ALL).title(lang.title));
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             }
@@ -1208,7 +1190,7 @@ impl App {
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
-                            Style::default().fg(Color::Rgb(200, 240, 255)).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(lang.recommender_menu_movies),
@@ -1221,7 +1203,7 @@ impl App {
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_go_back,
-                            Style::default().fg(Color::Rgb(120, 130, 140)),
+                            Style::default().fg(Color::DarkGray),
                         )]),
                     ];
 
@@ -1232,8 +1214,7 @@ impl App {
                                 .borders(ratatui::widgets::Borders::ALL)
                                 .title(lang.recommender_title),
                         );
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             }
@@ -1243,7 +1224,7 @@ impl App {
                     let text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
-                            Style::default().fg(Color::Rgb(200, 240, 255)).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(lang.music_menu_rock),
@@ -1256,7 +1237,7 @@ impl App {
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.music_go_back,
-                            Style::default().fg(Color::Rgb(120, 130, 140)),
+                            Style::default().fg(Color::DarkGray),
                         )]),
                     ];
 
@@ -1267,8 +1248,7 @@ impl App {
                                 .borders(ratatui::widgets::Borders::ALL)
                                 .title(lang.music_menu_title),
                         );
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             }
@@ -1280,7 +1260,7 @@ impl App {
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_subtitle,
-                            Style::default().fg(Color::Rgb(120, 130, 140)).add_modifier(Modifier::ITALIC),
+                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(""),
@@ -1292,7 +1272,7 @@ impl App {
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             "Press Enter for another, or ESC to go back.",
-                            Style::default().fg(Color::Rgb(120, 130, 140)),
+                            Style::default().fg(Color::DarkGray),
                         )]),
                     ];
 
@@ -1300,8 +1280,7 @@ impl App {
                         .alignment(Alignment::Center)
                         .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.recommender_title));
                     
-                    let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                    f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             },
@@ -1387,14 +1366,13 @@ impl App {
                 lines.push(Line::from(""));
                 lines.push(Line::from(vec![Span::styled(
                     "Press ESC or Enter to go back",
-                    Style::default().fg(Color::Rgb(120, 130, 140)),
+                    Style::default().fg(Color::DarkGray),
                 )]));
 
                 let p = Paragraph::new(lines)
                     .alignment(Alignment::Center)
                     .block(Block::default().borders(Borders::ALL).title("Discord"));
-                let clear_block = Block::default().style(Style::default().bg(Color::Rgb(5, 8, 12)));
-                    f.render_widget(clear_block, rect);
+                f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
             }
             AppState::EasterEgg => {
@@ -1436,7 +1414,7 @@ LLLLL     Y   F     F    "#
                 text.push(Line::from(""));
                 text.push(Line::from(Span::styled(
                     "Press any key to return...",
-                    Style::default().fg(Color::Rgb(120, 130, 140)),
+                    Style::default().fg(Color::DarkGray),
                 )));
 
                 let p = Paragraph::new(text).alignment(Alignment::Center);
