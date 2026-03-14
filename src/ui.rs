@@ -772,7 +772,7 @@ impl App {
 
                     // Stats (Attempts & Timer)
                     let timer_color = if self.timer <= 3.0 {
-                        Color::Rgb(255, 100, 150)
+                        Color::Red
                     } else if self.timer <= 10.0 {
                         Color::Yellow
                     } else {
@@ -782,7 +782,7 @@ impl App {
                         Span::raw(lang.attempts_label),
                         Span::styled(
                             game.attempts_left().to_string(),
-                            Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ),
                         Span::raw("   |   "),
                         Span::raw(lang.time_left_label),
@@ -803,7 +803,7 @@ impl App {
                         f.render_widget(
                             Paragraph::new(err.as_str())
                                 .alignment(Alignment::Center)
-                                .style(Style::default().fg(Color::Rgb(255, 100, 150))),
+                                .style(Style::default().fg(Color::Red)),
                             layout[5],
                         );
                     }
@@ -898,7 +898,7 @@ impl App {
                         ),
                         TicTacToeStatus::Win(Player::O) => Span::styled(
                             "Computer wins!",
-                            Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ),
                         TicTacToeStatus::Draw => Span::styled(
                             "Draw!",
@@ -1154,7 +1154,7 @@ impl App {
                     } else {
                         Span::styled(
                             lang.lose_msg,
-                            Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD),
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         )
                     };
 
@@ -1376,7 +1376,7 @@ impl App {
                 f.render_widget(p, rect);
             }
             AppState::EasterEgg => {
-                let color = Color::Rgb(230, 235, 240);
+                let color = Color::White;
                 let art = if is_utf8_supported() {
                     r#"
 ██╗     ██╗   ██╗███████╗███████╗
@@ -1479,5 +1479,85 @@ mod tests {
             .skip(app.easter_egg_buffer.chars().count() - 20)
             .collect();
         assert_eq!(app.easter_egg_buffer.len(), 20);
+    }
+}
+
+#[cfg(test)]
+mod theme_tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use ratatui::style::Color;
+
+    const ALLOWED_COLORS: &[Color] = &[
+        Color::Reset,
+        Color::Black,
+        Color::White,
+        Color::Yellow,
+        Color::Cyan,
+        Color::Magenta,
+        Color::Red,
+        Color::DarkGray,
+        Color::Gray,
+        Color::Blue,
+        Color::LightBlue,
+        Color::LightMagenta,
+        Color::LightCyan,
+        Color::LightGreen,
+    ];
+
+    #[test]
+    fn test_strict_basquiat_escher_theme_compliance() {
+        // Ensures that no arbitrary RGB colors or unapproved standard colors
+        // leak into the UI drawing across ANY state of the application.
+        // This is a 100-year test for design system adherence.
+        let backend = TestBackend::new(120, 40); // Standard large terminal
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        let mut app = App::new();
+        app.select_language(Language::English);
+        
+        // Mock active games to test their UIs
+        app.game = Some(crate::game::Hangman::new("TEST", 6));
+        app.tictactoe = Some(crate::tictactoe::TicTacToe::new());
+        app.chess = Some(crate::chess_game::ChessGame::new(false));
+        app.pong = Some(crate::pong::PongGame::new());
+        
+        let test_states = vec![
+            AppState::LanguageSelection,
+            AppState::GameSelection,
+            AppState::RecommenderMenu,
+            AppState::MusicMenu,
+            AppState::Recommendation(RecommenderCategory::Movie, "The Godfather".to_string()),
+            AppState::Playing,
+            AppState::PlayingTicTacToe,
+            AppState::PlayingChess,
+            AppState::PlayingPong,
+            AppState::DiscordQr,
+            AppState::EasterEgg,
+            AppState::GameOver(true),
+            AppState::GameOver(false),
+        ];
+
+        for state in test_states {
+            app.state = state;
+            
+            // Clear backend to avoid carry-over
+            terminal.clear().unwrap();
+
+            terminal.draw(|f| {
+                app.draw(f);
+            }).unwrap();
+
+            let buffer = terminal.backend().buffer();
+            for cell in buffer.content() {
+                if !ALLOWED_COLORS.contains(&cell.fg) {
+                    panic!("Theme violation: Disallowed foreground color {:?}", cell.fg);
+                }
+                if !ALLOWED_COLORS.contains(&cell.bg) {
+                    panic!("Theme violation: Disallowed background color {:?}", cell.bg);
+                }
+            }
+        }
     }
 }
