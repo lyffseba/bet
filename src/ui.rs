@@ -755,17 +755,34 @@ impl App {
                         .add_modifier(Modifier::BOLD),
                 )]));
                 text.push(Line::from(""));
-                text.push(Line::from("1. English"));
-                text.push(Line::from("2. Español"));
-                text.push(Line::from("3. Português"));
-                text.push(Line::from("4. Deutsch"));
-                text.push(Line::from("5. Nederlands"));
+                let options = [
+                    "1. English",
+                    "2. Español",
+                    "3. Português",
+                    "4. Deutsch",
+                    "5. Nederlands",
+                ];
+                for (i, opt) in options.iter().enumerate() {
+                    if i == self.language_cursor {
+                        text.push(Line::from(vec![Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                    } else {
+                        text.push(Line::from(vec![Span::styled(format!("    {}  ", opt), Style::default().fg(Color::White))]));
+                    }
+                }
                 text.push(Line::from(""));
                 text.push(Line::from(""));
-                text.push(Line::from(vec![Span::styled(
-                    "9. Join our Discord! (QR)",
-                    Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
-                )]));
+                
+                if self.language_cursor == 5 {
+                    text.push(Line::from(vec![Span::styled(
+                        "  > 9. Join our Discord! (QR)  ",
+                        Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                    )]));
+                } else {
+                    text.push(Line::from(vec![Span::styled(
+                        "    9. Join our Discord! (QR)  ",
+                        Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                    )]));
+                }
                 text.push(Line::from(""));
                 text.push(Line::from(vec![Span::styled(
                     "Press 1-5 to select, 9 for Discord, or ESC to quit",
@@ -848,10 +865,22 @@ impl App {
                     // Art
                     let stage = game.max_attempts() - game.attempts_left();
                     let art = HANGMAN_ART[stage.min(6)];
+                    let mut art_lines = vec![];
+                    for (row, line) in art.lines().enumerate() {
+                        let mut spans = vec![];
+                        for (col, c) in line.chars().enumerate() {
+                            let is_man = row >= 2 && col < 5 && c != ' ';
+                            let color = if is_man {
+                                Color::Rgb(180, 255, 50) // Neon Mango Biche for the man
+                            } else {
+                                Color::DarkGray // Faded gray for the gallows
+                            };
+                            spans.push(Span::styled(c.to_string(), Style::default().fg(color)));
+                        }
+                        art_lines.push(Line::from(spans));
+                    }
                     f.render_widget(
-                        Paragraph::new(art)
-                            .alignment(Alignment::Center)
-                            .style(Style::default().fg(Color::Rgb(180, 255, 50))), // Neon Yellow Green
+                        Paragraph::new(art_lines).alignment(Alignment::Center),
                         layout[1],
                     );
 
@@ -1549,9 +1578,9 @@ LLLLL     Y   F     F    "#
             let mut spans = vec![];
             for c in display_text.chars() {
                 if c == '✦' {
-                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
                 } else {
-                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Gray)));
+                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
                 }
             }
             let ticker_p = Paragraph::new(Line::from(spans));
