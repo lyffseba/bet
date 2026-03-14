@@ -50,6 +50,7 @@ pub struct App {
     pub last_tick: Instant,
     pub should_quit: bool,
     pub error_msg: Option<String>,
+    pub easter_egg_buffer: String,
 }
 
 impl App {
@@ -62,6 +63,7 @@ impl App {
             last_tick: Instant::now(),
             should_quit: false,
             error_msg: None,
+            easter_egg_buffer: String::new(),
         }
     }
 
@@ -94,6 +96,16 @@ impl App {
                                 KeyCode::Char('5') => self.start_game(Language::Dutch),
                                 KeyCode::Char('6') => self.state = AppState::DiscordQr,
                                 KeyCode::Esc => self.should_quit = true,
+                                KeyCode::Char(c) => {
+                                    self.easter_egg_buffer.push(c);
+                                    if self.easter_egg_buffer.len() > 50 {
+                                        self.easter_egg_buffer = self.easter_egg_buffer.chars().skip(self.easter_egg_buffer.chars().count() - 20).collect();
+                                    }
+                                    if self.easter_egg_buffer.ends_with("lyfflives") {
+                                        let _ = open::that_detached("https://lyffseba.xyz");
+                                        self.easter_egg_buffer.clear();
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -213,7 +225,7 @@ impl App {
 
                 // Extremely subtle cursive watermark/easter egg in the bottom right corner
                 let bottom_rect = ratatui::layout::Rect::new(0, area.height.saturating_sub(1), area.width, 1);
-                let watermark = Paragraph::new(Span::styled("𝓁𝓎𝒻𝒻𝓈ℯ𝒷𝒶.𝓍𝓎𝓏", Style::default().fg(Color::Rgb(40, 40, 40)).add_modifier(Modifier::DIM)))
+                let watermark = Paragraph::new(Span::styled("lyffseba.xyz", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)))
                     .alignment(Alignment::Right);
                 f.render_widget(watermark, bottom_rect);
             }
