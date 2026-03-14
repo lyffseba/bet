@@ -95,25 +95,16 @@ impl App {
                             }
                             if self.easter_egg_buffer.to_lowercase().ends_with("lyff") {
                                 #[cfg(target_os = "linux")]
-                                std::thread::spawn(|| {
-                                    let _ = open::that_detached("https://lyffseba.xyz");
-                                    // Best-effort approach to force window focus on Linux
-                                    std::thread::sleep(std::time::Duration::from_millis(1500));
-                                    let _ = std::process::Command::new("wmctrl")
-                                        .args(["-a", "sebastián"])
-                                        .status();
-                                    let _ = std::process::Command::new("wmctrl")
-                                        .args(["-a", "escritos"])
-                                        .status();
-                                    let _ = std::process::Command::new("xdotool")
-                                        .args(["search", "--name", "sebastián", "windowactivate"])
-                                        .status();
-                                    let _ = std::process::Command::new("xdotool")
-                                        .args(["search", "--name", "escritos", "windowactivate"])
-                                        .status();
-                                });
+                                {
+                                    // Best effort on Linux using gio open which integrates tightly with GNOME/GTK
+                                    let _ = std::process::Command::new("gio")
+                                        .args(["open", "https://lyffseba.xyz"])
+                                        .spawn();
+                                }
                                 #[cfg(not(target_os = "linux"))]
-                                let _ = open::that_detached("https://lyffseba.xyz");
+                                {
+                                    let _ = open::that_detached("https://lyffseba.xyz");
+                                }
                                 
                                 self.easter_egg_buffer.clear();
                             }
