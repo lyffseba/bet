@@ -204,7 +204,8 @@ impl App {
                             AppState::GameSelection => match key.code {
                                 KeyCode::Char('1') => self.start_hangman(),
                                 KeyCode::Char('2') => self.start_tictactoe(),
-                                KeyCode::Char('3') | KeyCode::Esc => {
+                                KeyCode::Char('3') => self.start_chess(),
+                                KeyCode::Char('4') | KeyCode::Esc => {
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
