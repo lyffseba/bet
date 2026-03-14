@@ -2,7 +2,7 @@
 
 # 🎮 bet
 
-**A lightning-fast, zero-flicker terminal game hub containing Hangman and Tic-Tac-Toe, built with Rust and Ratatui.**
+**A lightning-fast, zero-flicker terminal game hub containing Hangman, Tic-Tac-Toe, and Chess, built with Rust and Ratatui.**
 
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Ratatui](https://img.shields.io/badge/ratatui-%23F05032.svg?style=for-the-badge&logo=rust&logoColor=white)](https://ratatui.rs/)
@@ -15,7 +15,7 @@
 - 🦀 **Powered by Rust & Ratatui:** Enjoy a robust, incredibly fast, and memory-safe terminal experience.
 - ⚡ **Zero-Flicker Rendering:** Smooth UI rendering thanks to Ratatui's intelligent terminal backend.
 - 🌍 **5 Localized Languages:** Play in English, Spanish (Español), Portuguese (Português), German (Deutsch), and Dutch (Nederlands).
-- 🎲 **Multiple Games:** Play classic Hangman or test your logic against a simple AI in Tic-Tac-Toe!
+- 🎲 **Multiple Games:** Play classic Hangman, test your logic against a simple AI in Tic-Tac-Toe, or play Chess against an AI!
 - 🎨 **Modern Terminal UI:** Beautifully centered layouts, styled text, and classic ASCII art scaling elegantly with your window.
 - ⌨️ **Intuitive Controls:** Simple keystroke detection. Arrow keys to navigate boards, `Ctrl-C` or `Esc` to instantly exit and gracefully restore your terminal.
 
@@ -56,10 +56,12 @@ You can also jump directly into a game using the installed aliases (or by passin
 hangman
 # or
 tictactoe
+# or
+chess
 ```
 
 1. **Select your language:** Press `1-5` to choose from the startup menu.
-2. **Select your game:** Press `1` for Hangman or `2` for Tic-Tac-Toe.
+2. **Select your game:** Press `1` for Hangman, `2` for Tic-Tac-Toe, or `3` for Chess.
 3. **Hangman:** Press any alphabetic key to make a guess before the timer hits 0.0s!
 4. **Tic-Tac-Toe:** Use the Arrow Keys to move the cursor, and press `Enter` or `Space` to place your 'X'.
 

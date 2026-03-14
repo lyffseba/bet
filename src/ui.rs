@@ -13,7 +13,9 @@ use ratatui::{
 
 use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
-use crate::tictactoe::{Cell, GameStatus, Player, TicTacToe};
+use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
+use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
+use shakmaty::{Square, Role, Color as ChessColor, Position};
 
 fn is_utf8_supported() -> bool {
     #[cfg(windows)]
@@ -61,6 +63,7 @@ pub enum AppState {
     Playing,        // Hangman
     GameOver(bool), // Hangman true if won, false if lost
     PlayingTicTacToe,
+    PlayingChess,
     DiscordQr,
     EasterEgg,
 }
@@ -71,6 +74,9 @@ pub struct App {
     pub game: Option<Hangman>,
     pub tictactoe: Option<TicTacToe>,
     pub tictactoe_cursor: usize,
+    pub chess: Option<ChessGame>,
+    pub chess_cursor: Square,
+    pub chess_selected: Option<Square>,
     pub timer: f64,
     pub last_tick: Instant,
     pub should_quit: bool,
@@ -85,6 +91,9 @@ impl App {
             lang: None,
             game: None,
             tictactoe: None,
+            chess: None,
+            chess_cursor: Square::from_coords(shakmaty::File::E, shakmaty::Rank::Second),
+            chess_selected: None,
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
@@ -214,7 +223,7 @@ impl App {
                                 if key.code == KeyCode::Esc {
                                     self.state = AppState::GameSelection;
                                 } else if let Some(ttt) = &mut self.tictactoe {
-                                    if ttt.status == GameStatus::Ongoing {
+                                    if ttt.status == TicTacToeStatus::Ongoing {
                                         match key.code {
                                             KeyCode::Up => {
                                                 if self.tictactoe_cursor >= 3 {
@@ -247,6 +256,62 @@ impl App {
                                         {
                                             ttt.reset_game();
                                         }
+                                    }
+                                }
+                            }
+                            AppState::PlayingChess => {
+                                if key.code == KeyCode::Esc {
+                                    self.state = AppState::GameSelection;
+                                } else if let Some(chess) = &mut self.chess {
+                                    if chess.status == ChessStatus::Ongoing {
+                                        let rank = self.chess_cursor.rank() as i8;
+                                        let file = self.chess_cursor.file() as i8;
+                                        match key.code {
+                                            KeyCode::Up => {
+                                                if rank < 7 {
+                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file) as u32), shakmaty::Rank::new((rank + 1) as u32));
+                                                }
+                                            }
+                                            KeyCode::Down => {
+                                                if rank > 0 {
+                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file) as u32), shakmaty::Rank::new((rank - 1) as u32));
+                                                }
+                                            }
+                                            KeyCode::Left => {
+                                                if file > 0 {
+                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file - 1) as u32), shakmaty::Rank::new((rank) as u32));
+                                                }
+                                            }
+                                            KeyCode::Right => {
+                                                if file < 7 {
+                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file + 1) as u32), shakmaty::Rank::new((rank) as u32));
+                                                }
+                                            }
+                                            KeyCode::Enter | KeyCode::Char(' ') => {
+                                                if let Some(selected) = self.chess_selected {
+                                                    if selected == self.chess_cursor {
+                                                        self.chess_selected = None;
+                                                    } else {
+                                                        let moves = chess.get_moves_from(selected);
+                                                        // Automatically promote to Queen if it's a promotion move
+                                                        let m = moves.into_iter().find(|m| m.to() == self.chess_cursor);
+                                                        if let Some(m) = m {
+                                                            chess.make_move(m);
+                                                        }
+                                                        self.chess_selected = None;
+                                                    }
+                                                } else {
+                                                    // Only select if it's our piece
+                                                    if let Some(piece) = chess.pos.board().piece_at(self.chess_cursor)
+                                                        && piece.color == chess.player_color {
+                                                            self.chess_selected = Some(self.chess_cursor);
+                                                        }
+                                                }
+                                            }
+                                            _ => {}
+                                        }
+                                    } else if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                        self.start_chess();
                                     }
                                 }
                             }
@@ -314,6 +379,13 @@ impl App {
         self.tictactoe = Some(TicTacToe::new());
         self.tictactoe_cursor = 4;
         self.state = AppState::PlayingTicTacToe;
+    }
+
+    fn start_chess(&mut self) {
+        self.chess = Some(ChessGame::new(false));
+        self.chess_cursor = Square::from_coords(shakmaty::File::E, shakmaty::Rank::Second);
+        self.chess_selected = None;
+        self.state = AppState::PlayingChess;
     }
 
     fn make_guess_hangman(&mut self, letter: char) {
@@ -409,6 +481,7 @@ impl App {
                         Line::from(""),
                         Line::from(lang.menu_hangman),
                         Line::from(lang.menu_tictactoe),
+                        Line::from("3. Chess"),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
@@ -582,7 +655,7 @@ impl App {
                                 style = style.fg(Color::Magenta);
                             }
 
-                            if ttt.status == GameStatus::Ongoing && idx == self.tictactoe_cursor {
+                            if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
                                 style = style.bg(Color::DarkGray);
                             }
 
@@ -605,20 +678,20 @@ impl App {
 
                     // Status
                     let status_msg = match ttt.status {
-                        GameStatus::Ongoing => {
+                        TicTacToeStatus::Ongoing => {
                             Span::styled("Your turn (X)", Style::default().fg(Color::White))
                         }
-                        GameStatus::Win(Player::X) => Span::styled(
+                        TicTacToeStatus::Win(Player::X) => Span::styled(
                             "You win!",
                             Style::default()
                                 .fg(Color::Green)
                                 .add_modifier(Modifier::BOLD),
                         ),
-                        GameStatus::Win(Player::O) => Span::styled(
+                        TicTacToeStatus::Win(Player::O) => Span::styled(
                             "Computer wins!",
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ),
-                        GameStatus::Draw => Span::styled(
+                        TicTacToeStatus::Draw => Span::styled(
                             "Draw!",
                             Style::default()
                                 .fg(Color::Yellow)
@@ -643,7 +716,7 @@ impl App {
                     );
 
                     // Instructions
-                    let instructions = if ttt.status == GameStatus::Ongoing {
+                    let instructions = if ttt.status == TicTacToeStatus::Ongoing {
                         "Arrow keys to move, Enter/Space to place X. ESC to go back."
                     } else {
                         "Press Enter/Space to play again. ESC to go back."
@@ -654,6 +727,112 @@ impl App {
                             .style(Style::default().fg(Color::DarkGray)),
                         layout[4],
                     );
+                }
+            }
+            AppState::PlayingChess => {
+                if let (Some(_lang), Some(chess)) = (&self.lang, &self.chess) {
+                    let rect = centered_rect(80, 80, area);
+                    f.render_widget(Clear, rect);
+
+                    let layout = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Length(3),  // Title
+                            Constraint::Length(10), // Board
+                            Constraint::Length(2),  // Status
+                            Constraint::Min(1),     // Instructions
+                        ])
+                        .split(rect);
+
+                    // Title
+                    f.render_widget(
+                        Paragraph::new("CHESS").alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        layout[0],
+                    );
+
+                    // Board
+                    let mut board_lines = vec![];
+                    for rank in (0..8).rev() { // 7 down to 0
+                        let mut line_spans = vec![];
+                        line_spans.push(Span::raw(format!("{} ", rank + 1))); // Rank label
+                        
+                        for file in 0..8 {
+                            let sq = Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
+                            let is_cursor = self.chess_cursor == sq;
+                            let is_selected = self.chess_selected == Some(sq);
+                            
+                            // Highlight valid moves
+                            let mut is_valid_dest = false;
+                            if let Some(sel) = self.chess_selected {
+                                let moves = chess.get_moves_from(sel);
+                                is_valid_dest = moves.iter().any(|m| m.to() == sq);
+                            }
+
+                            let piece_str = match chess.pos.board().piece_at(sq) {
+                                Some(piece) => {
+                                    if is_utf8_supported() {
+                                        match (piece.color, piece.role) {
+                                            (ChessColor::White, Role::Pawn) => "♙",
+                                            (ChessColor::White, Role::Knight) => "♘",
+                                            (ChessColor::White, Role::Bishop) => "♗",
+                                            (ChessColor::White, Role::Rook) => "♖",
+                                            (ChessColor::White, Role::Queen) => "♕",
+                                            (ChessColor::White, Role::King) => "♔",
+                                            (ChessColor::Black, Role::Pawn) => "♟",
+                                            (ChessColor::Black, Role::Knight) => "♞",
+                                            (ChessColor::Black, Role::Bishop) => "♝",
+                                            (ChessColor::Black, Role::Rook) => "♜",
+                                            (ChessColor::Black, Role::Queen) => "♛",
+                                            (ChessColor::Black, Role::King) => "♚",
+                                        }
+                                    } else {
+                                        match (piece.color, piece.role) {
+                                            (ChessColor::White, Role::Pawn) => "P",
+                                            (ChessColor::White, Role::Knight) => "N",
+                                            (ChessColor::White, Role::Bishop) => "B",
+                                            (ChessColor::White, Role::Rook) => "R",
+                                            (ChessColor::White, Role::Queen) => "Q",
+                                            (ChessColor::White, Role::King) => "K",
+                                            (ChessColor::Black, Role::Pawn) => "p",
+                                            (ChessColor::Black, Role::Knight) => "n",
+                                            (ChessColor::Black, Role::Bishop) => "b",
+                                            (ChessColor::Black, Role::Rook) => "r",
+                                            (ChessColor::Black, Role::Queen) => "q",
+                                            (ChessColor::Black, Role::King) => "k",
+                                        }
+                                    }
+                                },
+                                None => " ",
+                            };
+
+                            let mut bg = if (rank + file) % 2 == 1 { Color::Rgb(181,136,99) } else { Color::Rgb(240,217,181) }; // Wood colors
+                            if is_valid_dest {
+                                bg = if (rank + file) % 2 == 1 { Color::Rgb(100,160,100) } else { Color::Rgb(130,190,130) };
+                            }
+                            if is_selected {
+                                bg = Color::Rgb(200, 200, 100);
+                            }
+                            if is_cursor {
+                                bg = Color::Cyan;
+                            }
+
+                            line_spans.push(Span::styled(format!(" {} ", piece_str), Style::default().bg(bg).fg(if piece_str == " " { Color::White } else { Color::Black })));
+                        }
+                        board_lines.push(Line::from(line_spans));
+                    }
+                    let file_labels = Line::from("   A  B  C  D  E  F  G  H");
+                    board_lines.push(file_labels);
+                    
+                    f.render_widget(Paragraph::new(board_lines).alignment(Alignment::Center), layout[1]);
+
+                    let status_msg = match chess.status {
+                        ChessStatus::Ongoing => "Your turn",
+                        ChessStatus::Win(c) => if c == ChessColor::White { "White wins!" } else { "Black wins!" },
+                        ChessStatus::Stalemate => "Stalemate",
+                        ChessStatus::Draw => "Draw",
+                    };
+                    f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center), layout[2]);
+                    f.render_widget(Paragraph::new("Arrow keys to move, Enter to select/move. ESC to go back.").alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
                 }
             }
             AppState::GameOver(won) => {

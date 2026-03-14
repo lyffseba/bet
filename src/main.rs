@@ -1,3 +1,4 @@
+mod chess_game;
 mod game;
 mod lang;
 mod tictactoe;
