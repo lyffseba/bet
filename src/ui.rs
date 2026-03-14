@@ -103,6 +103,7 @@ pub struct App {
     pub pong: Option<PongGame>,
     pub timer: f64,
     pub last_tick: Instant,
+    pub start_time: Instant,
     pub should_quit: bool,
     pub error_msg: Option<String>,
     pub easter_egg_buffer: String,
@@ -123,6 +124,7 @@ impl App {
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
+            start_time: Instant::now(),
             should_quit: false,
             error_msg: None,
             easter_egg_buffer: String::new(),
@@ -1436,19 +1438,19 @@ LLLLL     Y   F     F    "#
 
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
-            // Speed = 12 characters per second
-            let t = self.last_tick.elapsed().as_secs_f64() * 12.0; 
+            // Speed = 15 characters per second, smoothly offset
+            let t = self.start_time.elapsed().as_secs_f64() * 15.0; 
             let offset = (t as usize) % self.ticker_text.len();
             
-            let mut display_text = String::with_capacity(ticker_area.width as usize);
+            let mut display_text = String::with_capacity(ticker_area.width as usize * 2);
             for i in 0..ticker_area.width as usize {
                 display_text.push(self.ticker_text[(offset + i) % self.ticker_text.len()]);
             }
             
-            // Black text on Yellow background (AD/WARNING tape style, fitting Basquiat/Cyberpunk stark colors)
+            // No background color, just clean floating yellow text tracking across the bottom
             let ticker_p = Paragraph::new(Span::styled(
                 display_text,
-                Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             ));
             f.render_widget(ticker_p, ticker_area);
         }
