@@ -880,7 +880,7 @@ impl App {
                             }
 
                             if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
-                                style = style.bg(Color::Rgb(120, 130, 140));
+                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black); // Mango Biche Neon
                             }
 
                             line_spans.push(Span::styled(cell_str, style));
@@ -1042,15 +1042,17 @@ impl App {
                                     bg = if (rank + file) % 2 == 1 { Color::Rgb(100, 150, 200) } else { Color::Rgb(150, 200, 255) };
                                 }
                                 if is_selected {
-                                    bg = Color::White;
+                                    bg = Color::Rgb(180, 255, 50); // Mango Biche Neon
                                 }
                                 if is_cursor {
-                                    bg = Color::White;
+                                    bg = Color::Rgb(180, 255, 50); // Mango Biche Neon
                                 }
 
                                 // 5 chars wide per cell
                                 let text = if row_within_cell == 0 { format!("  {}  ", piece_str) } else { "     ".to_string() };
-                                let fg = if piece_str == " " || row_within_cell == 1 { 
+                                let fg = if is_selected || is_cursor {
+                                    Color::Black
+                                } else if piece_str == " " || row_within_cell == 1 { 
                                     Color::White 
                                 } else {
                                     Color::Black 
