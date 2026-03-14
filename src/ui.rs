@@ -59,6 +59,15 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum RecommenderCategory {
+    Movie,
+    Series,
+    Manga,
+    Book,
+    Anime,
+}
+
 pub enum AppState {
     LanguageSelection,
     GameSelection,
@@ -67,7 +76,8 @@ pub enum AppState {
     PlayingTicTacToe,
     PlayingChess,
     PlayingPong,
-    MovieRecommendation(String),
+    RecommenderMenu,
+    Recommendation(RecommenderCategory, String),
     DiscordQr,
     EasterEgg,
 }
@@ -131,8 +141,12 @@ impl App {
             || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
         let wants_pong = exec_name.contains("pong")
             || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
-        let wants_movie = exec_name.contains("movie")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
+        let wants_movie = exec_name.contains("movie") || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
+        let wants_series = exec_name.contains("series") || args.iter().skip(1).any(|a| a.to_lowercase() == "series");
+        let wants_manga = exec_name.contains("manga") || args.iter().skip(1).any(|a| a.to_lowercase() == "manga");
+        let wants_book = exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
+        let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
+        let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -148,7 +162,22 @@ impl App {
             self.start_pong();
         } else if wants_movie {
             self.select_language(Language::English);
-            self.show_movie_recommendation();
+            self.show_recommendation(RecommenderCategory::Movie);
+        } else if wants_series {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Series);
+        } else if wants_manga {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Manga);
+        } else if wants_book {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Book);
+        } else if wants_anime {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::Anime);
+        } else if wants_rec {
+            self.select_language(Language::English);
+            self.state = AppState::RecommenderMenu;
         }
     }
 
@@ -228,7 +257,7 @@ impl App {
                                 KeyCode::Char('2') => self.start_tictactoe(),
                                 KeyCode::Char('3') => self.start_chess(),
                                 KeyCode::Char('4') => self.start_pong(),
-                                KeyCode::Char('5') => self.show_movie_recommendation(),
+                                KeyCode::Char('5') => self.state = AppState::RecommenderMenu,
                                 KeyCode::Char('6') | KeyCode::Esc => {
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
@@ -355,11 +384,22 @@ impl App {
                                     }
                                 }
                             },
-                            AppState::MovieRecommendation(_) => {
+                            AppState::RecommenderMenu => {
+                                match key.code {
+                                    KeyCode::Char('1') => self.show_recommendation(RecommenderCategory::Movie),
+                                    KeyCode::Char('2') => self.show_recommendation(RecommenderCategory::Series),
+                                    KeyCode::Char('3') => self.show_recommendation(RecommenderCategory::Manga),
+                                    KeyCode::Char('4') => self.show_recommendation(RecommenderCategory::Book),
+                                    KeyCode::Char('5') => self.show_recommendation(RecommenderCategory::Anime),
+                                    KeyCode::Char('6') | KeyCode::Esc => self.state = AppState::GameSelection,
+                                    _ => {}
+                                }
+                            }
+                            AppState::Recommendation(cat, _) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
-                                    self.show_movie_recommendation();
+                                    self.show_recommendation(cat);
                                 } else if key.code == KeyCode::Esc {
-                                    self.state = AppState::GameSelection;
+                                    self.state = AppState::RecommenderMenu;
                                 }
                             }
                             AppState::GameOver(_) => {
@@ -446,11 +486,21 @@ impl App {
         self.state = AppState::PlayingPong;
     }
 
-    fn show_movie_recommendation(&mut self) {
+    fn show_recommendation(&mut self, category: RecommenderCategory) {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
-        let movie = self.lang.as_ref().map_or("BET", |l| l.movies.choose(&mut rng).unwrap_or(&"BET"));
-        self.state = AppState::MovieRecommendation(movie.to_string());
+        let item = if let Some(lang) = &self.lang {
+            match category {
+                RecommenderCategory::Movie => lang.movies.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Series => lang.series.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Manga => lang.mangas.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Book => lang.books.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::Anime => lang.animes.choose(&mut rng).unwrap_or(&"BET"),
+            }
+        } else {
+            "BET"
+        };
+        self.state = AppState::Recommendation(category, item.to_string());
     }
 
     fn make_guess_hangman(&mut self, letter: char) {
@@ -548,7 +598,7 @@ impl App {
                         Line::from(lang.menu_tictactoe),
                         Line::from(lang.menu_chess),
                         Line::from(lang.menu_pong),
-                        Line::from(lang.menu_movie),
+                        Line::from(lang.menu_recommender),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
@@ -1040,20 +1090,48 @@ impl App {
                     f.render_widget(p, rect);
                 }
             }
-            AppState::MovieRecommendation(ref movie) => {
+            AppState::RecommenderMenu => {
+                if let Some(lang) = &self.lang {
+                    let rect = centered_rect(70, 60, area);
+                    let text = vec![
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            lang.menu_recommender,
+                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                        )]),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(lang.recommender_menu_movies),
+                        ratatui::text::Line::from(lang.recommender_menu_series),
+                        ratatui::text::Line::from(lang.recommender_menu_manga),
+                        ratatui::text::Line::from(lang.recommender_menu_books),
+                        ratatui::text::Line::from(lang.recommender_menu_anime),
+                        ratatui::text::Line::from(""),
+                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+                            "6. Go Back (ESC)",
+                            Style::default().fg(Color::DarkGray),
+                        )]),
+                    ];
+
+                    let p = Paragraph::new(text)
+                        .alignment(Alignment::Center)
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.recommender_title));
+                    f.render_widget(Clear, rect);
+                    f.render_widget(p, rect);
+                }
+            }
+            AppState::Recommendation(_, ref item) => {
                 if let Some(lang) = &self.lang {
                     let rect = centered_rect(60, 30, area);
                     
                     let text = vec![
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            lang.movie_subtitle,
+                            lang.recommender_subtitle,
                             Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            movie.as_str(),
+                            item.as_str(),
                             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
@@ -1066,7 +1144,7 @@ impl App {
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.movie_title));
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).title(lang.recommender_title));
                     
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
