@@ -204,6 +204,13 @@ impl App {
                     Line::from(vec![Span::styled("6. Join our Discord! (QR)", Style::default().fg(Color::LightMagenta))]),
                     Line::from(""),
                     Line::from(vec![Span::styled("Press 1-6 to select, or ESC to quit", Style::default().fg(Color::DarkGray))]),
+                    Line::from(""),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled("///", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        Span::styled(" L Y F F S E B A ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+                        Span::styled("///", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    ]),
                 ];
                 let p = Paragraph::new(text).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Hangman"),
@@ -360,6 +367,8 @@ impl App {
 
                 lines.push(Line::from(""));
                 lines.push(Line::from(vec![Span::styled("Press ESC or Enter to go back", Style::default().fg(Color::DarkGray))]));
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![Span::styled("https://lyffseba.xyz/", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM))]));
 
                 let p = Paragraph::new(lines).alignment(Alignment::Center).block(
                     Block::default().borders(Borders::ALL).title("Discord"),

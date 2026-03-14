@@ -64,6 +64,16 @@ This project stands as a testament to modern CLI development:
 
 Pull requests are fully welcome! Feel free to open issues to discuss bugs or new feature ideas.
 
+## 👾 Join the BET Community!
+
+Are you a fan of terminal games, Rust, or just looking to vibe with cool developers? Join our official **BET Discord Community**! 
+We've even built a dope **Terminal QR Generator** right into the game—just press `6` on the main menu to scan and join instantly from your CLI. 
+
+Come hang out, bet on your skills, and check out what we're building next! 🚀
+
+---
+**Created by lyffseba** ✨
+
 ## 📝 License
 
 This project is licensed under the **MIT** License.
