@@ -42,9 +42,14 @@ impl Hangman {
     }
 
     pub fn is_won(&self) -> bool {
-        self.word
-            .chars()
-            .all(|c| self.guessed_letters.contains(&c))
+        self.word.chars().all(|c| {
+            if c.is_ascii_alphabetic() {
+                self.guessed_letters.contains(&c)
+            } else {
+                // Non‑alphabetic characters are always considered "guessed"
+                true
+            }
+        })
     }
 
     pub fn is_lost(&self) -> bool {
@@ -54,7 +59,18 @@ impl Hangman {
     pub fn display_word(&self) -> String {
         self.word
             .chars()
-            .map(|c| if self.guessed_letters.contains(&c) { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphabetic() {
+                    if self.guessed_letters.contains(&c) {
+                        c
+                    } else {
+                        '_'
+                    }
+                } else {
+                    // Spaces, punctuation, etc. are displayed as themselves
+                    c
+                }
+            })
             .collect::<String>()
     }
 
@@ -74,5 +90,39 @@ impl Hangman {
 
     pub fn word(&self) -> &str {
         &self.word
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_win_with_spaces() {
+        let mut game = Hangman::new("A B", 6);
+        // Guess A and B
+        game.guess('A').unwrap();
+        game.guess('B').unwrap();
+        assert!(game.is_won());
+        // Display should show "A B" (space preserved)
+        assert_eq!(game.display_word(), "A B");
+    }
+
+    #[test]
+    fn test_win_with_punctuation() {
+        let mut game = Hangman::new("A-B", 6);
+        game.guess('A').unwrap();
+        game.guess('B').unwrap();
+        assert!(game.is_won());
+        assert_eq!(game.display_word(), "A-B");
+    }
+
+    #[test]
+    fn test_not_win_until_all_letters_guessed() {
+        let mut game = Hangman::new("AB", 6);
+        game.guess('A').unwrap();
+        assert!(!game.is_won());
+        game.guess('B').unwrap();
+        assert!(game.is_won());
     }
 }
