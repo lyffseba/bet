@@ -14,18 +14,33 @@ A simple, fast, and reliable terminal hangman game written in Rust.
 - Rust (stable) and Cargo
 - Terminal that supports ANSI colors
 
-## Building
+## Installation
+
+### Install for current user (recommended)
+
+```bash
+make install
+```
+
+This will install the binary to `~/.local/bin`. Ensure that directory is in your `PATH`.
+
+### Install system-wide (requires sudo)
+
+```bash
+sudo make install-system
+```
+
+### Manual build
 
 ```bash
 cargo build --release
+./target/release/hangman
 ```
-
-The binary will be at `target/release/hangman`.
 
 ## Usage
 
 ```bash
-./hangman
+hangman
 ```
 
 Follow the on-screen menu:
