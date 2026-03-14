@@ -10,6 +10,7 @@ A simple, fast, and reliable terminal hangman game written in Rust.
 - Full UI translation (menu, prompts, messages) in selected language
 - Colorful terminal UI with Unicode box‑drawing art
 - Smooth animation: body parts appear with a subtle delay
+- 30‑second timer per guess with visual warnings at 10s and 3s (timeout loses an attempt)
 - Line input: type a letter, see it, then press Enter (allows backspace)
 - Supports accented letters (e.g., é, ñ, á, ã)
 - Lightweight with minimal dependencies (crossterm + rand)
