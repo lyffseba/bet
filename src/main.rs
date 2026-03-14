@@ -1,6 +1,7 @@
 mod chess_game;
 mod game;
 mod lang;
+mod pong;
 mod tictactoe;
 mod ui;
 mod wordlist;

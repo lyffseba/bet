@@ -2,6 +2,7 @@ use std::io;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use ratatui::widgets::canvas::{Canvas, Rectangle};
 use ratatui::{
     Frame,
     backend::Backend,
@@ -15,6 +16,7 @@ use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
 use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
 use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
+use crate::pong::{GameStatus as PongStatus, PongGame};
 use shakmaty::{Square, Role, Color as ChessColor, Position};
 
 fn is_utf8_supported() -> bool {
@@ -64,6 +66,7 @@ pub enum AppState {
     GameOver(bool), // Hangman true if won, false if lost
     PlayingTicTacToe,
     PlayingChess,
+    PlayingPong,
     DiscordQr,
     EasterEgg,
 }
@@ -77,6 +80,7 @@ pub struct App {
     pub chess: Option<ChessGame>,
     pub chess_cursor: Square,
     pub chess_selected: Option<Square>,
+    pub pong: Option<PongGame>,
     pub timer: f64,
     pub last_tick: Instant,
     pub should_quit: bool,
@@ -94,6 +98,7 @@ impl App {
             chess: None,
             chess_cursor: Square::from_coords(shakmaty::File::E, shakmaty::Rank::Second),
             chess_selected: None,
+            pong: None,
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
@@ -123,6 +128,8 @@ impl App {
             || args.iter().skip(1).any(|a| a.to_lowercase() == "tictactoe");
         let wants_chess = exec_name.contains("chess")
             || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
+        let wants_pong = exec_name.contains("pong")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -133,6 +140,9 @@ impl App {
         } else if wants_chess {
             self.select_language(Language::English);
             self.start_chess();
+        } else if wants_pong {
+            self.select_language(Language::English);
+            self.start_pong();
         }
     }
 
@@ -211,7 +221,8 @@ impl App {
                                 KeyCode::Char('1') => self.start_hangman(),
                                 KeyCode::Char('2') => self.start_tictactoe(),
                                 KeyCode::Char('3') => self.start_chess(),
-                                KeyCode::Char('4') | KeyCode::Esc => {
+                                KeyCode::Char('4') => self.start_pong(),
+                                KeyCode::Char('5') | KeyCode::Esc => {
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -322,6 +333,21 @@ impl App {
                                     }
                                 }
                             }
+                            AppState::PlayingPong => {
+                                if key.code == KeyCode::Esc {
+                                    self.state = AppState::GameSelection;
+                                } else if let Some(pong) = &mut self.pong {
+                                    if pong.status == PongStatus::Ongoing {
+                                        match key.code {
+                                            KeyCode::Up => pong.move_player(true),
+                                            KeyCode::Down => pong.move_player(false),
+                                            _ => {}
+                                        }
+                                    } else if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                        self.start_pong();
+                                    }
+                                }
+                            }
                             AppState::GameOver(_) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
                                     self.state = AppState::GameSelection;
@@ -352,6 +378,12 @@ impl App {
         let now = Instant::now();
         let dt = now.duration_since(self.last_tick).as_secs_f64();
         self.last_tick = now;
+
+        if let AppState::PlayingPong = self.state
+            && let Some(pong) = &mut self.pong
+        {
+            pong.update(dt);
+        }
 
         if let AppState::Playing = self.state {
             self.timer -= dt;
@@ -393,6 +425,11 @@ impl App {
         self.chess_cursor = Square::from_coords(shakmaty::File::E, shakmaty::Rank::Second);
         self.chess_selected = None;
         self.state = AppState::PlayingChess;
+    }
+
+    fn start_pong(&mut self) {
+        self.pong = Some(PongGame::new());
+        self.state = AppState::PlayingPong;
     }
 
     fn make_guess_hangman(&mut self, letter: char) {
@@ -489,6 +526,7 @@ impl App {
                         Line::from(lang.menu_hangman),
                         Line::from(lang.menu_tictactoe),
                         Line::from(lang.menu_chess),
+                        Line::from(lang.menu_pong),
                         Line::from(""),
                         Line::from(vec![Span::styled(
                             lang.menu_go_back,
@@ -858,6 +896,83 @@ impl App {
                     
                     f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center).style(Style::default().fg(Color::White)), layout[2]);
                     f.render_widget(Paragraph::new(instr).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
+                }
+            }
+            AppState::PlayingPong => {
+                if let (Some(lang), Some(pong)) = (&self.lang, &self.pong) {
+                    let rect = centered_rect(80, 60, area);
+                    f.render_widget(Clear, rect);
+
+                    let layout = ratatui::layout::Layout::default()
+                        .direction(ratatui::layout::Direction::Vertical)
+                        .constraints([
+                            ratatui::layout::Constraint::Length(3),  // Title and Score
+                            ratatui::layout::Constraint::Min(20),    // Canvas
+                            ratatui::layout::Constraint::Length(2),  // Status/Instructions
+                        ])
+                        .split(rect);
+
+                    // Title & Score
+                    let title = format!("{}  |  {} - {}", lang.pong_title, pong.player_score, pong.computer_score);
+                    f.render_widget(
+                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                        layout[0],
+                    );
+
+                    // Canvas
+                    let canvas = Canvas::default()
+                        .block(Block::default().borders(ratatui::widgets::Borders::ALL))
+                        .marker(ratatui::symbols::Marker::Braille)
+                        .x_bounds([0.0, 100.0])
+                        .y_bounds([0.0, 100.0])
+                        .paint(|ctx| {
+                            // Player paddle
+                            ctx.draw(&Rectangle {
+                                x: 5.0 - 1.0,
+                                y: pong.player_y - 10.0,
+                                width: 2.0,
+                                height: 20.0,
+                                color: Color::White,
+                            });
+                            // Computer paddle
+                            ctx.draw(&Rectangle {
+                                x: 95.0 - 1.0,
+                                y: pong.computer_y - 10.0,
+                                width: 2.0,
+                                height: 20.0,
+                                color: Color::White,
+                            });
+                            // Ball
+                            ctx.draw(&Rectangle {
+                                x: pong.ball_x - 1.0,
+                                y: pong.ball_y - 1.0,
+                                width: 2.0,
+                                height: 2.0,
+                                color: Color::Yellow,
+                            });
+                            // Center dashed line
+                            for i in (0..100).step_by(5) {
+                                ctx.draw(&Rectangle {
+                                    x: 50.0 - 0.5,
+                                    y: i as f64,
+                                    width: 1.0,
+                                    height: 2.0,
+                                    color: Color::DarkGray,
+                                });
+                            }
+                        });
+                    f.render_widget(canvas, layout[1]);
+
+                    let msg = match pong.status {
+                        PongStatus::Ongoing => lang.pong_instructions,
+                        PongStatus::PlayerWins => lang.pong_player_wins,
+                        PongStatus::ComputerWins => lang.pong_computer_wins,
+                    };
+                    
+                    let instr = if pong.status != PongStatus::Ongoing { "Press Enter to play again." } else { "" };
+                    let combined = format!("{} {}", msg, instr);
+                    
+                    f.render_widget(Paragraph::new(combined).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[2]);
                 }
             }
             AppState::GameOver(won) => {

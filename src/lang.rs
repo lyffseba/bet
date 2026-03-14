@@ -31,6 +31,11 @@ pub struct Lang {
     pub chess_draw: &'static str,
     pub chess_instructions_ongoing: &'static str,
     pub chess_instructions_over: &'static str,
+    pub menu_pong: &'static str,
+    pub pong_title: &'static str,
+    pub pong_player_wins: &'static str,
+    pub pong_computer_wins: &'static str,
+    pub pong_instructions: &'static str,
     pub menu_go_back: &'static str,
     pub movies: &'static [&'static str],
 }
@@ -61,7 +66,12 @@ impl Lang {
             chess_draw: "Draw!",
             chess_instructions_ongoing: "Arrow keys to move, Enter to select/move. ESC to go back.",
             chess_instructions_over: "Press Enter to play again. ESC to go back.",
-            menu_go_back: "4. Go Back (ESC)",
+            menu_pong: "4. Pong",
+            pong_title: "PONG",
+            pong_player_wins: "Player wins!",
+            pong_computer_wins: "Computer wins!",
+            pong_instructions: "Up/Down to move. ESC to go back.",
+            menu_go_back: "5. Go Back (ESC)",
             movies: super::wordlist::ENGLISH_MOVIES,
         }
     }
@@ -91,7 +101,12 @@ impl Lang {
             chess_draw: "¡Empate!",
             chess_instructions_ongoing: "Flechas para mover, Enter para seleccionar/mover. ESC para volver.",
             chess_instructions_over: "Presiona Enter para jugar de nuevo. ESC para volver.",
-            menu_go_back: "4. Volver (ESC)",
+            menu_pong: "4. Pong",
+            pong_title: "PONG",
+            pong_player_wins: "¡El jugador gana!",
+            pong_computer_wins: "¡La computadora gana!",
+            pong_instructions: "Arriba/Abajo para mover. ESC para volver.",
+            menu_go_back: "5. Volver (ESC)",
             movies: super::wordlist::SPANISH_MOVIES,
         }
     }
@@ -121,7 +136,12 @@ impl Lang {
             chess_draw: "Empate!",
             chess_instructions_ongoing: "Setas para mover, Enter para selecionar/mover. ESC para voltar.",
             chess_instructions_over: "Pressione Enter para jogar novamente. ESC para voltar.",
-            menu_go_back: "4. Voltar (ESC)",
+            menu_pong: "4. Pong",
+            pong_title: "PONG",
+            pong_player_wins: "O jogador vence!",
+            pong_computer_wins: "O computador vence!",
+            pong_instructions: "Cima/Baixo para mover. ESC para voltar.",
+            menu_go_back: "5. Voltar (ESC)",
             movies: super::wordlist::PORTUGUESE_MOVIES,
         }
     }
@@ -151,7 +171,12 @@ impl Lang {
             chess_draw: "Unentschieden!",
             chess_instructions_ongoing: "Pfeiltasten zum Bewegen, Enter zum Auswählen/Ziehen. ESC zurück.",
             chess_instructions_over: "Enter drücken für ein neues Spiel. ESC zum Zurückgehen.",
-            menu_go_back: "4. Zurück (ESC)",
+            menu_pong: "4. Pong",
+            pong_title: "PONG",
+            pong_player_wins: "Spieler gewinnt!",
+            pong_computer_wins: "Computer gewinnt!",
+            pong_instructions: "Auf/Ab zum Bewegen. ESC zurück.",
+            menu_go_back: "5. Zurück (ESC)",
             movies: super::wordlist::GERMAN_MOVIES,
         }
     }
@@ -181,7 +206,12 @@ impl Lang {
             chess_draw: "Gelijkspel!",
             chess_instructions_ongoing: "Pijltjes voor verplaatsen, Enter voor selecteren. ESC terug.",
             chess_instructions_over: "Druk op Enter om opnieuw te spelen. ESC voor terug.",
-            menu_go_back: "4. Ga terug (ESC)",
+            menu_pong: "4. Pong",
+            pong_title: "PONG",
+            pong_player_wins: "Speler wint!",
+            pong_computer_wins: "Computer wint!",
+            pong_instructions: "Omhoog/Omlaag om te bewegen. ESC terug.",
+            menu_go_back: "5. Ga terug (ESC)",
             movies: super::wordlist::DUTCH_MOVIES,
         }
     }

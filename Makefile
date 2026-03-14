@@ -17,6 +17,7 @@ install: build
 	ln -sf ~/.local/bin/bet ~/.local/bin/hangman
 	ln -sf ~/.local/bin/bet ~/.local/bin/tictactoe
 	ln -sf ~/.local/bin/bet ~/.local/bin/chess
+	ln -sf ~/.local/bin/bet ~/.local/bin/pong
 
 install-system: build
 	install -d /usr/local/bin
@@ -24,9 +25,10 @@ install-system: build
 	ln -sf /usr/local/bin/bet /usr/local/bin/hangman
 	ln -sf /usr/local/bin/bet /usr/local/bin/tictactoe
 	ln -sf /usr/local/bin/bet /usr/local/bin/chess
+	ln -sf /usr/local/bin/bet /usr/local/bin/pong
 
 uninstall:
-	rm -f ~/.local/bin/bet ~/.local/bin/hangman ~/.local/bin/tictactoe ~/.local/bin/chess
+	rm -f ~/.local/bin/bet ~/.local/bin/hangman ~/.local/bin/tictactoe ~/.local/bin/chess ~/.local/bin/pong
 
 uninstall-system:
-	rm -f /usr/local/bin/bet /usr/local/bin/hangman /usr/local/bin/tictactoe /usr/local/bin/chess
+	rm -f /usr/local/bin/bet /usr/local/bin/hangman /usr/local/bin/tictactoe /usr/local/bin/chess /usr/local/bin/pong
