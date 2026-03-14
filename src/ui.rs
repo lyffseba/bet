@@ -249,7 +249,7 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        let timeout = Duration::from_millis(16); // 60 FPS target for perfectly smooth scrolling
+        let timeout = Duration::from_millis(8); // 120Hz poll rate for ultra-smooth time delta resolution
         if event::poll(timeout)? {
             match event::read()? {
                 Event::Key(key) => {
@@ -508,13 +508,13 @@ impl App {
             self.ticker_pause_timer -= dt;
         } else if !self.ticker_text.is_empty() {
             let old_pos = self.ticker_pos;
-            self.ticker_pos += 10.0 * dt; // 10 chars/sec synced perfectly to 60fps
+            self.ticker_pos += 6.0 * dt; // 6 chars/sec (exactly 1 char per 166ms) for slower, perfectly paced reading
             
             let old_idx = old_pos as usize;
             let new_idx = self.ticker_pos as usize;
             
             if new_idx > old_idx && self.ticker_pause_points.contains(&new_idx) {
-                self.ticker_pause_timer = 4.0; // Pause for 3 seconds
+                self.ticker_pause_timer = 5.0; // 5 seconds to read // Pause for 3 seconds
             }
             
             if self.ticker_pos >= self.ticker_text.len() as f64 {
