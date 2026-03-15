@@ -509,7 +509,7 @@ impl App {
                                     self.game_cursor = 4;
                                     self.state = AppState::RecommenderMenu;
                                 }
-                                KeyCode::Char('7') | KeyCode::Esc => {
+                                KeyCode::Char('6') | KeyCode::Esc => {
                                     self.game_cursor = 5;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
@@ -1435,22 +1435,8 @@ impl App {
                                 Style::default().fg(Color::White),
                             )]
                         }),
-                        Line::from(if self.game_cursor == 5 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_meme),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_meme),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 6 {
+                        Line::from(if self.game_cursor == 5 {
                             vec![Span::styled(
                                 format!("  {}  ", lang.menu_go_back),
                                 Style::default()
