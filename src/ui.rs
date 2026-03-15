@@ -136,6 +136,7 @@ impl App {
                 use rand::seq::SliceRandom;
                 crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
             },
+
             lang: None,
             language_cursor: 0,
             game_cursor: 0,
@@ -862,27 +863,27 @@ impl App {
             AppState::LanguageSelection => {
                 let rect = centered_rect(80, 80, area);
                 
-                let ascii_banner = if is_utf8_supported() {
-                    r#"
-  /█\   /█\   /████\ /████\     /████\ /████\ /██████\ 
- /███\ /███\ /██╔══╝/██╔══╝    /██╔══╝/██╔══╝/██╔══██╗
-/█████\█████\\████\ \████\    /█████\/█████\ \██║  ██║
-\██╔══██╔══██/\██╔╝  \██╔╝    \██╔══/\██╔══╝  ██║  ██║
- \██\  \██\ \████║    \██║     \████\ \████\  ██║  ██║
-  \██\  \██\ \██╔╝     \██\     \██╔╝  \██╔╝  ██║  ██║
-   \═╝   \═╝  \═╝       \═╝      \═╝    \═╝   ╚═╝  ╚═╝"#
-                } else {
-                    r#"
- /\_/\  /\_/\  /____\ /____\   /____\ /____\ /______\
- | |  | | |  | | |__| | |__|   | |__| | |__|   | |   
- | |  | | |  | | |    | |      | |__  | |__    | |   
- | |__| | |__| | |    | |      | |__| | |__|   | |   
-  \____/ \____/ \_/    \_/      \____/ \____/   \_/  "#
-                };
-
                 let mut text = vec![];
                 
-                // Basquiat x Escher static stark contrast
+                // Dynamic cycling banner!
+                let titles = [
+                    "BET", "Bet", "beuroT", "b$t", "B$T", "BBB", "Bet", "BXT", "bet", "b3t", "b#t", "b!T", "b€t"
+                ];
+                let title_idx = (self.last_tick.elapsed().as_secs_f64() * 0.5) as usize % titles.len();
+                let current_banner = titles[title_idx];
+                
+                // Generate AAA Block text from the randomized banner text
+                let mut banner_lines = [
+                    String::new(), String::new(), String::new(), String::new()
+                ];
+                for c in current_banner.chars() {
+                    let big_c = crate::big_text::get_big_char(c);
+                    for i in 0..4 {
+                        banner_lines[i].push_str(big_c[i]);
+                        banner_lines[i].push(' ');
+                    }
+                }
+                
                 let colors = [
                     Color::White,
                     Color::Gray,
@@ -890,10 +891,10 @@ impl App {
                     Color::Gray,
                 ];
                 
-                for (i, line) in ascii_banner.lines().enumerate() {
+                for (i, line) in banner_lines.iter().enumerate() {
                     let color = colors[i % colors.len()];
                     text.push(Line::from(vec![Span::styled(
-                        line,
+                        line.trim_end(), // prevent trailing spaces from breaking centering
                         Style::default().fg(color).add_modifier(Modifier::BOLD),
                     )]));
                 }
@@ -943,11 +944,9 @@ impl App {
                 
                 text.push(Line::from(""));
                 text.push(Line::from(vec![
-                    Span::styled("MEME:", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
-                    Span::raw(" "),
                     Span::styled(
                         self.main_menu_meme,
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC).add_modifier(Modifier::BOLD),
                     )
                 ]));
                 let p = Paragraph::new(text)
