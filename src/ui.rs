@@ -1226,8 +1226,8 @@ let banner_lines = match self.main_menu_banner {
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Length(3),  // Title
-                            Constraint::Length(10), // Hangman art
+                            Constraint::Length(2),  // Title
+                            Constraint::Length(12), // Hangman art
                             Constraint::Length(3),  // Word
                             Constraint::Length(2),  // Guessed
                             Constraint::Length(2),  // Attempts & Time
@@ -1257,7 +1257,7 @@ let banner_lines = match self.main_menu_banner {
                     for (row, line) in art.lines().enumerate() {
                         let mut spans = vec![];
                         for (col, c) in line.chars().enumerate() {
-                            let is_man = row >= 2 && col < 5 && c != ' ';
+                            let is_man = row >= 3 && row < 11 && col < 10 && c != ' ';
                             let color = if is_man {
                                 Color::Rgb(180, 255, 50) // Neon Mango Biche for the man
                             } else {
@@ -1278,7 +1278,7 @@ let banner_lines = match self.main_menu_banner {
                         let is_revealed = c.is_alphabetic() && game.guessed_letters().contains(&c);
                         
                         if is_revealed {
-                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().bg(Color::Rgb(180, 255, 50)).fg(Color::Black).add_modifier(Modifier::BOLD)));
+                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
                         } else if c.is_alphabetic() {
                             word_spans.push(Span::styled(" _ ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
                         } else {
@@ -2060,19 +2060,19 @@ LLLLL     Y   F     F    "#
 
 const HANGMAN_ART: [&str; 7] = [
     // Stage 0
-    "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n                |\n                |\n                |\n                |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 1
-    "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n                |\n                |\n                |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 2
-    "  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n    |           |\n    |           |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 3
-    "  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / |           |\n /  |           |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 4
-    "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\\\         |\n /  |  \\\\        |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 5
-    "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\\\         |\n /  |  \\\\        |\n    |           |\n   /            |\n  /             |\n /              |\n                |\n=====================",
     // Stage 6
-    "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\\\         |\n /  |  \\\\        |\n    |           |\n   / \\\\          |\n  /   \\\\         |\n /     \\\\        |\n                |\n=====================",
 ];
 
 #[cfg(test)]
