@@ -21,3 +21,11 @@ rand = "0.8"
 ratatui = "0.30.0"
 open = "5.1.2"
 shakmaty = "0.30.0"
+directories = "6.0.0"
+
+[profile.release]
+opt-level = 3       # Maximize optimizations
+lto = true          # Enable Link Time Optimization (smaller and faster binary)
+codegen-units = 1   # Maximize LTO by compiling in a single unit
+panic = "abort"     # Abort on panic to remove panic unwinding code (smaller binary)
+strip = true        # Strip symbols from the binary (significantly smaller)

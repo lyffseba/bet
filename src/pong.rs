@@ -79,8 +79,10 @@ impl PongGame {
 
         // Player collision (CCD: if it was in front of paddle, and now is behind it, AND y is within paddle)
         // Also keep standard bounding box check for edge cases
-        let crossed_player = prev_x - Self::BALL_R >= player_x + Self::PADDLE_W / 2.0 && self.ball_x - Self::BALL_R <= player_x + Self::PADDLE_W / 2.0;
-        let inside_player_y = self.ball_y > self.player_y - Self::PADDLE_H / 2.0 && self.ball_y < self.player_y + Self::PADDLE_H / 2.0;
+        let crossed_player = prev_x - Self::BALL_R >= player_x + Self::PADDLE_W / 2.0
+            && self.ball_x - Self::BALL_R <= player_x + Self::PADDLE_W / 2.0;
+        let inside_player_y = self.ball_y > self.player_y - Self::PADDLE_H / 2.0
+            && self.ball_y < self.player_y + Self::PADDLE_H / 2.0;
         let bounding_player = self.ball_x - Self::BALL_R < player_x + Self::PADDLE_W / 2.0
             && self.ball_x + Self::BALL_R > player_x - Self::PADDLE_W / 2.0
             && inside_player_y;
@@ -89,15 +91,17 @@ impl PongGame {
             self.ball_x = player_x + Self::PADDLE_W / 2.0 + Self::BALL_R;
             self.ball_dx *= -1.1; // Speed up slightly
             // Cap maximum speed to prevent chaotic physics
-            self.ball_dx = self.ball_dx.clamp(-150.0, 150.0); 
-            
+            self.ball_dx = self.ball_dx.clamp(-150.0, 150.0);
+
             let diff = self.ball_y - self.player_y;
             self.ball_dy += diff * 2.0; // English (spin)
         }
 
         // Computer collision
-        let crossed_computer = prev_x + Self::BALL_R <= computer_x - Self::PADDLE_W / 2.0 && self.ball_x + Self::BALL_R >= computer_x - Self::PADDLE_W / 2.0;
-        let inside_computer_y = self.ball_y > self.computer_y - Self::PADDLE_H / 2.0 && self.ball_y < self.computer_y + Self::PADDLE_H / 2.0;
+        let crossed_computer = prev_x + Self::BALL_R <= computer_x - Self::PADDLE_W / 2.0
+            && self.ball_x + Self::BALL_R >= computer_x - Self::PADDLE_W / 2.0;
+        let inside_computer_y = self.ball_y > self.computer_y - Self::PADDLE_H / 2.0
+            && self.ball_y < self.computer_y + Self::PADDLE_H / 2.0;
         let bounding_computer = self.ball_x + Self::BALL_R > computer_x - Self::PADDLE_W / 2.0
             && self.ball_x - Self::BALL_R < computer_x + Self::PADDLE_W / 2.0
             && inside_computer_y;
@@ -107,7 +111,7 @@ impl PongGame {
             self.ball_dx *= -1.1;
             // Cap maximum speed
             self.ball_dx = self.ball_dx.clamp(-150.0, 150.0);
-            
+
             let diff = self.ball_y - self.computer_y;
             self.ball_dy += diff * 2.0;
         }
@@ -138,7 +142,9 @@ impl PongGame {
         }
 
         // Clamp paddles
-        self.computer_y = self.computer_y.clamp(Self::PADDLE_H / 2.0, Self::HEIGHT - Self::PADDLE_H / 2.0);
+        self.computer_y = self
+            .computer_y
+            .clamp(Self::PADDLE_H / 2.0, Self::HEIGHT - Self::PADDLE_H / 2.0);
     }
 
     pub fn move_player(&mut self, up: bool) {
@@ -148,7 +154,9 @@ impl PongGame {
         } else {
             self.player_y -= speed;
         }
-        self.player_y = self.player_y.clamp(Self::PADDLE_H / 2.0, Self::HEIGHT - Self::PADDLE_H / 2.0);
+        self.player_y = self
+            .player_y
+            .clamp(Self::PADDLE_H / 2.0, Self::HEIGHT - Self::PADDLE_H / 2.0);
     }
 }
 
@@ -168,10 +176,10 @@ mod tests {
     fn test_paddle_movement() {
         let mut game = PongGame::new();
         let initial_y = game.player_y;
-        
+
         game.move_player(true); // move up
         assert!(game.player_y > initial_y);
-        
+
         let new_y = game.player_y;
         game.move_player(false); // move down
         assert!(game.player_y < new_y);
@@ -182,7 +190,7 @@ mod tests {
         let mut game = PongGame::new();
         game.ball_x = -10.0; // Ball went past player
         game.update(0.1);
-        
+
         assert_eq!(game.computer_score, 1);
         assert_eq!(game.player_score, 0);
         assert_eq!(game.ball_x, PongGame::WIDTH / 2.0); // Reset

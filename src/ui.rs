@@ -12,12 +12,12 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
 };
 
+use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
 use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
-use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
-use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
 use crate::pong::{GameStatus as PongStatus, PongGame};
-use shakmaty::{Square, Color as ChessColor, Position};
+use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
+use shakmaty::{Color as ChessColor, Position, Square};
 
 fn is_utf8_supported() -> bool {
     #[cfg(windows)]
@@ -133,8 +133,8 @@ impl App {
             state: AppState::LanguageSelection,
             main_menu_meme: {
                 let mut rng = rand::thread_rng();
-                use rand::seq::SliceRandom;
                 use rand::Rng;
+                use rand::seq::SliceRandom;
                 if rng.gen_bool(0.3) {
                     crate::wordlist::ASCII_MEMES.choose(&mut rng).unwrap_or(&"")
                 } else {
@@ -145,8 +145,30 @@ impl App {
                 let mut rng = rand::thread_rng();
                 use rand::seq::SliceRandom;
                 let banners = [
-                    "BET", "bet", "Bet", "BEt", "bEt", "B$t", "B$T", "b$t", "bEUROt", "BeuroSIGNt", "B$$$t", "BETO", "Betty", "BETE", "beeeet", "BEET", "Bert", "BEEEEEEEEEEte",
-                    "beuroT", "BBB", "BXT", "b3t", "b#t", "b!T"
+                    "BET",
+                    "bet",
+                    "Bet",
+                    "BEt",
+                    "bEt",
+                    "B$t",
+                    "B$T",
+                    "b$t",
+                    "bEUROt",
+                    "BeuroSIGNt",
+                    "B$$$t",
+                    "BETO",
+                    "Betty",
+                    "BETE",
+                    "beeeet",
+                    "BEET",
+                    "Bert",
+                    "BEEEEEEEEEEte",
+                    "beuroT",
+                    "BBB",
+                    "BXT",
+                    "b3t",
+                    "b#t",
+                    "b!T",
                 ];
                 *banners.choose(&mut rng).unwrap_or(&"BET")
             },
@@ -182,11 +204,12 @@ impl App {
                 let current_day = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_secs() / 86400;
-                
+                    .as_secs()
+                    / 86400;
+
                 let mut can_spawn = true;
-                if let Ok(home) = std::env::var("HOME") {
-                    let path = std::path::Path::new(&home).join(".bet_qr_last_seen");
+                if let Some(user_dirs) = directories::UserDirs::new() {
+                    let path = user_dirs.home_dir().join(".bet_qr_last_seen");
                     if let Ok(contents) = std::fs::read_to_string(&path)
                         && let Ok(saved_day) = contents.trim().parse::<u64>()
                         && saved_day == current_day
@@ -197,34 +220,34 @@ impl App {
                 can_spawn
             },
         };
-        
+
         let mut text = Vec::new();
         let mut pause_points = Vec::new();
-        
+
         let mut quotes = crate::wordlist::POETRY_QUOTES.to_vec();
         use rand::seq::SliceRandom;
         quotes.shuffle(&mut rand::thread_rng());
-        
+
         for quote in quotes {
             // Add massive padding so only one quote is on screen at a time
-            let padding = " ".repeat(60); 
-            
+            let padding = " ".repeat(60);
+
             // The quote starts here
             let next_start = text.len();
-            
+
             // We want it to pause when the quote is perfectly centered on a standard 100 char terminal.
             // That means it pauses when the start of the quote has traveled about `padding.len() + (100 - quote.len())/2` chars.
             let quote_len = quote.chars().count();
             let expected_term_width: usize = 100;
             let center_offset = (expected_term_width.saturating_sub(quote_len)) / 2;
-            
+
             // To ensure it always pauses perfectly for the user, we just set the pause point at the start of the quote minus the center offset.
             if next_start >= center_offset {
                 pause_points.push(next_start - center_offset);
             } else {
                 pause_points.push(0);
             }
-            
+
             text.extend(quote.chars());
             text.extend(padding.chars());
             text.extend("✦".chars());
@@ -253,22 +276,38 @@ impl App {
             || args.iter().skip(1).any(|a| a.to_lowercase() == "hangman");
         let wants_tictactoe = exec_name.contains("tictactoe")
             || args.iter().skip(1).any(|a| a.to_lowercase() == "tictactoe");
-        let wants_chess = exec_name.contains("chess")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
-        let wants_pong = exec_name.contains("pong")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
-        let wants_movie = exec_name.contains("movie") || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
-        let wants_series = exec_name.contains("series") || args.iter().skip(1).any(|a| a.to_lowercase() == "series");
-        let wants_manga = exec_name.contains("manga") || args.iter().skip(1).any(|a| a.to_lowercase() == "manga");
-        let wants_book = exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
-        let wants_anime = exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
-        let wants_cartoon = exec_name.contains("cartoon") || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
-        let wants_music = exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
-        let wants_videogame = exec_name.contains("videogame") || exec_name.contains("game") || args.iter().skip(1).any(|a| a.to_lowercase() == "videogame" || a.to_lowercase() == "game");
-        let wants_meme = exec_name.contains("meme") || args.iter().skip(1).any(|a| a.to_lowercase() == "meme");
-        let wants_salsa = exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
-        let wants_reggae = exec_name.contains("reggae") || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
-        let wants_rec = exec_name.contains("recommend") || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
+        let wants_chess =
+            exec_name.contains("chess") || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
+        let wants_pong =
+            exec_name.contains("pong") || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
+        let wants_movie =
+            exec_name.contains("movie") || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
+        let wants_series = exec_name.contains("series")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "series");
+        let wants_manga =
+            exec_name.contains("manga") || args.iter().skip(1).any(|a| a.to_lowercase() == "manga");
+        let wants_book =
+            exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
+        let wants_anime =
+            exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
+        let wants_cartoon = exec_name.contains("cartoon")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
+        let wants_music =
+            exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
+        let wants_videogame = exec_name.contains("videogame")
+            || exec_name.contains("game")
+            || args
+                .iter()
+                .skip(1)
+                .any(|a| a.to_lowercase() == "videogame" || a.to_lowercase() == "game");
+        let wants_meme =
+            exec_name.contains("meme") || args.iter().skip(1).any(|a| a.to_lowercase() == "meme");
+        let wants_salsa =
+            exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
+        let wants_reggae = exec_name.contains("reggae")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
+        let wants_rec = exec_name.contains("recommend")
+            || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -321,8 +360,10 @@ impl App {
         }
     }
 
-    pub fn run<B: Backend>(&mut self, terminal: &mut ratatui::Terminal<B>) -> io::Result<()> 
-    where std::io::Error: From<<B as Backend>::Error> {
+    pub fn run<B: Backend>(&mut self, terminal: &mut ratatui::Terminal<B>) -> io::Result<()>
+    where
+        std::io::Error: From<<B as Backend>::Error>,
+    {
         self.last_tick = Instant::now();
         while !self.should_quit {
             terminal.draw(|f| self.draw(f))?;
@@ -391,23 +432,39 @@ impl App {
                                         self.language_cursor += 1;
                                     }
                                 }
-                                KeyCode::Enter | KeyCode::Char(' ') => {
-                                    match self.language_cursor {
-                                        0 => self.select_language(Language::English),
-                                        1 => self.select_language(Language::Spanish),
-                                        2 => self.select_language(Language::Portuguese),
-                                        3 => self.select_language(Language::German),
-                                        4 => self.select_language(Language::Dutch),
-                                        5 => self.state = AppState::DiscordQr,
-                                        _ => {}
-                                    }
+                                KeyCode::Enter | KeyCode::Char(' ') => match self.language_cursor {
+                                    0 => self.select_language(Language::English),
+                                    1 => self.select_language(Language::Spanish),
+                                    2 => self.select_language(Language::Portuguese),
+                                    3 => self.select_language(Language::German),
+                                    4 => self.select_language(Language::Dutch),
+                                    5 => self.state = AppState::DiscordQr,
+                                    _ => {}
+                                },
+                                KeyCode::Char('1') => {
+                                    self.language_cursor = 0;
+                                    self.select_language(Language::English);
                                 }
-                                KeyCode::Char('1') => { self.language_cursor = 0; self.select_language(Language::English); }
-                                KeyCode::Char('2') => { self.language_cursor = 1; self.select_language(Language::Spanish); }
-                                KeyCode::Char('3') => { self.language_cursor = 2; self.select_language(Language::Portuguese); }
-                                KeyCode::Char('4') => { self.language_cursor = 3; self.select_language(Language::German); }
-                                KeyCode::Char('5') => { self.language_cursor = 4; self.select_language(Language::Dutch); }
-                                KeyCode::Char('9') => { self.language_cursor = 5; self.state = AppState::DiscordQr; }
+                                KeyCode::Char('2') => {
+                                    self.language_cursor = 1;
+                                    self.select_language(Language::Spanish);
+                                }
+                                KeyCode::Char('3') => {
+                                    self.language_cursor = 2;
+                                    self.select_language(Language::Portuguese);
+                                }
+                                KeyCode::Char('4') => {
+                                    self.language_cursor = 3;
+                                    self.select_language(Language::German);
+                                }
+                                KeyCode::Char('5') => {
+                                    self.language_cursor = 4;
+                                    self.select_language(Language::Dutch);
+                                }
+                                KeyCode::Char('9') => {
+                                    self.language_cursor = 5;
+                                    self.state = AppState::DiscordQr;
+                                }
                                 KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             },
@@ -420,25 +477,38 @@ impl App {
                                         self.game_cursor += 1;
                                     }
                                 }
-                                KeyCode::Enter | KeyCode::Char(' ') => {
-                                    match self.game_cursor {
-                                        0 => self.start_hangman(),
-                                        1 => self.start_tictactoe(),
-                                        2 => self.start_chess(),
-                                        3 => self.start_pong(),
-                                        4 => self.state = AppState::RecommenderMenu,
-                                        5 => {
-                                            self.state = AppState::LanguageSelection;
-                                            self.lang = None;
-                                        }
-                                        _ => {}
+                                KeyCode::Enter | KeyCode::Char(' ') => match self.game_cursor {
+                                    0 => self.start_hangman(),
+                                    1 => self.start_tictactoe(),
+                                    2 => self.start_chess(),
+                                    3 => self.start_pong(),
+                                    4 => self.state = AppState::RecommenderMenu,
+                                    5 => {
+                                        self.state = AppState::LanguageSelection;
+                                        self.lang = None;
                                     }
+                                    _ => {}
+                                },
+                                KeyCode::Char('1') => {
+                                    self.game_cursor = 0;
+                                    self.start_hangman();
                                 }
-                                KeyCode::Char('1') => { self.game_cursor = 0; self.start_hangman(); }
-                                KeyCode::Char('2') => { self.game_cursor = 1; self.start_tictactoe(); }
-                                KeyCode::Char('3') => { self.game_cursor = 2; self.start_chess(); }
-                                KeyCode::Char('4') => { self.game_cursor = 3; self.start_pong(); }
-                                KeyCode::Char('5') => { self.game_cursor = 4; self.state = AppState::RecommenderMenu; }
+                                KeyCode::Char('2') => {
+                                    self.game_cursor = 1;
+                                    self.start_tictactoe();
+                                }
+                                KeyCode::Char('3') => {
+                                    self.game_cursor = 2;
+                                    self.start_chess();
+                                }
+                                KeyCode::Char('4') => {
+                                    self.game_cursor = 3;
+                                    self.start_pong();
+                                }
+                                KeyCode::Char('5') => {
+                                    self.game_cursor = 4;
+                                    self.state = AppState::RecommenderMenu;
+                                }
                                 KeyCode::Char('7') | KeyCode::Esc => {
                                     self.game_cursor = 5;
                                     self.state = AppState::LanguageSelection;
@@ -505,22 +575,34 @@ impl App {
                                         match key.code {
                                             KeyCode::Up => {
                                                 if rank < 7 {
-                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file) as u32), shakmaty::Rank::new((rank + 1) as u32));
+                                                    self.chess_cursor = Square::from_coords(
+                                                        shakmaty::File::new((file) as u32),
+                                                        shakmaty::Rank::new((rank + 1) as u32),
+                                                    );
                                                 }
                                             }
                                             KeyCode::Down => {
                                                 if rank > 0 {
-                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file) as u32), shakmaty::Rank::new((rank - 1) as u32));
+                                                    self.chess_cursor = Square::from_coords(
+                                                        shakmaty::File::new((file) as u32),
+                                                        shakmaty::Rank::new((rank - 1) as u32),
+                                                    );
                                                 }
                                             }
                                             KeyCode::Left => {
                                                 if file > 0 {
-                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file - 1) as u32), shakmaty::Rank::new((rank) as u32));
+                                                    self.chess_cursor = Square::from_coords(
+                                                        shakmaty::File::new((file - 1) as u32),
+                                                        shakmaty::Rank::new((rank) as u32),
+                                                    );
                                                 }
                                             }
                                             KeyCode::Right => {
                                                 if file < 7 {
-                                                    self.chess_cursor = Square::from_coords(shakmaty::File::new((file + 1) as u32), shakmaty::Rank::new((rank) as u32));
+                                                    self.chess_cursor = Square::from_coords(
+                                                        shakmaty::File::new((file + 1) as u32),
+                                                        shakmaty::Rank::new((rank) as u32),
+                                                    );
                                                 }
                                             }
                                             KeyCode::Enter | KeyCode::Char(' ') => {
@@ -530,7 +612,9 @@ impl App {
                                                     } else {
                                                         let moves = chess.get_moves_from(selected);
                                                         // Automatically promote to Queen if it's a promotion move
-                                                        let m = moves.into_iter().find(|m| m.to() == self.chess_cursor);
+                                                        let m = moves
+                                                            .into_iter()
+                                                            .find(|m| m.to() == self.chess_cursor);
                                                         if let Some(m) = m {
                                                             chess.make_move(m);
                                                         }
@@ -538,15 +622,22 @@ impl App {
                                                     }
                                                 } else {
                                                     // Only select if it's our piece
-                                                    if let Some(piece) = chess.pos.board().piece_at(self.chess_cursor)
-                                                        && piece.color == chess.player_color {
-                                                            self.chess_selected = Some(self.chess_cursor);
-                                                        }
+                                                    if let Some(piece) = chess
+                                                        .pos
+                                                        .board()
+                                                        .piece_at(self.chess_cursor)
+                                                        && piece.color == chess.player_color
+                                                    {
+                                                        self.chess_selected =
+                                                            Some(self.chess_cursor);
+                                                    }
                                                 }
                                             }
                                             _ => {}
                                         }
-                                    } else if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                    } else if key.code == KeyCode::Enter
+                                        || key.code == KeyCode::Char(' ')
+                                    {
                                         self.start_chess();
                                     }
                                 }
@@ -561,73 +652,133 @@ impl App {
                                             KeyCode::Down => pong.move_player(false),
                                             _ => {}
                                         }
-                                    } else if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
+                                    } else if key.code == KeyCode::Enter
+                                        || key.code == KeyCode::Char(' ')
+                                    {
                                         self.start_pong();
                                     }
                                 }
-                            },
-                            AppState::RecommenderMenu => {
-                                match key.code {
-                                    KeyCode::Up => self.recommender_cursor = self.recommender_cursor.saturating_sub(1),
-                                    KeyCode::Down => {
-                                        if self.recommender_cursor < 8 {
-                                            self.recommender_cursor += 1;
-                                        }
+                            }
+                            AppState::RecommenderMenu => match key.code {
+                                KeyCode::Up => {
+                                    self.recommender_cursor =
+                                        self.recommender_cursor.saturating_sub(1)
+                                }
+                                KeyCode::Down => {
+                                    if self.recommender_cursor < 8 {
+                                        self.recommender_cursor += 1;
                                     }
-                                    KeyCode::Enter | KeyCode::Char(' ') => match self.recommender_cursor {
+                                }
+                                KeyCode::Enter | KeyCode::Char(' ') => {
+                                    match self.recommender_cursor {
                                         0 => self.show_recommendation(RecommenderCategory::Movie),
                                         1 => self.show_recommendation(RecommenderCategory::Series),
                                         2 => self.show_recommendation(RecommenderCategory::Manga),
                                         3 => self.show_recommendation(RecommenderCategory::Book),
                                         4 => self.show_recommendation(RecommenderCategory::Anime),
                                         5 => self.show_recommendation(RecommenderCategory::Cartoon),
-                                        6 => self.show_recommendation(RecommenderCategory::VideoGame),
+                                        6 => {
+                                            self.show_recommendation(RecommenderCategory::VideoGame)
+                                        }
                                         7 => self.state = AppState::MusicMenu,
                                         8 => self.state = AppState::GameSelection,
                                         _ => {}
-                                    },
-                                    KeyCode::Char('1') => { self.recommender_cursor = 0; self.show_recommendation(RecommenderCategory::Movie); }
-                                    KeyCode::Char('2') => { self.recommender_cursor = 1; self.show_recommendation(RecommenderCategory::Series); }
-                                    KeyCode::Char('3') => { self.recommender_cursor = 2; self.show_recommendation(RecommenderCategory::Manga); }
-                                    KeyCode::Char('4') => { self.recommender_cursor = 3; self.show_recommendation(RecommenderCategory::Book); }
-                                    KeyCode::Char('5') => { self.recommender_cursor = 4; self.show_recommendation(RecommenderCategory::Anime); }
-                                    KeyCode::Char('6') => { self.recommender_cursor = 5; self.show_recommendation(RecommenderCategory::Cartoon); }
-                                    KeyCode::Char('7') => { self.recommender_cursor = 6; self.show_recommendation(RecommenderCategory::VideoGame); }
-                                    KeyCode::Char('8') => { self.recommender_cursor = 7; self.state = AppState::MusicMenu; }
-                                    KeyCode::Char('9') | KeyCode::Esc => { self.recommender_cursor = 8; self.state = AppState::GameSelection; }
-                                    _ => {}
-                                }
-                            }
-                            AppState::MusicMenu => {
-                                match key.code {
-                                    KeyCode::Up => self.music_cursor = self.music_cursor.saturating_sub(1),
-                                    KeyCode::Down => {
-                                        if self.music_cursor < 7 {
-                                            self.music_cursor += 1;
-                                        }
                                     }
-                                    KeyCode::Enter | KeyCode::Char(' ') => match self.music_cursor {
-                                        0 => self.show_recommendation(RecommenderCategory::MusicRock),
-                                        1 => self.show_recommendation(RecommenderCategory::MusicHipHop),
-                                        2 => self.show_recommendation(RecommenderCategory::MusicPop),
-                                        3 => self.show_recommendation(RecommenderCategory::MusicElectronic),
-                                        4 => self.show_recommendation(RecommenderCategory::MusicClassical),
-                                        5 => self.show_recommendation(RecommenderCategory::MusicSalsa),
-                                        6 => self.show_recommendation(RecommenderCategory::MusicReggae),
-                                        7 => self.state = AppState::RecommenderMenu,
-                                        _ => {}
-                                    },
-                                    KeyCode::Char('1') => { self.music_cursor = 0; self.show_recommendation(RecommenderCategory::MusicRock); }
-                                    KeyCode::Char('2') => { self.music_cursor = 1; self.show_recommendation(RecommenderCategory::MusicHipHop); }
-                                    KeyCode::Char('3') => { self.music_cursor = 2; self.show_recommendation(RecommenderCategory::MusicPop); }
-                                    KeyCode::Char('4') => { self.music_cursor = 3; self.show_recommendation(RecommenderCategory::MusicElectronic); }
-                                    KeyCode::Char('5') => { self.music_cursor = 4; self.show_recommendation(RecommenderCategory::MusicClassical); }
-                                    KeyCode::Char('6') => { self.music_cursor = 5; self.show_recommendation(RecommenderCategory::MusicSalsa); }
-                                    KeyCode::Char('7') => { self.music_cursor = 6; self.show_recommendation(RecommenderCategory::MusicReggae); }
-                                    KeyCode::Char('8') | KeyCode::Esc => { self.music_cursor = 7; self.state = AppState::RecommenderMenu; }
-                                    _ => {}
                                 }
-                            }
+                                KeyCode::Char('1') => {
+                                    self.recommender_cursor = 0;
+                                    self.show_recommendation(RecommenderCategory::Movie);
+                                }
+                                KeyCode::Char('2') => {
+                                    self.recommender_cursor = 1;
+                                    self.show_recommendation(RecommenderCategory::Series);
+                                }
+                                KeyCode::Char('3') => {
+                                    self.recommender_cursor = 2;
+                                    self.show_recommendation(RecommenderCategory::Manga);
+                                }
+                                KeyCode::Char('4') => {
+                                    self.recommender_cursor = 3;
+                                    self.show_recommendation(RecommenderCategory::Book);
+                                }
+                                KeyCode::Char('5') => {
+                                    self.recommender_cursor = 4;
+                                    self.show_recommendation(RecommenderCategory::Anime);
+                                }
+                                KeyCode::Char('6') => {
+                                    self.recommender_cursor = 5;
+                                    self.show_recommendation(RecommenderCategory::Cartoon);
+                                }
+                                KeyCode::Char('7') => {
+                                    self.recommender_cursor = 6;
+                                    self.show_recommendation(RecommenderCategory::VideoGame);
+                                }
+                                KeyCode::Char('8') => {
+                                    self.recommender_cursor = 7;
+                                    self.state = AppState::MusicMenu;
+                                }
+                                KeyCode::Char('9') | KeyCode::Esc => {
+                                    self.recommender_cursor = 8;
+                                    self.state = AppState::GameSelection;
+                                }
+                                _ => {}
+                            },
+                            AppState::MusicMenu => match key.code {
+                                KeyCode::Up => {
+                                    self.music_cursor = self.music_cursor.saturating_sub(1)
+                                }
+                                KeyCode::Down => {
+                                    if self.music_cursor < 7 {
+                                        self.music_cursor += 1;
+                                    }
+                                }
+                                KeyCode::Enter | KeyCode::Char(' ') => match self.music_cursor {
+                                    0 => self.show_recommendation(RecommenderCategory::MusicRock),
+                                    1 => self.show_recommendation(RecommenderCategory::MusicHipHop),
+                                    2 => self.show_recommendation(RecommenderCategory::MusicPop),
+                                    3 => self
+                                        .show_recommendation(RecommenderCategory::MusicElectronic),
+                                    4 => self
+                                        .show_recommendation(RecommenderCategory::MusicClassical),
+                                    5 => self.show_recommendation(RecommenderCategory::MusicSalsa),
+                                    6 => self.show_recommendation(RecommenderCategory::MusicReggae),
+                                    7 => self.state = AppState::RecommenderMenu,
+                                    _ => {}
+                                },
+                                KeyCode::Char('1') => {
+                                    self.music_cursor = 0;
+                                    self.show_recommendation(RecommenderCategory::MusicRock);
+                                }
+                                KeyCode::Char('2') => {
+                                    self.music_cursor = 1;
+                                    self.show_recommendation(RecommenderCategory::MusicHipHop);
+                                }
+                                KeyCode::Char('3') => {
+                                    self.music_cursor = 2;
+                                    self.show_recommendation(RecommenderCategory::MusicPop);
+                                }
+                                KeyCode::Char('4') => {
+                                    self.music_cursor = 3;
+                                    self.show_recommendation(RecommenderCategory::MusicElectronic);
+                                }
+                                KeyCode::Char('5') => {
+                                    self.music_cursor = 4;
+                                    self.show_recommendation(RecommenderCategory::MusicClassical);
+                                }
+                                KeyCode::Char('6') => {
+                                    self.music_cursor = 5;
+                                    self.show_recommendation(RecommenderCategory::MusicSalsa);
+                                }
+                                KeyCode::Char('7') => {
+                                    self.music_cursor = 6;
+                                    self.show_recommendation(RecommenderCategory::MusicReggae);
+                                }
+                                KeyCode::Char('8') | KeyCode::Esc => {
+                                    self.music_cursor = 7;
+                                    self.state = AppState::RecommenderMenu;
+                                }
+                                _ => {}
+                            },
                             AppState::Recommendation(cat, _) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
                                     self.show_recommendation(cat);
@@ -672,14 +823,14 @@ impl App {
         } else if !self.ticker_text.is_empty() {
             let old_pos = self.ticker_pos;
             self.ticker_pos += 6.0 * dt; // 6 chars/sec (exactly 1 char per 166ms) for slower, perfectly paced reading
-            
+
             let old_idx = old_pos as usize;
             let new_idx = self.ticker_pos as usize;
-            
+
             if new_idx > old_idx && self.ticker_pause_points.contains(&new_idx) {
                 self.ticker_pause_timer = 5.0; // 5 seconds to read // Pause for 3 seconds
             }
-            
+
             if self.ticker_pos >= self.ticker_text.len() as f64 {
                 self.ticker_pos = 0.0;
             }
@@ -694,10 +845,10 @@ impl App {
         if self.bouncer_active {
             self.bouncer_x += self.bouncer_dx * dt;
             self.bouncer_y += self.bouncer_dy * dt;
-            
+
             let term_w = 120.0;
             let term_h = 24.0; // Estimate
-            
+
             if self.bouncer_x <= 0.0 || self.bouncer_x + 40.0 >= term_w {
                 self.bouncer_dx *= -1.0;
                 let max_x = if term_w > 35.0 { term_w - 40.0 } else { 0.0 };
@@ -708,7 +859,7 @@ impl App {
                 let max_y = if term_h > 18.0 { term_h - 18.0 } else { 0.0 };
                 self.bouncer_y = self.bouncer_y.clamp(0.0, max_y);
             }
-            
+
             self.bouncer_timer -= dt;
             if self.bouncer_timer <= 0.0 {
                 self.bouncer_active = false;
@@ -720,15 +871,16 @@ impl App {
                 self.bouncer_active = true;
                 self.bouncer_timer = 30.0; // Stays on screen 30 seconds
                 self.can_spawn_bouncer = false; // Never again today
-                
+
                 // Save today's date
                 let current_day = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_secs() / 86400;
-                
-                if let Ok(home) = std::env::var("HOME") {
-                    let path = std::path::Path::new(&home).join(".bet_qr_last_seen");
+                    .as_secs()
+                    / 86400;
+
+                if let Some(user_dirs) = directories::UserDirs::new() {
+                    let path = user_dirs.home_dir().join(".bet_qr_last_seen");
                     let _ = std::fs::write(path, current_day.to_string());
                 }
             }
@@ -792,14 +944,28 @@ impl App {
                 RecommenderCategory::Book => lang.books.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Anime => lang.animes.choose(&mut rng).unwrap_or(&"BET"),
                 RecommenderCategory::Cartoon => lang.cartoons.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicRock => lang.music_rock.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicHipHop => lang.music_hiphop.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicRock => {
+                    lang.music_rock.choose(&mut rng).unwrap_or(&"BET")
+                }
+                RecommenderCategory::MusicHipHop => {
+                    lang.music_hiphop.choose(&mut rng).unwrap_or(&"BET")
+                }
                 RecommenderCategory::MusicPop => lang.music_pop.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicElectronic => lang.music_electronic.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicClassical => lang.music_classical.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicSalsa => lang.music_salsa.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::MusicReggae => lang.music_reggae.choose(&mut rng).unwrap_or(&"BET"),
-                RecommenderCategory::VideoGame => lang.videogames.choose(&mut rng).unwrap_or(&"BET"),
+                RecommenderCategory::MusicElectronic => {
+                    lang.music_electronic.choose(&mut rng).unwrap_or(&"BET")
+                }
+                RecommenderCategory::MusicClassical => {
+                    lang.music_classical.choose(&mut rng).unwrap_or(&"BET")
+                }
+                RecommenderCategory::MusicSalsa => {
+                    lang.music_salsa.choose(&mut rng).unwrap_or(&"BET")
+                }
+                RecommenderCategory::MusicReggae => {
+                    lang.music_reggae.choose(&mut rng).unwrap_or(&"BET")
+                }
+                RecommenderCategory::VideoGame => {
+                    lang.videogames.choose(&mut rng).unwrap_or(&"BET")
+                }
                 RecommenderCategory::Meme => lang.memes.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
@@ -807,8 +973,6 @@ impl App {
         };
         self.state = AppState::Recommendation(category, item.to_string());
     }
-
-
 
     fn make_guess_hangman(&mut self, letter: char) {
         let mut won = false;
@@ -845,7 +1009,7 @@ impl App {
 
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
-        
+
         // Render ticker at the top
         let ticker_area = ratatui::layout::Rect {
             x: 0,
@@ -859,92 +1023,93 @@ impl App {
         match self.state {
             AppState::LanguageSelection => {
                 let rect = centered_rect(80, 80, area);
-                
+
                 let mut text = vec![];
-                
-let banner_lines = match self.main_menu_banner {
-    "BET" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "bet" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "Bet" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "BEt" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "bEt" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "B$t" => vec![
-        "██████╗ ▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "B$T" => vec![
-        "██████╗ ▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "b$t" => vec![
-        "██████╗ ▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "bEUROt" => vec![
-        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
-        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
-        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
-        "                                                   ".to_string(),
-    ],
-    "BeuroSIGNt" => vec![
+
+                let banner_lines =
+                    match self.main_menu_banner {
+                        "BET" => vec![
+                            "██████╗ ███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "bet" => vec![
+                            "██████╗ ███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "Bet" => vec![
+                            "██████╗ ███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "BEt" => vec![
+                            "██████╗ ███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "bEt" => vec![
+                            "██████╗ ███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "B$t" => vec![
+                            "██████╗ ▄▄███▄▄·████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "██╔══██╗╚════██║   ██║   ".to_string(),
+                            "██████╔╝███████║   ██║   ".to_string(),
+                            "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "B$T" => vec![
+                            "██████╗ ▄▄███▄▄·████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "██╔══██╗╚════██║   ██║   ".to_string(),
+                            "██████╔╝███████║   ██║   ".to_string(),
+                            "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "b$t" => vec![
+                            "██████╗ ▄▄███▄▄·████████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝███████╗   ██║   ".to_string(),
+                            "██╔══██╗╚════██║   ██║   ".to_string(),
+                            "██████╔╝███████║   ██║   ".to_string(),
+                            "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "bEUROt" => vec![
+                            "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
+                            "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
+                            "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
+                            "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
+                            "                                                   ".to_string(),
+                        ],
+                        "BeuroSIGNt" => vec![
         "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ███████╗██╗ ██████╗ ███╗   ██╗".to_string(),
         "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║██╔════╝ ████╗  ██║".to_string(),
         "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║███████╗██║██║  ███╗██╔██╗ ██║".to_string(),
@@ -960,70 +1125,70 @@ let banner_lines = match self.main_menu_banner {
         "   ╚═╝                                                                  ".to_string(),
         "                                                                        ".to_string(),
     ],
-    "B$$$t" => vec![
-        "██████╗ ▄▄███▄▄·▄▄███▄▄·▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗███████╗███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║╚════██║╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║███████║███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝╚═▀▀▀══╝╚═▀▀▀══╝   ╚═╝   ".to_string(),
-        "                                         ".to_string(),
-    ],
-    "BETO" => vec![
-        "██████╗ ███████╗████████╗ ██████╗ ".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗".to_string(),
-        "██████╔╝█████╗     ██║   ██║   ██║".to_string(),
-        "██╔══██╗██╔══╝     ██║   ██║   ██║".to_string(),
-        "██████╔╝███████╗   ██║   ╚██████╔╝".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝    ╚═════╝ ".to_string(),
-        "                                  ".to_string(),
-    ],
-    "Betty" => vec![
-        "██████╗ ███████╗████████╗████████╗██╗   ██╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝╚██╗ ██╔╝".to_string(),
-        "██████╔╝█████╗     ██║      ██║    ╚████╔╝ ".to_string(),
-        "██╔══██╗██╔══╝     ██║      ██║     ╚██╔╝  ".to_string(),
-        "██████╔╝███████╗   ██║      ██║      ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝      ╚═╝      ╚═╝   ".to_string(),
-        "                                           ".to_string(),
-    ],
-    "BETE" => vec![
-        "██████╗ ███████╗████████╗███████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝██╔════╝".to_string(),
-        "██████╔╝█████╗     ██║   █████╗  ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ██╔══╝  ".to_string(),
-        "██████╔╝███████╗   ██║   ███████╗".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ╚══════╝".to_string(),
-        "                                 ".to_string(),
-    ],
-    "beeeet" => vec![
-        "██████╗ ███████╗███████╗███████╗███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  █████╗  █████╗  █████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗███████╗███████╗███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝   ╚═╝   ".to_string(),
-        "                                                 ".to_string(),
-    ],
-    "BEET" => vec![
-        "██████╗ ███████╗███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  █████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝╚══════╝   ╚═╝   ".to_string(),
-        "                                 ".to_string(),
-    ],
-    "Bert" => vec![
-        "██████╗ ███████╗██████╗ ████████╗".to_string(),
-        "██╔══██╗██╔════╝██╔══██╗╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  ██████╔╝   ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██╔══██╗   ██║   ".to_string(),
-        "██████╔╝███████╗██║  ██║   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ".to_string(),
-        "                                 ".to_string(),
-    ],
-    "BEEEEEEEEEEte" => vec![
+                        "B$$$t" => vec![
+                            "██████╗ ▄▄███▄▄·▄▄███▄▄·▄▄███▄▄·████████╗".to_string(),
+                            "██╔══██╗██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝███████╗███████╗███████╗   ██║   ".to_string(),
+                            "██╔══██╗╚════██║╚════██║╚════██║   ██║   ".to_string(),
+                            "██████╔╝███████║███████║███████║   ██║   ".to_string(),
+                            "╚═════╝ ╚═▀▀▀══╝╚═▀▀▀══╝╚═▀▀▀══╝   ╚═╝   ".to_string(),
+                            "                                         ".to_string(),
+                        ],
+                        "BETO" => vec![
+                            "██████╗ ███████╗████████╗ ██████╗ ".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗".to_string(),
+                            "██████╔╝█████╗     ██║   ██║   ██║".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ██║   ██║".to_string(),
+                            "██████╔╝███████╗   ██║   ╚██████╔╝".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝    ╚═════╝ ".to_string(),
+                            "                                  ".to_string(),
+                        ],
+                        "Betty" => vec![
+                            "██████╗ ███████╗████████╗████████╗██╗   ██╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝╚██╗ ██╔╝".to_string(),
+                            "██████╔╝█████╗     ██║      ██║    ╚████╔╝ ".to_string(),
+                            "██╔══██╗██╔══╝     ██║      ██║     ╚██╔╝  ".to_string(),
+                            "██████╔╝███████╗   ██║      ██║      ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝      ╚═╝      ╚═╝   ".to_string(),
+                            "                                           ".to_string(),
+                        ],
+                        "BETE" => vec![
+                            "██████╗ ███████╗████████╗███████╗".to_string(),
+                            "██╔══██╗██╔════╝╚══██╔══╝██╔════╝".to_string(),
+                            "██████╔╝█████╗     ██║   █████╗  ".to_string(),
+                            "██╔══██╗██╔══╝     ██║   ██╔══╝  ".to_string(),
+                            "██████╔╝███████╗   ██║   ███████╗".to_string(),
+                            "╚═════╝ ╚══════╝   ╚═╝   ╚══════╝".to_string(),
+                            "                                 ".to_string(),
+                        ],
+                        "beeeet" => vec![
+                            "██████╗ ███████╗███████╗███████╗███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗  █████╗  █████╗  █████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗███████╗███████╗███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝   ╚═╝   ".to_string(),
+                            "                                                 ".to_string(),
+                        ],
+                        "BEET" => vec![
+                            "██████╗ ███████╗███████╗████████╗".to_string(),
+                            "██╔══██╗██╔════╝██╔════╝╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗  █████╗     ██║   ".to_string(),
+                            "██╔══██╗██╔══╝  ██╔══╝     ██║   ".to_string(),
+                            "██████╔╝███████╗███████╗   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝╚══════╝   ╚═╝   ".to_string(),
+                            "                                 ".to_string(),
+                        ],
+                        "Bert" => vec![
+                            "██████╗ ███████╗██████╗ ████████╗".to_string(),
+                            "██╔══██╗██╔════╝██╔══██╗╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗  ██████╔╝   ██║   ".to_string(),
+                            "██╔══██╗██╔══╝  ██╔══██╗   ██║   ".to_string(),
+                            "██████╔╝███████╗██║  ██║   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ".to_string(),
+                            "                                 ".to_string(),
+                        ],
+                        "BEEEEEEEEEEte" => vec![
         "██████╗ ███████╗███████╗███████╗███████╗███████╗███████╗███████╗███████╗".to_string(),
         "██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝".to_string(),
         "██████╔╝█████╗  █████╗  █████╗  █████╗  █████╗  █████╗  █████╗  █████╗  ".to_string(),
@@ -1039,71 +1204,65 @@ let banner_lines = match self.main_menu_banner {
         "╚══════╝╚══════╝   ╚═╝   ╚══════╝                                       ".to_string(),
         "                                                                        ".to_string(),
     ],
-    "beuroT" => vec![
-        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
-        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
-        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
-        "                                                   ".to_string(),
-    ],
-    "BBB" => vec![
-        "██████╗ ██████╗ ██████╗ ".to_string(),
-        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
-        "██████╔╝██████╔╝██████╔╝".to_string(),
-        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
-        "██████╔╝██████╔╝██████╔╝".to_string(),
-        "╚═════╝ ╚═════╝ ╚═════╝ ".to_string(),
-        "                        ".to_string(),
-    ],
-    "BXT" => vec![
-        "██████╗ ██╗  ██╗████████╗".to_string(),
-        "██╔══██╗╚██╗██╔╝╚══██╔══╝".to_string(),
-        "██████╔╝ ╚███╔╝    ██║   ".to_string(),
-        "██╔══██╗ ██╔██╗    ██║   ".to_string(),
-        "██████╔╝██╔╝ ██╗   ██║   ".to_string(),
-        "╚═════╝ ╚═╝  ╚═╝   ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "b3t" => vec![
-        "██████╗ ██████╗ ████████╗".to_string(),
-        "██╔══██╗╚════██╗╚══██╔══╝".to_string(),
-        "██████╔╝ █████╔╝   ██║   ".to_string(),
-        "██╔══██╗ ╚═══██╗   ██║   ".to_string(),
-        "██████╔╝██████╔╝   ██║   ".to_string(),
-        "╚═════╝ ╚═════╝    ╚═╝   ".to_string(),
-        "                         ".to_string(),
-    ],
-    "b#t" => vec![
-        "██████╗  ██╗ ██╗ ████████╗".to_string(),
-        "██╔══██╗████████╗╚══██╔══╝".to_string(),
-        "██████╔╝╚██╔═██╔╝   ██║   ".to_string(),
-        "██╔══██╗████████╗   ██║   ".to_string(),
-        "██████╔╝╚██╔═██╔╝   ██║   ".to_string(),
-        "╚═════╝  ╚═╝ ╚═╝    ╚═╝   ".to_string(),
-        "                          ".to_string(),
-    ],
-    "b!T" => vec![
-        "██████╗ ██╗████████╗".to_string(),
-        "██╔══██╗██║╚══██╔══╝".to_string(),
-        "██████╔╝██║   ██║   ".to_string(),
-        "██╔══██╗╚═╝   ██║   ".to_string(),
-        "██████╔╝██╗   ██║   ".to_string(),
-        "╚═════╝ ╚═╝   ╚═╝   ".to_string(),
-        "                    ".to_string(),
-    ],
-    _ => vec!["BET".to_string()],
-};
+                        "beuroT" => vec![
+                            "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
+                            "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
+                            "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
+                            "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
+                            "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
+                            "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
+                            "                                                   ".to_string(),
+                        ],
+                        "BBB" => vec![
+                            "██████╗ ██████╗ ██████╗ ".to_string(),
+                            "██╔══██╗██╔══██╗██╔══██╗".to_string(),
+                            "██████╔╝██████╔╝██████╔╝".to_string(),
+                            "██╔══██╗██╔══██╗██╔══██╗".to_string(),
+                            "██████╔╝██████╔╝██████╔╝".to_string(),
+                            "╚═════╝ ╚═════╝ ╚═════╝ ".to_string(),
+                            "                        ".to_string(),
+                        ],
+                        "BXT" => vec![
+                            "██████╗ ██╗  ██╗████████╗".to_string(),
+                            "██╔══██╗╚██╗██╔╝╚══██╔══╝".to_string(),
+                            "██████╔╝ ╚███╔╝    ██║   ".to_string(),
+                            "██╔══██╗ ██╔██╗    ██║   ".to_string(),
+                            "██████╔╝██╔╝ ██╗   ██║   ".to_string(),
+                            "╚═════╝ ╚═╝  ╚═╝   ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "b3t" => vec![
+                            "██████╗ ██████╗ ████████╗".to_string(),
+                            "██╔══██╗╚════██╗╚══██╔══╝".to_string(),
+                            "██████╔╝ █████╔╝   ██║   ".to_string(),
+                            "██╔══██╗ ╚═══██╗   ██║   ".to_string(),
+                            "██████╔╝██████╔╝   ██║   ".to_string(),
+                            "╚═════╝ ╚═════╝    ╚═╝   ".to_string(),
+                            "                         ".to_string(),
+                        ],
+                        "b#t" => vec![
+                            "██████╗  ██╗ ██╗ ████████╗".to_string(),
+                            "██╔══██╗████████╗╚══██╔══╝".to_string(),
+                            "██████╔╝╚██╔═██╔╝   ██║   ".to_string(),
+                            "██╔══██╗████████╗   ██║   ".to_string(),
+                            "██████╔╝╚██╔═██╔╝   ██║   ".to_string(),
+                            "╚═════╝  ╚═╝ ╚═╝    ╚═╝   ".to_string(),
+                            "                          ".to_string(),
+                        ],
+                        "b!T" => vec![
+                            "██████╗ ██╗████████╗".to_string(),
+                            "██╔══██╗██║╚══██╔══╝".to_string(),
+                            "██████╔╝██║   ██║   ".to_string(),
+                            "██╔══██╗╚═╝   ██║   ".to_string(),
+                            "██████╔╝██╗   ██║   ".to_string(),
+                            "╚═════╝ ╚═╝   ╚═╝   ".to_string(),
+                            "                    ".to_string(),
+                        ],
+                        _ => vec!["BET".to_string()],
+                    };
 
-                
-                let colors = [
-                    Color::White,
-                    Color::Gray,
-                    Color::DarkGray,
-                    Color::Gray,
-                ];
-                
+                let colors = [Color::White, Color::Gray, Color::DarkGray, Color::Gray];
+
                 for (i, line) in banner_lines.iter().enumerate() {
                     let color = colors[i % colors.len()];
                     text.push(Line::from(vec![Span::styled(
@@ -1113,7 +1272,7 @@ let banner_lines = match self.main_menu_banner {
                 }
                 text.push(Line::from(""));
                 text.push(Line::from(""));
-                
+
                 text.push(Line::from(vec![Span::styled(
                     "Select Language",
                     Style::default()
@@ -1130,23 +1289,37 @@ let banner_lines = match self.main_menu_banner {
                 ];
                 for (i, opt) in options.iter().enumerate() {
                     if i == self.language_cursor {
-                        text.push(Line::from(vec![Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                        text.push(Line::from(vec![Span::styled(
+                            format!("  {}  ", opt),
+                            Style::default()
+                                .fg(Color::Black)
+                                .bg(Color::Rgb(180, 255, 50))
+                                .add_modifier(Modifier::BOLD),
+                        )]));
                     } else {
-                        text.push(Line::from(vec![Span::styled(format!("  {}  ", opt), Style::default().fg(Color::White))]));
+                        text.push(Line::from(vec![Span::styled(
+                            format!("  {}  ", opt),
+                            Style::default().fg(Color::White),
+                        )]));
                     }
                 }
                 text.push(Line::from(""));
                 text.push(Line::from(""));
-                
+
                 if self.language_cursor == 5 {
                     text.push(Line::from(vec![Span::styled(
                         "  9. Join our Discord! (QR)  ",
-                        Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Black)
+                            .bg(Color::Rgb(180, 255, 50))
+                            .add_modifier(Modifier::BOLD),
                     )]));
                 } else {
                     text.push(Line::from(vec![Span::styled(
                         "  9. Join our Discord! (QR)  ",
-                        Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Rgb(180, 255, 50))
+                            .add_modifier(Modifier::BOLD),
                     )]));
                 }
                 text.push(Line::from(""));
@@ -1154,15 +1327,15 @@ let banner_lines = match self.main_menu_banner {
                     "Press 1-5 to select, 9 for Discord, or ESC to quit",
                     Style::default().fg(Color::DarkGray),
                 )]));
-                
+
                 text.push(Line::from(""));
                 for line in self.main_menu_meme.lines() {
-                    text.push(Line::from(vec![
-                        Span::styled(
-                            line,
-                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD),
-                        )
-                    ]));
+                    text.push(Line::from(vec![Span::styled(
+                        line,
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD),
+                    )]));
                 }
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
@@ -1192,14 +1365,105 @@ let banner_lines = match self.main_menu_banner {
                                 .add_modifier(Modifier::BOLD),
                         )]),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("  {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("  {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("  {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("  {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("  {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 0 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_hangman),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_hangman),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(if self.game_cursor == 1 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_tictactoe),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_tictactoe),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(if self.game_cursor == 2 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_chess),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_chess),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(if self.game_cursor == 3 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_pong),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_pong),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(if self.game_cursor == 4 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_recommender),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_recommender),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(if self.game_cursor == 5 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_meme),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_meme),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("  {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
+                        Line::from(if self.game_cursor == 6 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_go_back),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_go_back),
+                                Style::default().fg(Color::DarkGray),
+                            )]
+                        }),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1265,18 +1529,34 @@ let banner_lines = match self.main_menu_banner {
                     let mut word_spans = vec![];
                     for c in game.word().chars() {
                         let is_revealed = c.is_alphabetic() && game.guessed_letters().contains(&c);
-                        
+
                         if is_revealed {
-                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                            word_spans.push(Span::styled(
+                                format!(" {} ", c),
+                                Style::default()
+                                    .fg(Color::Rgb(180, 255, 50))
+                                    .add_modifier(Modifier::BOLD),
+                            ));
                         } else if c.is_alphabetic() {
-                            word_spans.push(Span::styled(" _ ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                            word_spans.push(Span::styled(
+                                " _ ",
+                                Style::default()
+                                    .fg(Color::White)
+                                    .add_modifier(Modifier::BOLD),
+                            ));
                         } else {
-                            word_spans.push(Span::styled(format!(" {} ", c), Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)));
+                            word_spans.push(Span::styled(
+                                format!(" {} ", c),
+                                Style::default()
+                                    .fg(Color::DarkGray)
+                                    .add_modifier(Modifier::BOLD),
+                            ));
                         }
                     }
-                    
-                    let final_word_text = vec![Line::from(""), Line::from(word_spans), Line::from("")];
-                    
+
+                    let final_word_text =
+                        vec![Line::from(""), Line::from(word_spans), Line::from("")];
+
                     f.render_widget(
                         Paragraph::new(final_word_text).alignment(Alignment::Center),
                         layout[2],
@@ -1386,7 +1666,9 @@ let banner_lines = match self.main_menu_banner {
                                 style = style.fg(Color::Gray);
                             }
 
-                            if ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor {
+                            if ttt.status == TicTacToeStatus::Ongoing
+                                && idx == self.tictactoe_cursor
+                            {
                                 style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
                             }
 
@@ -1477,21 +1759,30 @@ let banner_lines = match self.main_menu_banner {
 
                     // Title
                     f.render_widget(
-                        Paragraph::new(lang.chess_title).alignment(Alignment::Center).style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(lang.chess_title)
+                            .alignment(Alignment::Center)
+                            .style(
+                                Style::default()
+                                    .fg(Color::White)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         layout[0],
                     );
 
                     // Board
                     let mut board_lines = vec![];
-                    for rank in (0..8).rev() { 
+                    for rank in (0..8).rev() {
                         let mut line_spans = vec![];
-                        line_spans.push(Span::raw(format!(" {} ", rank + 1))); 
-                        
+                        line_spans.push(Span::raw(format!(" {} ", rank + 1)));
+
                         for file in 0..8 {
-                            let sq = crate::ui::Square::from_coords(shakmaty::File::new(file), shakmaty::Rank::new(rank));
+                            let sq = crate::ui::Square::from_coords(
+                                shakmaty::File::new(file),
+                                shakmaty::Rank::new(rank),
+                            );
                             let is_cursor = self.chess_cursor == sq;
                             let is_selected = self.chess_selected == Some(sq);
-                            
+
                             let mut is_valid_dest = false;
                             if let Some(sel) = self.chess_selected {
                                 let moves = chess.get_moves_from(sel);
@@ -1531,37 +1822,77 @@ let banner_lines = match self.main_menu_banner {
                                             (shakmaty::Color::Black, shakmaty::Role::King) => "k",
                                         }
                                     }
-                                },
+                                }
                                 None => " ",
                             };
 
-                            let mut bg = if (rank + file) % 2 == 1 { Color::DarkGray } else { Color::Gray }; 
-                            if is_valid_dest { bg = if (rank + file) % 2 == 1 { Color::Blue } else { Color::LightBlue }; }
-                            if is_selected { bg = Color::Rgb(180, 255, 50); }
-                            if is_cursor { bg = Color::Rgb(180, 255, 50); }
+                            let mut bg = if (rank + file) % 2 == 1 {
+                                Color::DarkGray
+                            } else {
+                                Color::Gray
+                            };
+                            if is_valid_dest {
+                                bg = if (rank + file) % 2 == 1 {
+                                    Color::Blue
+                                } else {
+                                    Color::LightBlue
+                                };
+                            }
+                            if is_selected {
+                                bg = Color::Rgb(180, 255, 50);
+                            }
+                            if is_cursor {
+                                bg = Color::Rgb(180, 255, 50);
+                            }
 
                             let text = format!(" {} ", piece_str);
                             let fg = Color::Black;
-                            line_spans.push(Span::styled(text, Style::default().bg(bg).fg(fg).add_modifier(Modifier::BOLD)));
+                            line_spans.push(Span::styled(
+                                text,
+                                Style::default().bg(bg).fg(fg).add_modifier(Modifier::BOLD),
+                            ));
                         }
                         board_lines.push(Line::from(line_spans));
                     }
                     let file_labels = Line::from("    A  B  C  D  E  F  G  H ");
                     board_lines.push(file_labels);
-                    
-                    f.render_widget(Paragraph::new(board_lines).alignment(Alignment::Center), layout[1]);
+
+                    f.render_widget(
+                        Paragraph::new(board_lines).alignment(Alignment::Center),
+                        layout[1],
+                    );
 
                     let status_msg = match chess.status {
                         ChessStatus::Ongoing => lang.chess_your_turn,
-                        ChessStatus::Win(c) => if c == ChessColor::White { lang.chess_white_wins } else { lang.chess_black_wins },
+                        ChessStatus::Win(c) => {
+                            if c == ChessColor::White {
+                                lang.chess_white_wins
+                            } else {
+                                lang.chess_black_wins
+                            }
+                        }
                         ChessStatus::Stalemate => lang.chess_stalemate,
                         ChessStatus::Draw => lang.chess_draw,
                     };
-                    
-                    let instr = if chess.status == ChessStatus::Ongoing { lang.chess_instructions_ongoing } else { lang.chess_instructions_over };
-                    
-                    f.render_widget(Paragraph::new(status_msg).alignment(Alignment::Center).style(Style::default().fg(Color::White)), layout[2]);
-                    f.render_widget(Paragraph::new(instr).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[3]);
+
+                    let instr = if chess.status == ChessStatus::Ongoing {
+                        lang.chess_instructions_ongoing
+                    } else {
+                        lang.chess_instructions_over
+                    };
+
+                    f.render_widget(
+                        Paragraph::new(status_msg)
+                            .alignment(Alignment::Center)
+                            .style(Style::default().fg(Color::White)),
+                        layout[2],
+                    );
+                    f.render_widget(
+                        Paragraph::new(instr)
+                            .alignment(Alignment::Center)
+                            .style(Style::default().fg(Color::DarkGray)),
+                        layout[3],
+                    );
                 }
             }
             AppState::PlayingPong => {
@@ -1572,22 +1903,33 @@ let banner_lines = match self.main_menu_banner {
                     let layout = ratatui::layout::Layout::default()
                         .direction(ratatui::layout::Direction::Vertical)
                         .constraints([
-                            ratatui::layout::Constraint::Length(3),  // Title and Score
-                            ratatui::layout::Constraint::Min(12),    // Canvas
-                            ratatui::layout::Constraint::Length(2),  // Status/Instructions
+                            ratatui::layout::Constraint::Length(3), // Title and Score
+                            ratatui::layout::Constraint::Min(12),   // Canvas
+                            ratatui::layout::Constraint::Length(2), // Status/Instructions
                         ])
                         .split(rect);
 
                     // Title & Score
-                    let title = format!("{}  |  {} - {}", lang.pong_title, pong.player_score, pong.computer_score);
+                    let title = format!(
+                        "{}  |  {} - {}",
+                        lang.pong_title, pong.player_score, pong.computer_score
+                    );
                     f.render_widget(
-                        Paragraph::new(title).alignment(Alignment::Center).style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                        Paragraph::new(title).alignment(Alignment::Center).style(
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         layout[0],
                     );
 
                     // Canvas
                     let canvas = Canvas::default()
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick))
+                        .block(
+                            Block::default()
+                                .borders(ratatui::widgets::Borders::ALL)
+                                .border_type(ratatui::widgets::BorderType::Thick),
+                        )
                         .marker(ratatui::symbols::Marker::Braille)
                         .x_bounds([0.0, 100.0])
                         .y_bounds([0.0, 100.0])
@@ -1634,11 +1976,20 @@ let banner_lines = match self.main_menu_banner {
                         PongStatus::PlayerWins => lang.pong_player_wins,
                         PongStatus::ComputerWins => lang.pong_computer_wins,
                     };
-                    
-                    let instr = if pong.status != PongStatus::Ongoing { "Press Enter to play again." } else { "" };
+
+                    let instr = if pong.status != PongStatus::Ongoing {
+                        "Press Enter to play again."
+                    } else {
+                        ""
+                    };
                     let combined = format!("{} {}", msg, instr);
-                    
-                    f.render_widget(Paragraph::new(combined).alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray)), layout[2]);
+
+                    f.render_widget(
+                        Paragraph::new(combined)
+                            .alignment(Alignment::Center)
+                            .style(Style::default().fg(Color::DarkGray)),
+                        layout[2],
+                    );
                 }
             }
             AppState::GameOver(won) => {
@@ -1684,17 +2035,19 @@ let banner_lines = match self.main_menu_banner {
                     f.render_widget(p, rect);
                 }
             }
-                        AppState::RecommenderMenu => {
+            AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
                     let rect = centered_rect(65, 24, area);
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.menu_recommender,
-                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                     ];
-                    
+
                     let options = [
                         lang.recommender_menu_movies,
                         lang.recommender_menu_series,
@@ -1706,25 +2059,43 @@ let banner_lines = match self.main_menu_banner {
                         lang.recommender_menu_music,
                         lang.recommender_go_back,
                     ];
-                    
+
                     for (i, opt) in options.iter().enumerate() {
-                        if i == 8 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
-                        
+                        if i == 8 {
+                            text.push(ratatui::text::Line::from(""));
+                        } // Spacer before Go Back
+
                         if i == self.recommender_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![
+                                ratatui::text::Span::styled(
+                                    format!("  {}  ", opt),
+                                    Style::default()
+                                        .fg(Color::Black)
+                                        .bg(Color::Rgb(180, 255, 50))
+                                        .add_modifier(Modifier::BOLD),
+                                ),
+                            ]));
                         } else {
-                            let color = if i == 8 { Color::DarkGray } else { Color::White };
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(color))]));
+                            let color = if i == 8 {
+                                Color::DarkGray
+                            } else {
+                                Color::White
+                            };
+                            text.push(ratatui::text::Line::from(vec![
+                                ratatui::text::Span::styled(
+                                    format!("  {}  ", opt),
+                                    Style::default().fg(color),
+                                ),
+                            ]));
                         }
                     }
 
-                    let p = Paragraph::new(text)
-                        .alignment(Alignment::Center)
-                        .block(
-                            Block::default()
-                                .borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick)
-                                .title(lang.recommender_title),
-                        );
+                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                        Block::default()
+                            .borders(ratatui::widgets::Borders::ALL)
+                            .border_type(ratatui::widgets::BorderType::Thick)
+                            .title(lang.recommender_title),
+                    );
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
@@ -1735,11 +2106,13 @@ let banner_lines = match self.main_menu_banner {
                     let mut text = vec![
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_menu_music,
-                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                     ];
-                    
+
                     let options = [
                         lang.music_menu_rock,
                         lang.music_menu_hiphop,
@@ -1750,25 +2123,43 @@ let banner_lines = match self.main_menu_banner {
                         lang.music_menu_reggae,
                         lang.music_go_back,
                     ];
-                    
+
                     for (i, opt) in options.iter().enumerate() {
-                        if i == 9 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
-                        
+                        if i == 9 {
+                            text.push(ratatui::text::Line::from(""));
+                        } // Spacer before Go Back
+
                         if i == self.music_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![
+                                ratatui::text::Span::styled(
+                                    format!("  {}  ", opt),
+                                    Style::default()
+                                        .fg(Color::Black)
+                                        .bg(Color::Rgb(180, 255, 50))
+                                        .add_modifier(Modifier::BOLD),
+                                ),
+                            ]));
                         } else {
-                            let color = if i == 9 { Color::DarkGray } else { Color::White };
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(color))]));
+                            let color = if i == 9 {
+                                Color::DarkGray
+                            } else {
+                                Color::White
+                            };
+                            text.push(ratatui::text::Line::from(vec![
+                                ratatui::text::Span::styled(
+                                    format!("  {}  ", opt),
+                                    Style::default().fg(color),
+                                ),
+                            ]));
                         }
                     }
 
-                    let p = Paragraph::new(text)
-                        .alignment(Alignment::Center)
-                        .block(
-                            Block::default()
-                                .borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick)
-                                .title(lang.music_menu_title),
-                        );
+                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                        Block::default()
+                            .borders(ratatui::widgets::Borders::ALL)
+                            .border_type(ratatui::widgets::BorderType::Thick)
+                            .title(lang.music_menu_title),
+                    );
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
@@ -1776,18 +2167,22 @@ let banner_lines = match self.main_menu_banner {
             AppState::Recommendation(_, ref item) => {
                 if let Some(lang) = &self.lang {
                     let rect = centered_rect(60, 30, area);
-                    
+
                     let text = vec![
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             lang.recommender_subtitle,
-                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::ITALIC),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(vec![ratatui::text::Span::styled(
                             item.as_str(),
-                            Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
+                            Style::default()
+                                .fg(Color::Rgb(180, 255, 50))
+                                .add_modifier(Modifier::BOLD),
                         )]),
                         ratatui::text::Line::from(""),
                         ratatui::text::Line::from(""),
@@ -1797,15 +2192,17 @@ let banner_lines = match self.main_menu_banner {
                         )]),
                     ];
 
-                    let p = Paragraph::new(text)
-                        .alignment(Alignment::Center)
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title(lang.recommender_title));
-                    
+                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
+                        Block::default()
+                            .borders(ratatui::widgets::Borders::ALL)
+                            .border_type(ratatui::widgets::BorderType::Thick)
+                            .title(lang.recommender_title),
+                    );
+
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
             }
-,
             AppState::DiscordQr => {
                 let rect = centered_rect(80, 80, area);
 
@@ -1948,22 +2345,28 @@ LLLLL     Y   F     F    "#
             }
         }
 
-                if self.bouncer_active && area.width > 40 && area.height > 20 {
+        if self.bouncer_active && area.width > 40 && area.height > 20 {
             let b_rect = ratatui::layout::Rect {
                 x: self.bouncer_x as u16,
                 y: self.bouncer_y as u16,
                 width: 38,
                 height: 17,
             };
-            
+
             let url = "https://discord.gg/MF6fMFURyC";
             if let Ok(code) = qrcode::QrCode::new(url) {
                 let colors = code.to_colors();
                 let width = code.width();
-                
+
                 let mut qr_lines = vec![];
-                qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(" [ DISCORD ] FIRST 3 TO SCAN WIN! ", Style::default().bg(Color::Rgb(180,255,50)).fg(Color::Black).add_modifier(Modifier::BOLD))));
-                
+                qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
+                    " [ DISCORD ] FIRST 3 TO SCAN WIN! ",
+                    Style::default()
+                        .bg(Color::Rgb(180, 255, 50))
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                )));
+
                 for y in (0..width).step_by(2) {
                     let mut line = String::new();
                     for x in 0..width {
@@ -1981,32 +2384,50 @@ LLLLL     Y   F     F    "#
                         };
                         line.push(c);
                     }
-                    qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(line, Style::default().fg(Color::Rgb(180,255,50)))));
+                    qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
+                        line,
+                        Style::default().fg(Color::Rgb(180, 255, 50)),
+                    )));
                 }
-                
-                let bouncer_p = Paragraph::new(qr_lines).block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick));
-                let cb = ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
+
+                let bouncer_p = Paragraph::new(qr_lines).block(
+                    Block::default()
+                        .borders(ratatui::widgets::Borders::ALL)
+                        .border_type(ratatui::widgets::BorderType::Thick),
+                );
+                let cb =
+                    ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
                 f.render_widget(cb, b_rect);
                 f.render_widget(bouncer_p, b_rect);
             }
         }
-        
+
         // --- Render the infinite scrolling Poetry / News Ticker ---
         if !self.ticker_text.is_empty() && ticker_area.width > 0 {
             let offset = self.ticker_pos as usize;
-            
+
             let mut display_text = String::with_capacity(ticker_area.width as usize);
             for i in 0..ticker_area.width as usize {
                 display_text.push(self.ticker_text[(offset + i) % self.ticker_text.len()]);
             }
-            
+
             // Sober floating gray text tracking across the top
             let mut spans = vec![];
             for c in display_text.chars() {
                 if c == '✦' {
-                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                    spans.push(Span::styled(
+                        c.to_string(),
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
+                    ));
                 } else {
-                    spans.push(Span::styled(c.to_string(), Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                    spans.push(Span::styled(
+                        c.to_string(),
+                        Style::default()
+                            .fg(Color::Rgb(180, 255, 50))
+                            .add_modifier(Modifier::BOLD),
+                    ));
                 }
             }
             let ticker_p = Paragraph::new(Line::from(spans));
@@ -2072,8 +2493,8 @@ mod tests {
 #[cfg(test)]
 mod theme_tests {
     use super::*;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use ratatui::style::Color;
 
     const ALLOWED_COLORS: &[Color] = &[
@@ -2097,13 +2518,13 @@ mod theme_tests {
 
         let mut app = App::new();
         app.select_language(Language::English);
-        
+
         // Mock active games to test their UIs
         app.game = Some(crate::game::Hangman::new("TEST", 6));
         app.tictactoe = Some(crate::tictactoe::TicTacToe::new());
         app.chess = Some(crate::chess_game::ChessGame::new(false));
         app.pong = Some(crate::pong::PongGame::new());
-        
+
         let test_states = vec![
             AppState::LanguageSelection,
             AppState::GameSelection,
@@ -2122,13 +2543,15 @@ mod theme_tests {
 
         for state in test_states {
             app.state = state;
-            
+
             // Clear backend to avoid carry-over
             terminal.clear().unwrap();
 
-            terminal.draw(|f| {
-                app.draw(f);
-            }).unwrap();
+            terminal
+                .draw(|f| {
+                    app.draw(f);
+                })
+                .unwrap();
 
             let buffer = terminal.backend().buffer();
             for cell in buffer.content() {

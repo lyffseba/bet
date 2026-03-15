@@ -161,17 +161,17 @@ fn test_loss_condition() {
     let mut game = Hangman::new("TEST", 3);
 
     // 1st wrong guess
-    assert_eq!(game.guess('X').unwrap(), false);
+    assert!(!game.guess('X').unwrap());
     assert!(!game.is_lost());
     assert_eq!(game.attempts_left(), 2);
 
     // 2nd wrong guess
-    assert_eq!(game.guess('Y').unwrap(), false);
+    assert!(!game.guess('Y').unwrap());
     assert!(!game.is_lost());
     assert_eq!(game.attempts_left(), 1);
 
     // 3rd wrong guess - game over
-    assert_eq!(game.guess('Z').unwrap(), false);
+    assert!(!game.guess('Z').unwrap());
     assert!(game.is_lost());
     assert_eq!(game.attempts_left(), 0);
 }

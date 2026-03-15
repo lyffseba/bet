@@ -1,5 +1,5 @@
-use shakmaty::{Chess, Position, Square, Move, Color};
 use rand::seq::SliceRandom;
+use shakmaty::{Chess, Color, Move, Position, Square};
 
 #[derive(PartialEq, Debug)]
 pub enum GameStatus {
@@ -39,8 +39,11 @@ impl ChessGame {
         if let Ok(new_pos) = self.pos.clone().play(m) {
             self.pos = new_pos;
             self.update_status();
-            
-            if self.status == GameStatus::Ongoing && !self.is_pvp && self.pos.turn() != self.player_color {
+
+            if self.status == GameStatus::Ongoing
+                && !self.is_pvp
+                && self.pos.turn() != self.player_color
+            {
                 self.computer_move();
                 self.update_status();
             }
@@ -53,7 +56,7 @@ impl ChessGame {
         let moves = self.pos.legal_moves();
         if !moves.is_empty() {
             let mut rng = rand::thread_rng();
-            
+
             let captures: Vec<Move> = moves.iter().filter(|m| m.is_capture()).cloned().collect();
             let chosen = if !captures.is_empty() {
                 *captures.choose(&mut rng).unwrap()
@@ -61,7 +64,7 @@ impl ChessGame {
                 let moves_vec: Vec<Move> = moves.into_iter().collect();
                 *moves_vec.choose(&mut rng).unwrap()
             };
-            
+
             self.pos = self.pos.clone().play(chosen).unwrap();
         }
     }
@@ -94,10 +97,10 @@ mod tests {
         let moves = game.get_moves_from(Square::E2); // White pawn
         assert!(!moves.is_empty());
         let m = moves.into_iter().find(|m| m.to() == Square::E4).unwrap();
-        
+
         let success = game.make_move(m);
         assert!(success);
-        
+
         // AI should have played instantly because it's false for PVP
         // So it should be White's turn again
         assert_eq!(game.pos.turn(), Color::White);
@@ -106,11 +109,11 @@ mod tests {
     #[test]
     fn test_pvp_move() {
         let mut game = ChessGame::new(true); // PvP mode
-        let moves = game.get_moves_from(Square::E2); 
+        let moves = game.get_moves_from(Square::E2);
         let m = moves.into_iter().find(|m| m.to() == Square::E4).unwrap();
-        
+
         game.make_move(m);
-        
+
         // PvP means it's now Black's turn (AI didn't move)
         assert_eq!(game.pos.turn(), Color::Black);
     }
