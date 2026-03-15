@@ -89,7 +89,6 @@ pub enum AppState {
     RecommenderMenu,
     MusicMenu,
     Recommendation(RecommenderCategory, String),
-    Meme(String),
     DiscordQr,
     EasterEgg,
 }
@@ -135,7 +134,12 @@ impl App {
             main_menu_meme: {
                 let mut rng = rand::thread_rng();
                 use rand::seq::SliceRandom;
-                crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
+                use rand::Rng;
+                if rng.gen_bool(0.3) {
+                    crate::wordlist::ASCII_MEMES.choose(&mut rng).unwrap_or(&"")
+                } else {
+                    crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
+                }
             },
             main_menu_banner: {
                 let mut rng = rand::thread_rng();
@@ -412,7 +416,7 @@ impl App {
                                     self.game_cursor = self.game_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.game_cursor < 6 {
+                                    if self.game_cursor < 5 {
                                         self.game_cursor += 1;
                                     }
                                 }
@@ -423,8 +427,7 @@ impl App {
                                         2 => self.start_chess(),
                                         3 => self.start_pong(),
                                         4 => self.state = AppState::RecommenderMenu,
-                                        5 => self.show_meme(),
-                                        6 => {
+                                        5 => {
                                             self.state = AppState::LanguageSelection;
                                             self.lang = None;
                                         }
@@ -436,9 +439,8 @@ impl App {
                                 KeyCode::Char('3') => { self.game_cursor = 2; self.start_chess(); }
                                 KeyCode::Char('4') => { self.game_cursor = 3; self.start_pong(); }
                                 KeyCode::Char('5') => { self.game_cursor = 4; self.state = AppState::RecommenderMenu; }
-                                KeyCode::Char('6') => { self.game_cursor = 5; self.show_meme(); }
-                                KeyCode::Char('8') | KeyCode::Esc => {
-                                    self.game_cursor = 6;
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 5;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -633,13 +635,7 @@ impl App {
                                     self.state = AppState::RecommenderMenu;
                                 }
                             }
-                            AppState::Meme(_) => {
-                                if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
-                                    self.show_meme();
-                                } else if key.code == KeyCode::Esc {
-                                    self.state = AppState::GameSelection;
-                                }
-                            }
+
                             AppState::GameOver(_) => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
                                     self.state = AppState::GameSelection;
@@ -812,16 +808,7 @@ impl App {
         self.state = AppState::Recommendation(category, item.to_string());
     }
 
-    fn show_meme(&mut self) {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
-        let item = if let Some(_lang) = &self.lang {
-            crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"BET")
-        } else {
-            crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"BET")
-        };
-        self.state = AppState::Meme(item.to_string());
-    }
+
 
     fn make_guess_hangman(&mut self, letter: char) {
         let mut won = false;
@@ -1169,12 +1156,14 @@ let banner_lines = match self.main_menu_banner {
                 )]));
                 
                 text.push(Line::from(""));
-                text.push(Line::from(vec![
-                    Span::styled(
-                        self.main_menu_meme,
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC).add_modifier(Modifier::BOLD),
-                    )
-                ]));
+                for line in self.main_menu_meme.lines() {
+                    text.push(Line::from(vec![
+                        Span::styled(
+                            line,
+                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD),
+                        )
+                    ]));
+                }
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
                     .block(Block::default().borders(Borders::ALL).title("bet"));
@@ -1257,7 +1246,7 @@ let banner_lines = match self.main_menu_banner {
                     for (row, line) in art.lines().enumerate() {
                         let mut spans = vec![];
                         for (col, c) in line.chars().enumerate() {
-                            let is_man = row >= 3 && row < 11 && col < 10 && c != ' ';
+                            let is_man = (3..11).contains(&row) && col < 10 && c != ' ';
                             let color = if is_man {
                                 Color::Rgb(180, 255, 50) // Neon Mango Biche for the man
                             } else {
@@ -1816,39 +1805,7 @@ let banner_lines = match self.main_menu_banner {
                     f.render_widget(p, rect);
                 }
             }
-            AppState::Meme(ref item) => {
-                if let Some(_lang) = &self.lang {
-                    let rect = centered_rect(60, 20, area);
-                    
-                    let text = vec![
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            "Internet Culture:",
-                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
-                        )]),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            item.as_str(),
-                            Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
-                        )]),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(""),
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            "Press Enter for another, or ESC to go back.",
-                            Style::default().fg(Color::DarkGray),
-                        )]),
-                    ];
-
-                    let p = Paragraph::new(text)
-                        .alignment(Alignment::Center)
-                        .block(Block::default().borders(ratatui::widgets::Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title("MEME GENERATOR"));
-                    
-                    let clear_block = ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
-                    f.render_widget(clear_block, rect);
-                    f.render_widget(p, rect);
-                }
-            },
+,
             AppState::DiscordQr => {
                 let rect = centered_rect(80, 80, area);
 
