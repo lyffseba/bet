@@ -128,6 +128,17 @@ pub struct App {
 }
 
 impl App {
+    pub fn refresh_main_menu_meme(&mut self) {
+        let mut rng = rand::thread_rng();
+        use rand::Rng;
+        use rand::seq::SliceRandom;
+        self.main_menu_meme = if rng.gen_bool(0.3) {
+            crate::wordlist::ASCII_MEMES.choose(&mut rng).unwrap_or(&"")
+        } else {
+            crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
+        };
+    }
+
     pub fn new() -> Self {
         let mut app = Self {
             state: AppState::LanguageSelection,
@@ -491,6 +502,7 @@ impl App {
                                     5 => {
                                         self.state = AppState::LanguageSelection;
                                         self.lang = None;
+                                        self.refresh_main_menu_meme();
                                     }
                                     _ => {}
                                 },
@@ -518,6 +530,7 @@ impl App {
                                     self.game_cursor = 5;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
+                                    self.refresh_main_menu_meme();
                                 }
                                 _ => {}
                             },
@@ -801,10 +814,12 @@ impl App {
                             AppState::DiscordQr => {
                                 if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
                                     self.state = AppState::LanguageSelection;
+                                    self.refresh_main_menu_meme();
                                 }
                             }
                             AppState::EasterEgg => {
                                 self.state = AppState::LanguageSelection;
+                                self.refresh_main_menu_meme();
                             }
                         }
                     }
@@ -2439,11 +2454,11 @@ const HANGMAN_ART: [&str; 7] = [
     // Stage 3
     "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / |           |\n /  |           |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 4
-    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\         |\n /  |  \\        |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\        |\n /  |  \\       |\n    |           |\n                |\n                |\n                |\n                |\n=====================",
     // Stage 5
-    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\         |\n /  |  \\        |\n    |           |\n   /            |\n  /             |\n /              |\n                |\n=====================",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\        |\n /  |  \\       |\n    |           |\n   /            |\n  /             |\n /              |\n                |\n=====================",
     // Stage 6
-    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\         |\n /  |  \\        |\n    |           |\n   / \\          |\n  /   \\         |\n /     \\        |\n                |\n=====================",
+    "    +-----------+\n    |           |\n    |           |\n   ( )          |\n  / | \\        |\n /  |  \\       |\n    |           |\n   / \\         |\n  /   \\        |\n /     \\       |\n                |\n=====================",
 ];
 
 #[cfg(test)]
