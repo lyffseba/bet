@@ -382,7 +382,7 @@ impl App {
                                     self.game_cursor = self.game_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.game_cursor < 5 {
+                                    if self.game_cursor < 6 {
                                         self.game_cursor += 1;
                                     }
                                 }
@@ -393,7 +393,8 @@ impl App {
                                         2 => self.start_chess(),
                                         3 => self.start_pong(),
                                         4 => self.state = AppState::RecommenderMenu,
-                                        5 => {
+                                        5 => self.show_meme(),
+                                        6 => {
                                             self.state = AppState::LanguageSelection;
                                             self.lang = None;
                                         }
@@ -405,8 +406,9 @@ impl App {
                                 KeyCode::Char('3') => { self.game_cursor = 2; self.start_chess(); }
                                 KeyCode::Char('4') => { self.game_cursor = 3; self.start_pong(); }
                                 KeyCode::Char('5') => { self.game_cursor = 4; self.state = AppState::RecommenderMenu; }
-                                KeyCode::Char('7') | KeyCode::Esc => {
-                                    self.game_cursor = 5;
+                                KeyCode::Char('6') => { self.game_cursor = 5; self.show_meme(); }
+                                KeyCode::Char('8') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                 }
@@ -949,8 +951,9 @@ impl App {
                         Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("  > {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
                         Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("  > {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
                         Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("  > {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  > {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  > {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
+                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("  > {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1454,7 +1457,6 @@ impl App {
                         lang.recommender_menu_anime,
                         lang.recommender_menu_cartoons,
                         lang.recommender_menu_videogames,
-                        lang.recommender_menu_memes,
                         lang.recommender_menu_music,
                         lang.recommender_go_back,
                     ];
