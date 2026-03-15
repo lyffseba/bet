@@ -1009,6 +1009,11 @@ impl App {
 
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
+        
+        // Move the hidden cursor to the bottom right corner
+        // This prevents the macOS Sonoma Caps Lock / Input Method popup bug
+        // from rendering a weird floating symbol in the top left corner.
+        f.set_cursor_position((area.width.saturating_sub(1), area.height.saturating_sub(1)));
 
         // Render ticker at the top
         let ticker_area = ratatui::layout::Rect {
