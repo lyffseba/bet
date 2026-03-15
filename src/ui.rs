@@ -367,6 +367,11 @@ impl App {
         self.last_tick = Instant::now();
         while !self.should_quit {
             terminal.draw(|f| self.draw(f))?;
+
+            // Move the underlying terminal cursor off-screen to prevent the macOS Sonoma
+            // Caps Lock/IME indicator from appearing over the top-left of the UI.
+            let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::MoveTo(999, 999));
+
             self.handle_events()?;
             self.tick();
         }
@@ -1009,11 +1014,6 @@ impl App {
 
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
-        
-        // Move the hidden cursor to the bottom right corner
-        // This prevents the macOS Sonoma Caps Lock / Input Method popup bug
-        // from rendering a weird floating symbol in the top left corner.
-        f.set_cursor_position((area.width.saturating_sub(1), area.height.saturating_sub(1)));
 
         // Render ticker at the top
         let ticker_area = ratatui::layout::Rect {
@@ -1536,10 +1536,7 @@ impl App {
                                     .add_modifier(Modifier::BOLD),
                             ));
                         } else if c.is_whitespace() {
-                            word_spans.push(Span::styled(
-                                "     ",
-                                Style::default(),
-                            ));
+                            word_spans.push(Span::styled("     ", Style::default()));
                         } else {
                             word_spans.push(Span::styled(
                                 format!(" {} ", c),
