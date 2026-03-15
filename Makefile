@@ -27,9 +27,6 @@ install: build
 	ln -sf ~/.local/bin/bet ~/.local/bin/videogame
 	ln -sf ~/.local/bin/bet ~/.local/bin/game
 	ln -sf ~/.local/bin/bet ~/.local/bin/meme
-	ln -sf ~/.local/bin/bet ~/.local/bin/videogame
-	ln -sf ~/.local/bin/bet ~/.local/bin/game
-	ln -sf ~/.local/bin/bet ~/.local/bin/meme
 	ln -sf ~/.local/bin/bet ~/.local/bin/recommend
 	ln -sf ~/.local/bin/bet ~/.local/bin/music
 	ln -sf ~/.local/bin/bet ~/.local/bin/salsa
@@ -48,9 +45,6 @@ install-system: build
 	ln -sf /usr/local/bin/bet /usr/local/bin/book
 	ln -sf /usr/local/bin/bet /usr/local/bin/anime
 	ln -sf /usr/local/bin/bet /usr/local/bin/cartoon
-	ln -sf /usr/local/bin/bet /usr/local/bin/videogame
-	ln -sf /usr/local/bin/bet /usr/local/bin/game
-	ln -sf /usr/local/bin/bet /usr/local/bin/meme
 	ln -sf /usr/local/bin/bet /usr/local/bin/videogame
 	ln -sf /usr/local/bin/bet /usr/local/bin/game
 	ln -sf /usr/local/bin/bet /usr/local/bin/meme
