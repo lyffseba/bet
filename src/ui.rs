@@ -123,6 +123,7 @@ pub struct App {
     pub bouncer_dy: f64,
     pub bouncer_timer: f64,
     pub bouncer_active: bool,
+    pub can_spawn_bouncer: bool,
     pub ticker_pause_points: Vec<usize>,
 }
 
@@ -162,6 +163,24 @@ impl App {
             bouncer_timer: 0.0,
             bouncer_active: false,
             ticker_pause_points: Vec::new(),
+            can_spawn_bouncer: {
+                let current_day = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs() / 86400;
+                
+                let mut can_spawn = true;
+                if let Ok(home) = std::env::var("HOME") {
+                    let path = std::path::Path::new(&home).join(".bet_qr_last_seen");
+                    if let Ok(contents) = std::fs::read_to_string(&path)
+                        && let Ok(saved_day) = contents.trim().parse::<u64>()
+                        && saved_day == current_day
+                    {
+                        can_spawn = false;
+                    }
+                }
+                can_spawn
+            },
         };
         
         let mut text = Vec::new();
@@ -672,9 +691,9 @@ impl App {
             let term_w = 120.0;
             let term_h = 24.0; // Estimate
             
-            if self.bouncer_x <= 0.0 || self.bouncer_x + 35.0 >= term_w {
+            if self.bouncer_x <= 0.0 || self.bouncer_x + 40.0 >= term_w {
                 self.bouncer_dx *= -1.0;
-                let max_x = if term_w > 35.0 { term_w - 35.0 } else { 0.0 };
+                let max_x = if term_w > 35.0 { term_w - 40.0 } else { 0.0 };
                 self.bouncer_x = self.bouncer_x.clamp(0.0, max_x);
             }
             if self.bouncer_y <= 0.0 || self.bouncer_y + 18.0 >= term_h {
@@ -687,11 +706,24 @@ impl App {
             if self.bouncer_timer <= 0.0 {
                 self.bouncer_active = false;
             }
-        } else {
+        } else if self.can_spawn_bouncer {
+            // Extremely rare chance so it pops up unexpectedly during the day (1 in 30,000 frames = roughly once every 4 minutes of active use)
             use rand::Rng;
-            if rand::thread_rng().gen_bool(0.001) {
+            if rand::thread_rng().gen_bool(0.00003) {
                 self.bouncer_active = true;
-                self.bouncer_timer = 20.0;
+                self.bouncer_timer = 30.0; // Stays on screen 30 seconds
+                self.can_spawn_bouncer = false; // Never again today
+                
+                // Save today's date
+                let current_day = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs() / 86400;
+                
+                if let Ok(home) = std::env::var("HOME") {
+                    let path = std::path::Path::new(&home).join(".bet_qr_last_seen");
+                    let _ = std::fs::write(path, current_day.to_string());
+                }
             }
         }
 
@@ -884,7 +916,7 @@ impl App {
                 ];
                 for (i, opt) in options.iter().enumerate() {
                     if i == self.language_cursor {
-                        text.push(Line::from(vec![Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                        text.push(Line::from(vec![Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                     } else {
                         text.push(Line::from(vec![Span::styled(format!("    {}  ", opt), Style::default().fg(Color::White))]));
                     }
@@ -894,7 +926,7 @@ impl App {
                 
                 if self.language_cursor == 5 {
                     text.push(Line::from(vec![Span::styled(
-                        "  > 9. Join our Discord! (QR)  ",
+                        "    9. Join our Discord! (QR)  ",
                         Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
                     )]));
                 } else {
@@ -946,14 +978,14 @@ impl App {
                                 .add_modifier(Modifier::BOLD),
                         )]),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("  > {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("  > {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("  > {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("  > {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("  > {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  > {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("  > {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
+                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1465,7 +1497,7 @@ impl App {
                         if i == 8 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.recommender_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
                             let color = if i == 8 { Color::DarkGray } else { Color::White };
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
@@ -1509,7 +1541,7 @@ impl App {
                         if i == 9 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.music_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  > {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
                             let color = if i == 9 { Color::DarkGray } else { Color::White };
                             text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
@@ -1738,7 +1770,7 @@ LLLLL     Y   F     F    "#
             let b_rect = ratatui::layout::Rect {
                 x: self.bouncer_x as u16,
                 y: self.bouncer_y as u16,
-                width: 33,
+                width: 38,
                 height: 17,
             };
             
@@ -1748,7 +1780,7 @@ LLLLL     Y   F     F    "#
                 let width = code.width();
                 
                 let mut qr_lines = vec![];
-                qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(" [ DISCORD QR ] ", Style::default().bg(Color::Rgb(180,255,50)).fg(Color::Black).add_modifier(Modifier::BOLD))));
+                qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(" [ DISCORD ] FIRST 3 TO SCAN WIN! ", Style::default().bg(Color::Rgb(180,255,50)).fg(Color::Black).add_modifier(Modifier::BOLD))));
                 
                 for y in (0..width).step_by(2) {
                     let mut line = String::new();
