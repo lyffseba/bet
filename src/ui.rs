@@ -1221,7 +1221,7 @@ let banner_lines = match self.main_menu_banner {
             }
             AppState::Playing => {
                 if let (Some(lang), Some(game)) = (&self.lang, &self.game) {
-                    let game_area = centered_rect(70, 24, area);
+                    let game_area = centered_rect(70, 90, area);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
