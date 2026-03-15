@@ -97,6 +97,7 @@ pub enum AppState {
 pub struct App {
     pub state: AppState,
     pub main_menu_meme: &'static str,
+    pub main_menu_banner: &'static str,
     pub lang: Option<Lang>,
     pub language_cursor: usize,
     pub game_cursor: usize,
@@ -135,6 +136,15 @@ impl App {
                 let mut rng = rand::thread_rng();
                 use rand::seq::SliceRandom;
                 crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
+            },
+            main_menu_banner: {
+                let mut rng = rand::thread_rng();
+                use rand::seq::SliceRandom;
+                let banners = [
+                    "BET", "bet", "Bet", "BEt", "bEt", "B$t", "B$T", "b$t", "bEUROt", "BeuroSIGNt", "B$$$t", "BETO", "Betty", "BETE", "beeeet", "BEET", "Bert", "BEEEEEEEEEEte",
+                    "beuroT", "BBB", "BXT", "b3t", "b#t", "b!T"
+                ];
+                *banners.choose(&mut rng).unwrap_or(&"BET")
             },
 
             lang: None,
@@ -865,14 +875,7 @@ impl App {
                 
                 let mut text = vec![];
                 
-                // Dynamic cycling banner!
-                let titles = [
-                    "BET", "Bet", "beuroT", "b$t", "B$T", "BBB", "Bet", "BXT", "bet", "b3t", "b#t", "b!T", "b€t"
-                ];
-                let title_idx = (self.last_tick.elapsed().as_secs_f64() * 0.5) as usize % titles.len();
-                let current_banner = titles[title_idx];
-                
-let banner_lines = match current_banner {
+let banner_lines = match self.main_menu_banner {
     "BET" => vec![
         "██████╗ ███████╗████████╗".to_string(),
         "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
@@ -880,54 +883,7 @@ let banner_lines = match current_banner {
         "██╔══██╗██╔══╝     ██║   ".to_string(),
         "██████╔╝███████╗   ██║   ".to_string(),
         "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-    ],
-    "Bet" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
-    ],
-    "beuroT" => vec![
-        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
-        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
-        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
-        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
-        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
-    ],
-    "b$t" => vec![
-        "██████╗ ▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
-    ],
-    "B$T" => vec![
-        "██████╗ ▄▄███▄▄·████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "██╔══██╗╚════██║   ██║   ".to_string(),
-        "██████╔╝███████║   ██║   ".to_string(),
-        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
-    ],
-    "BBB" => vec![
-        "██████╗ ██████╗ ██████╗ ".to_string(),
-        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
-        "██████╔╝██████╔╝██████╔╝".to_string(),
-        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
-        "██████╔╝██████╔╝██████╔╝".to_string(),
-        "╚═════╝ ╚═════╝ ╚═════╝ ".to_string(),
-    ],
-    "BXT" => vec![
-        "██████╗ ██╗  ██╗████████╗".to_string(),
-        "██╔══██╗╚██╗██╔╝╚══██╔══╝".to_string(),
-        "██████╔╝ ╚███╔╝    ██║   ".to_string(),
-        "██╔══██╗ ██╔██╗    ██║   ".to_string(),
-        "██████╔╝██╔╝ ██╗   ██║   ".to_string(),
-        "╚═════╝ ╚═╝  ╚═╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
     ],
     "bet" => vec![
         "██████╗ ███████╗████████╗".to_string(),
@@ -936,6 +892,192 @@ let banner_lines = match current_banner {
         "██╔══██╗██╔══╝     ██║   ".to_string(),
         "██████╔╝███████╗   ██║   ".to_string(),
         "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "Bet" => vec![
+        "██████╗ ███████╗████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝█████╗     ██║   ".to_string(),
+        "██╔══██╗██╔══╝     ██║   ".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "BEt" => vec![
+        "██████╗ ███████╗████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝█████╗     ██║   ".to_string(),
+        "██╔══██╗██╔══╝     ██║   ".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "bEt" => vec![
+        "██████╗ ███████╗████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝█████╗     ██║   ".to_string(),
+        "██╔══██╗██╔══╝     ██║   ".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "B$t" => vec![
+        "██████╗ ▄▄███▄▄·████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "██╔══██╗╚════██║   ██║   ".to_string(),
+        "██████╔╝███████║   ██║   ".to_string(),
+        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "B$T" => vec![
+        "██████╗ ▄▄███▄▄·████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "██╔══██╗╚════██║   ██║   ".to_string(),
+        "██████╔╝███████║   ██║   ".to_string(),
+        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "b$t" => vec![
+        "██████╗ ▄▄███▄▄·████████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝███████╗   ██║   ".to_string(),
+        "██╔══██╗╚════██║   ██║   ".to_string(),
+        "██████╔╝███████║   ██║   ".to_string(),
+        "╚═════╝ ╚═▀▀▀══╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
+    ],
+    "bEUROt" => vec![
+        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
+        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
+        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
+        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
+        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
+        "                                                   ".to_string(),
+    ],
+    "BeuroSIGNt" => vec![
+        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ███████╗██╗ ██████╗ ███╗   ██╗".to_string(),
+        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║██╔════╝ ████╗  ██║".to_string(),
+        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║███████╗██║██║  ███╗██╔██╗ ██║".to_string(),
+        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║╚════██║██║██║   ██║██║╚██╗██║".to_string(),
+        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝███████║██║╚██████╔╝██║ ╚████║".to_string(),
+        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝".to_string(),
+        "                                                                        ".to_string(),
+        "████████╗                                                               ".to_string(),
+        "╚══██╔══╝                                                               ".to_string(),
+        "   ██║                                                                  ".to_string(),
+        "   ██║                                                                  ".to_string(),
+        "   ██║                                                                  ".to_string(),
+        "   ╚═╝                                                                  ".to_string(),
+        "                                                                        ".to_string(),
+    ],
+    "B$$$t" => vec![
+        "██████╗ ▄▄███▄▄·▄▄███▄▄·▄▄███▄▄·████████╗".to_string(),
+        "██╔══██╗██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝███████╗███████╗███████╗   ██║   ".to_string(),
+        "██╔══██╗╚════██║╚════██║╚════██║   ██║   ".to_string(),
+        "██████╔╝███████║███████║███████║   ██║   ".to_string(),
+        "╚═════╝ ╚═▀▀▀══╝╚═▀▀▀══╝╚═▀▀▀══╝   ╚═╝   ".to_string(),
+        "                                         ".to_string(),
+    ],
+    "BETO" => vec![
+        "██████╗ ███████╗████████╗ ██████╗ ".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗".to_string(),
+        "██████╔╝█████╗     ██║   ██║   ██║".to_string(),
+        "██╔══██╗██╔══╝     ██║   ██║   ██║".to_string(),
+        "██████╔╝███████╗   ██║   ╚██████╔╝".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝    ╚═════╝ ".to_string(),
+        "                                  ".to_string(),
+    ],
+    "Betty" => vec![
+        "██████╗ ███████╗████████╗████████╗██╗   ██╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝╚██╗ ██╔╝".to_string(),
+        "██████╔╝█████╗     ██║      ██║    ╚████╔╝ ".to_string(),
+        "██╔══██╗██╔══╝     ██║      ██║     ╚██╔╝  ".to_string(),
+        "██████╔╝███████╗   ██║      ██║      ██║   ".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝      ╚═╝      ╚═╝   ".to_string(),
+        "                                           ".to_string(),
+    ],
+    "BETE" => vec![
+        "██████╗ ███████╗████████╗███████╗".to_string(),
+        "██╔══██╗██╔════╝╚══██╔══╝██╔════╝".to_string(),
+        "██████╔╝█████╗     ██║   █████╗  ".to_string(),
+        "██╔══██╗██╔══╝     ██║   ██╔══╝  ".to_string(),
+        "██████╔╝███████╗   ██║   ███████╗".to_string(),
+        "╚═════╝ ╚══════╝   ╚═╝   ╚══════╝".to_string(),
+        "                                 ".to_string(),
+    ],
+    "beeeet" => vec![
+        "██████╗ ███████╗███████╗███████╗███████╗████████╗".to_string(),
+        "██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝█████╗  █████╗  █████╗  █████╗     ██║   ".to_string(),
+        "██╔══██╗██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝     ██║   ".to_string(),
+        "██████╔╝███████╗███████╗███████╗███████╗   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝   ╚═╝   ".to_string(),
+        "                                                 ".to_string(),
+    ],
+    "BEET" => vec![
+        "██████╗ ███████╗███████╗████████╗".to_string(),
+        "██╔══██╗██╔════╝██╔════╝╚══██╔══╝".to_string(),
+        "██████╔╝█████╗  █████╗     ██║   ".to_string(),
+        "██╔══██╗██╔══╝  ██╔══╝     ██║   ".to_string(),
+        "██████╔╝███████╗███████╗   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝╚══════╝   ╚═╝   ".to_string(),
+        "                                 ".to_string(),
+    ],
+    "Bert" => vec![
+        "██████╗ ███████╗██████╗ ████████╗".to_string(),
+        "██╔══██╗██╔════╝██╔══██╗╚══██╔══╝".to_string(),
+        "██████╔╝█████╗  ██████╔╝   ██║   ".to_string(),
+        "██╔══██╗██╔══╝  ██╔══██╗   ██║   ".to_string(),
+        "██████╔╝███████╗██║  ██║   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ".to_string(),
+        "                                 ".to_string(),
+    ],
+    "BEEEEEEEEEEte" => vec![
+        "██████╗ ███████╗███████╗███████╗███████╗███████╗███████╗███████╗███████╗".to_string(),
+        "██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝".to_string(),
+        "██████╔╝█████╗  █████╗  █████╗  █████╗  █████╗  █████╗  █████╗  █████╗  ".to_string(),
+        "██╔══██╗██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝  ".to_string(),
+        "██████╔╝███████╗███████╗███████╗███████╗███████╗███████╗███████╗███████╗".to_string(),
+        "╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝".to_string(),
+        "                                                                        ".to_string(),
+        "███████╗███████╗████████╗███████╗                                       ".to_string(),
+        "██╔════╝██╔════╝╚══██╔══╝██╔════╝                                       ".to_string(),
+        "█████╗  █████╗     ██║   █████╗                                         ".to_string(),
+        "██╔══╝  ██╔══╝     ██║   ██╔══╝                                         ".to_string(),
+        "███████╗███████╗   ██║   ███████╗                                       ".to_string(),
+        "╚══════╝╚══════╝   ╚═╝   ╚══════╝                                       ".to_string(),
+        "                                                                        ".to_string(),
+    ],
+    "beuroT" => vec![
+        "██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ████████╗".to_string(),
+        "██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝".to_string(),
+        "██████╔╝█████╗  ██║   ██║██████╔╝██║   ██║   ██║   ".to_string(),
+        "██╔══██╗██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ".to_string(),
+        "██████╔╝███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ".to_string(),
+        "╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ".to_string(),
+        "                                                   ".to_string(),
+    ],
+    "BBB" => vec![
+        "██████╗ ██████╗ ██████╗ ".to_string(),
+        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
+        "██████╔╝██████╔╝██████╔╝".to_string(),
+        "██╔══██╗██╔══██╗██╔══██╗".to_string(),
+        "██████╔╝██████╔╝██████╔╝".to_string(),
+        "╚═════╝ ╚═════╝ ╚═════╝ ".to_string(),
+        "                        ".to_string(),
+    ],
+    "BXT" => vec![
+        "██████╗ ██╗  ██╗████████╗".to_string(),
+        "██╔══██╗╚██╗██╔╝╚══██╔══╝".to_string(),
+        "██████╔╝ ╚███╔╝    ██║   ".to_string(),
+        "██╔══██╗ ██╔██╗    ██║   ".to_string(),
+        "██████╔╝██╔╝ ██╗   ██║   ".to_string(),
+        "╚═════╝ ╚═╝  ╚═╝   ╚═╝   ".to_string(),
+        "                         ".to_string(),
     ],
     "b3t" => vec![
         "██████╗ ██████╗ ████████╗".to_string(),
@@ -944,6 +1086,7 @@ let banner_lines = match current_banner {
         "██╔══██╗ ╚═══██╗   ██║   ".to_string(),
         "██████╔╝██████╔╝   ██║   ".to_string(),
         "╚═════╝ ╚═════╝    ╚═╝   ".to_string(),
+        "                         ".to_string(),
     ],
     "b#t" => vec![
         "██████╗  ██╗ ██╗ ████████╗".to_string(),
@@ -952,6 +1095,7 @@ let banner_lines = match current_banner {
         "██╔══██╗████████╗   ██║   ".to_string(),
         "██████╔╝╚██╔═██╔╝   ██║   ".to_string(),
         "╚═════╝  ╚═╝ ╚═╝    ╚═╝   ".to_string(),
+        "                          ".to_string(),
     ],
     "b!T" => vec![
         "██████╗ ██╗████████╗".to_string(),
@@ -960,14 +1104,7 @@ let banner_lines = match current_banner {
         "██╔══██╗╚═╝   ██║   ".to_string(),
         "██████╔╝██╗   ██║   ".to_string(),
         "╚═════╝ ╚═╝   ╚═╝   ".to_string(),
-    ],
-    "b€t" => vec![
-        "██████╗ ███████╗████████╗".to_string(),
-        "██╔══██╗██╔════╝╚══██╔══╝".to_string(),
-        "██████╔╝█████╗     ██║   ".to_string(),
-        "██╔══██╗██╔══╝     ██║   ".to_string(),
-        "██████╔╝███████╗   ██║   ".to_string(),
-        "╚═════╝ ╚══════╝   ╚═╝   ".to_string(),
+        "                    ".to_string(),
     ],
     _ => vec!["BET".to_string()],
 };
@@ -983,7 +1120,7 @@ let banner_lines = match current_banner {
                 for (i, line) in banner_lines.iter().enumerate() {
                     let color = colors[i % colors.len()];
                     text.push(Line::from(vec![Span::styled(
-                        line.trim_end(), // prevent trailing spaces from breaking centering
+                        line.to_string(),
                         Style::default().fg(color).add_modifier(Modifier::BOLD),
                     )]));
                 }
@@ -1006,9 +1143,9 @@ let banner_lines = match current_banner {
                 ];
                 for (i, opt) in options.iter().enumerate() {
                     if i == self.language_cursor {
-                        text.push(Line::from(vec![Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                        text.push(Line::from(vec![Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                     } else {
-                        text.push(Line::from(vec![Span::styled(format!("    {}  ", opt), Style::default().fg(Color::White))]));
+                        text.push(Line::from(vec![Span::styled(format!("  {}  ", opt), Style::default().fg(Color::White))]));
                     }
                 }
                 text.push(Line::from(""));
@@ -1016,12 +1153,12 @@ let banner_lines = match current_banner {
                 
                 if self.language_cursor == 5 {
                     text.push(Line::from(vec![Span::styled(
-                        "    9. Join our Discord! (QR)  ",
+                        "  9. Join our Discord! (QR)  ",
                         Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
                     )]));
                 } else {
                     text.push(Line::from(vec![Span::styled(
-                        "    9. Join our Discord! (QR)  ",
+                        "  9. Join our Discord! (QR)  ",
                         Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD),
                     )]));
                 }
@@ -1066,14 +1203,14 @@ let banner_lines = match current_banner {
                                 .add_modifier(Modifier::BOLD),
                         )]),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
-                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 0 { vec![Span::styled(format!("  {}  ", lang.menu_hangman), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_hangman), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 1 { vec![Span::styled(format!("  {}  ", lang.menu_tictactoe), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_tictactoe), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 2 { vec![Span::styled(format!("  {}  ", lang.menu_chess), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_chess), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 3 { vec![Span::styled(format!("  {}  ", lang.menu_pong), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_pong), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 4 { vec![Span::styled(format!("  {}  ", lang.menu_recommender), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_recommender), Style::default().fg(Color::White))] }),
+                        Line::from(if self.game_cursor == 5 { vec![Span::styled(format!("  {}  ", lang.menu_meme), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_meme), Style::default().fg(Color::White))] }),
                         Line::from(""),
-                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("    {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
+                        Line::from(if self.game_cursor == 6 { vec![Span::styled(format!("  {}  ", lang.menu_go_back), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))] } else { vec![Span::styled(format!("  {}  ", lang.menu_go_back), Style::default().fg(Color::DarkGray))] }),
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
@@ -1585,10 +1722,10 @@ let banner_lines = match current_banner {
                         if i == 8 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.recommender_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
                             let color = if i == 8 { Color::DarkGray } else { Color::White };
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(color))]));
                         }
                     }
 
@@ -1629,10 +1766,10 @@ let banner_lines = match current_banner {
                         if i == 9 { text.push(ratatui::text::Line::from("")); } // Spacer before Go Back
                         
                         if i == self.music_cursor {
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]));
                         } else {
                             let color = if i == 9 { Color::DarkGray } else { Color::White };
-                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("    {}  ", opt), Style::default().fg(color))]));
+                            text.push(ratatui::text::Line::from(vec![ratatui::text::Span::styled(format!("  {}  ", opt), Style::default().fg(color))]));
                         }
                     }
 
