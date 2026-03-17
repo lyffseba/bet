@@ -13,6 +13,7 @@ pub enum Cell {
 }
 
 #[derive(PartialEq, Debug)]
+#[derive(Clone, Copy)]
 pub enum GameStatus {
     Ongoing,
     Win(Player),
@@ -25,6 +26,7 @@ pub struct TicTacToe {
     pub wins: u32,
     pub losses: u32,
     pub draws: u32,
+    pub winning_line: Option<[usize; 3]>,
 }
 
 impl TicTacToe {
@@ -35,12 +37,14 @@ impl TicTacToe {
             wins: 0,
             losses: 0,
             draws: 0,
+            winning_line: None,
         }
     }
 
     pub fn reset_game(&mut self) {
         self.board = [Cell::Empty; 9];
         self.status = GameStatus::Ongoing;
+        self.winning_line = None;
     }
 
     pub fn make_move(&mut self, index: usize) -> bool {
@@ -136,11 +140,13 @@ impl TicTacToe {
         ];
 
         for line in winning_lines.iter() {
-            if let Cell::Occupied(p1) = self.board[line[0]]
-                && self.board[line[1]] == Cell::Occupied(p1)
-                && self.board[line[2]] == Cell::Occupied(p1)
+            let cell = self.board[line[0]];
+            if let Cell::Occupied(p1) = cell
+                && self.board[line[1]] == cell
+                && self.board[line[2]] == cell
             {
                 self.status = GameStatus::Win(p1);
+                self.winning_line = Some(*line);
                 if p1 == Player::X {
                     self.wins += 1;
                 } else {

@@ -2,6 +2,7 @@ use rand::seq::SliceRandom;
 use shakmaty::{Chess, Color, Move, Position, Square};
 
 #[derive(PartialEq, Debug)]
+#[derive(Clone, Copy)]
 pub enum GameStatus {
     Ongoing,
     Win(Color),

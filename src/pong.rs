@@ -10,6 +10,7 @@ pub struct PongGame {
     pub ball_y: f64,
     pub ball_dx: f64,
     pub ball_dy: f64,
+    pub ball_trail: std::collections::VecDeque<(f64, f64)>,
     pub player_y: f64,
     pub computer_y: f64,
     pub player_score: u8,
@@ -31,6 +32,7 @@ impl PongGame {
             ball_y: 50.0,
             ball_dx: 40.0,
             ball_dy: 30.0,
+            ball_trail: std::collections::VecDeque::with_capacity(10),
             player_y: 50.0,
             computer_y: 50.0,
             player_score: 0,
@@ -61,6 +63,10 @@ impl PongGame {
         let _prev_y = self.ball_y;
 
         // Move ball
+        self.ball_trail.push_front((self.ball_x, self.ball_y));
+        if self.ball_trail.len() > 10 {
+            self.ball_trail.pop_back();
+        }
         self.ball_x += self.ball_dx * dt;
         self.ball_y += self.ball_dy * dt;
 

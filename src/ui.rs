@@ -125,6 +125,8 @@ pub struct App {
     pub bouncer_active: bool,
     pub can_spawn_bouncer: bool,
     pub ticker_pause_points: Vec<usize>,
+    pub shake_timer: f64,
+    pub shake_intensity: f64,
 }
 
 impl App {
@@ -211,6 +213,8 @@ impl App {
             bouncer_timer: 0.0,
             bouncer_active: false,
             ticker_pause_points: Vec::new(),
+            shake_timer: 0.0,
+            shake_intensity: 0.0,
             can_spawn_bouncer: {
                 let current_day = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -570,7 +574,15 @@ impl App {
                                                 }
                                             }
                                             KeyCode::Enter | KeyCode::Char(' ') => {
-                                                ttt.make_move(self.tictactoe_cursor);
+                                                let old_status = ttt.status;
+                                                let moved = ttt.make_move(self.tictactoe_cursor);
+                                                if moved {
+                                                    if ttt.status != old_status {
+                                                        self.trigger_shake(0.4, 5.0);
+                                                    } else {
+                                                        self.trigger_shake(0.1, 1.0);
+                                                    }
+                                                }
                                             }
                                             _ => {}
                                         }
@@ -634,7 +646,15 @@ impl App {
                                                             .into_iter()
                                                             .find(|m| m.to() == self.chess_cursor);
                                                         if let Some(m) = m {
-                                                            chess.make_move(m);
+                                                            let old_status = chess.status;
+                                                            let moved = chess.make_move(m);
+                                                            if moved {
+                                                                if chess.status != old_status {
+                                                                    self.trigger_shake(0.5, 6.0);
+                                                                } else {
+                                                                    self.trigger_shake(0.1, 1.0);
+                                                                }
+                                                            }
                                                         }
                                                         self.chess_selected = None;
                                                     }
@@ -838,6 +858,13 @@ impl App {
         let dt = now.duration_since(self.last_tick).as_secs_f64();
         self.last_tick = now;
 
+        if self.shake_timer > 0.0 {
+            self.shake_timer -= dt;
+            if self.shake_timer <= 0.0 {
+                self.shake_intensity = 0.0;
+            }
+        }
+
         if self.ticker_pause_timer > 0.0 {
             self.ticker_pause_timer -= dt;
         } else if !self.ticker_text.is_empty() {
@@ -1027,8 +1054,31 @@ impl App {
         }
     }
 
+    pub fn trigger_shake(&mut self, duration: f64, intensity: f64) {
+        self.shake_timer = duration;
+        self.shake_intensity = intensity;
+    }
+
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
+        
+        // --- 3A CARMACK POLISH: Global Screen Shake ---
+        if self.shake_timer > 0.0 {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            // Calculate a dampened intensity based on remaining time
+            let current_intensity = (self.shake_intensity * (self.shake_timer * 3.0).min(1.0)) as i16;
+            
+            if current_intensity > 0 {
+                let offset_x = rng.gen_range(-current_intensity..=current_intensity);
+                let offset_y = rng.gen_range(-(current_intensity/2)..=(current_intensity/2)); // Y should shake less because characters are twice as tall as they are wide
+                
+                // Safely apply offset without underflowing u16
+                area.x = (area.x as i16 + offset_x).clamp(0, u16::MAX as i16) as u16;
+                area.y = (area.y as i16 + offset_y).clamp(0, u16::MAX as i16) as u16;
+            }
+        }
+        // ----------------------------------------------
 
         // Render ticker at the top
         let ticker_area = ratatui::layout::Rect {
@@ -1533,15 +1583,19 @@ impl App {
 
                     // Compact, Highly Readable, AAA Word Rendering
                     let mut word_spans = vec![];
+                    let is_won = game.is_won();
+                    
                     for c in game.word().chars() {
                         let is_revealed = c.is_alphabetic() && game.guessed_letters().contains(&c);
 
-                        if is_revealed {
+                        if is_revealed || (is_won && c.is_alphabetic()) {
+                            let mut style = Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD);
+                            if is_won {
+                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                            }
                             word_spans.push(Span::styled(
                                 format!(" {} ", c),
-                                Style::default()
-                                    .fg(Color::Rgb(180, 255, 50))
-                                    .add_modifier(Modifier::BOLD),
+                                style,
                             ));
                         } else if c.is_alphabetic() {
                             word_spans.push(Span::styled(
@@ -1629,14 +1683,14 @@ impl App {
             }
             AppState::PlayingTicTacToe => {
                 if let (Some(_lang), Some(ttt)) = (&self.lang, &self.tictactoe) {
-                    let rect = centered_rect(70, 70, area);
+                    let rect = centered_rect(50, 24, area);
                     f.render_widget(Clear, rect);
 
                     let layout = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
                             Constraint::Length(3), // Title
-                            Constraint::Length(7), // Board
+                            Constraint::Length(15), // Giant Board
                             Constraint::Length(2), // Status
                             Constraint::Length(2), // Stats
                             Constraint::Min(1),    // Instructions
@@ -1655,40 +1709,55 @@ impl App {
                         layout[0],
                     );
 
-                    // Board
+                    // Giant AAA Board using Big Text Engine
                     let mut board_lines = vec![];
                     for row in 0..3 {
-                        let mut line_spans = vec![];
+                        // Each cell in a row needs 4 lines of ASCII height
+                        let mut row_ascii_lines = vec![
+                            vec![], vec![], vec![], vec![]
+                        ];
+                        
                         for col in 0..3 {
                             let idx = row * 3 + col;
-                            let cell_str = match ttt.board[idx] {
-                                Cell::Empty => "   ",
-                                Cell::Occupied(Player::X) => " X ",
-                                Cell::Occupied(Player::O) => " O ",
+                            let is_cursor = ttt.status == TicTacToeStatus::Ongoing && idx == self.tictactoe_cursor;
+                            let is_winning = ttt.winning_line.map(|l| l.contains(&idx)).unwrap_or(false);
+                            
+                            let (c, base_color) = match ttt.board[idx] {
+                                Cell::Empty => (' ', Color::DarkGray),
+                                Cell::Occupied(Player::X) => ('X', Color::White),
+                                Cell::Occupied(Player::O) => ('O', Color::Gray),
                             };
-
-                            let mut style = Style::default();
-                            if ttt.board[idx] == Cell::Occupied(Player::X) {
-                                style = style.fg(Color::White);
-                            } else if ttt.board[idx] == Cell::Occupied(Player::O) {
-                                style = style.fg(Color::Gray);
-                            }
-
-                            if ttt.status == TicTacToeStatus::Ongoing
-                                && idx == self.tictactoe_cursor
-                            {
-                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
-                            }
-
-                            line_spans.push(Span::styled(cell_str, style));
-
-                            if col < 2 {
-                                line_spans.push(Span::raw("|"));
+                            
+                            let big_chars = crate::big_text::get_big_char(c);
+                            
+                            for (line_idx, ascii_str) in big_chars.iter().enumerate() {
+                                let mut style = Style::default().fg(base_color).add_modifier(Modifier::BOLD);
+                                
+                                if is_cursor {
+                                    style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                                } else if is_winning {
+                                    style = style.fg(Color::Rgb(180, 255, 50));
+                                }
+                                
+                                row_ascii_lines[line_idx].push(Span::styled(format!(" {} ", ascii_str), style));
+                                
+                                // Vertical divider
+                                if col < 2 {
+                                    row_ascii_lines[line_idx].push(Span::styled(" │ ", Style::default().fg(Color::DarkGray)));
+                                }
                             }
                         }
-                        board_lines.push(Line::from(line_spans));
+                        
+                        for line in row_ascii_lines {
+                            board_lines.push(Line::from(line));
+                        }
+                        
+                        // Horizontal divider
                         if row < 2 {
-                            board_lines.push(Line::from("---+---+---"));
+                            board_lines.push(Line::from(vec![Span::styled(
+                                "──────┼──────┼──────",
+                                Style::default().fg(Color::DarkGray),
+                            )]));
                         }
                     }
 
@@ -2367,12 +2436,17 @@ LLLLL     Y   F     F    "#
                 let width = code.width();
 
                 let mut qr_lines = vec![];
+                
+                let mut title_style = Style::default().add_modifier(Modifier::BOLD);
+                if (self.bouncer_timer * 4.0) as i64 % 2 == 0 {
+                    title_style = title_style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                } else {
+                    title_style = title_style.bg(Color::Black).fg(Color::Rgb(180, 255, 50));
+                }
+                
                 qr_lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
                     " [ DISCORD ] FIRST 3 TO SCAN WIN! ",
-                    Style::default()
-                        .bg(Color::Rgb(180, 255, 50))
-                        .fg(Color::Black)
-                        .add_modifier(Modifier::BOLD),
+                    title_style,
                 )));
 
                 for y in (0..width).step_by(2) {
