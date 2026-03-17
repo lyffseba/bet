@@ -876,13 +876,52 @@ impl App {
             self.ticker_pause_timer -= dt;
         } else if !self.ticker_text.is_empty() {
             let old_pos = self.ticker_pos;
-            self.ticker_pos += 6.0 * dt; // 6 chars/sec (exactly 1 char per 166ms) for slower, perfectly paced reading
+            
+            // 3A POLISH: Smooth scroll easing curve (Ease-In / Ease-Out)
+            let mut next_pause = None;
+            let mut last_pause = None;
+            
+            for &p in &self.ticker_pause_points {
+                if (p as f64) > self.ticker_pos {
+                    if next_pause.is_none() {
+                        next_pause = Some(p as f64);
+                    }
+                } else {
+                    last_pause = Some(p as f64);
+                }
+            }
+
+            let mut speed = 45.0; // High cruising speed
+            
+            // Decelerate as it approaches the target
+            if let Some(p) = next_pause {
+                let dist_to_next = p - self.ticker_pos;
+                if dist_to_next < 45.0 {
+                    let factor = (dist_to_next / 45.0).powf(1.5);
+                    speed = 2.0 + (43.0 * factor);
+                }
+            }
+            
+            // Accelerate away from the previous target
+            if let Some(p) = last_pause {
+                let dist_from_last = self.ticker_pos - p;
+                if dist_from_last < 20.0 {
+                    let factor = (dist_from_last / 20.0).powf(1.5);
+                    let accel_speed = 2.0 + (43.0 * factor);
+                    if accel_speed < speed {
+                        speed = accel_speed;
+                    }
+                }
+            }
+            
+            self.ticker_pos += speed * dt;
 
             let old_idx = old_pos as usize;
             let new_idx = self.ticker_pos as usize;
 
             if new_idx > old_idx && self.ticker_pause_points.contains(&new_idx) {
-                self.ticker_pause_timer = 5.0; // 5 seconds to read // Pause for 3 seconds
+                self.ticker_pause_timer = 7.0; // Read for 7 seconds (increased since it enters fast)
+                self.ticker_pos = new_idx as f64; // Snap exactly to prevent drifting
             }
 
             if self.ticker_pos >= self.ticker_text.len() as f64 {
