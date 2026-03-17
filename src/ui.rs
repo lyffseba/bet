@@ -127,6 +127,7 @@ pub struct App {
     pub ticker_pause_points: Vec<usize>,
     pub shake_timer: f64,
     pub shake_intensity: f64,
+    pub poetry_at_top: bool,
 }
 
 impl App {
@@ -139,6 +140,8 @@ impl App {
         } else {
             crate::wordlist::MEMES.choose(&mut rng).unwrap_or(&"Stonks")
         };
+        // Randomly flip poetry to top or bottom when returning to main menu
+        self.poetry_at_top = rng.gen_bool(0.5);
     }
 
     pub fn new() -> Self {
@@ -215,6 +218,10 @@ impl App {
             ticker_pause_points: Vec::new(),
             shake_timer: 0.0,
             shake_intensity: 0.0,
+            poetry_at_top: {
+                use rand::Rng;
+                rand::thread_rng().gen_bool(0.5)
+            },
             can_spawn_bouncer: {
                 let current_day = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -1080,15 +1087,27 @@ impl App {
         }
         // ----------------------------------------------
 
-        // Render ticker at the top
-        let ticker_area = ratatui::layout::Rect {
-            x: 0,
-            y: 0,
-            width: area.width,
-            height: 1,
+        // Render ticker randomly at top or bottom of the screen
+        let ticker_area = if self.poetry_at_top {
+            let t = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y,
+                width: area.width,
+                height: 1,
+            };
+            area.y += 1;
+            area.height = area.height.saturating_sub(1);
+            t
+        } else {
+            let t = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y + area.height.saturating_sub(1),
+                width: area.width,
+                height: 1,
+            };
+            area.height = area.height.saturating_sub(1);
+            t
         };
-        area.y += 1;
-        area.height = area.height.saturating_sub(1);
 
         match self.state {
             AppState::LanguageSelection => {
@@ -1409,20 +1428,11 @@ impl App {
                 }
                 let p = Paragraph::new(text)
                     .alignment(Alignment::Center)
-                    .block(Block::default().borders(Borders::ALL).title("bet"));
+                    .block(Block::default().borders(Borders::ALL).title("bet").title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
                 f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
 
-                let bottom_rect =
-                    ratatui::layout::Rect::new(0, area.height.saturating_sub(1), area.width, 1);
-                let watermark = Paragraph::new(Span::styled(
-                    "lyffseba.xyz",
-                    Style::default()
-                        .fg(Color::DarkGray)
-                        .add_modifier(Modifier::DIM),
-                ))
-                .alignment(Alignment::Right);
-                f.render_widget(watermark, bottom_rect);
+
             }
             AppState::GameSelection => {
                 if let Some(lang) = &self.lang {
@@ -1523,7 +1533,7 @@ impl App {
                     ];
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
-                        .block(Block::default().borders(Borders::ALL).title("bet"));
+                        .block(Block::default().borders(Borders::ALL).title("bet").title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
@@ -2005,7 +2015,8 @@ impl App {
                         .block(
                             Block::default()
                                 .borders(ratatui::widgets::Borders::ALL)
-                                .border_type(ratatui::widgets::BorderType::Thick),
+                                .border_type(ratatui::widgets::BorderType::Thick)
+                                .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)),
                         )
                         .marker(ratatui::symbols::Marker::Braille)
                         .x_bounds([0.0, 100.0])
@@ -2107,7 +2118,7 @@ impl App {
 
                     let p = Paragraph::new(text)
                         .alignment(Alignment::Center)
-                        .block(Block::default().borders(Borders::ALL).title(lang.title));
+                        .block(Block::default().borders(Borders::ALL).title(lang.title).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
                 }
@@ -2170,8 +2181,8 @@ impl App {
                     let p = Paragraph::new(text).alignment(Alignment::Center).block(
                         Block::default()
                             .borders(ratatui::widgets::Borders::ALL)
-                            .border_type(ratatui::widgets::BorderType::Thick)
-                            .title(lang.recommender_title),
+                                .border_type(ratatui::widgets::BorderType::Thick)
+                            .title(lang.recommender_title).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)),
                     );
                     f.render_widget(Clear, rect);
                     f.render_widget(p, rect);
@@ -2234,7 +2245,8 @@ impl App {
                     let p = Paragraph::new(text).alignment(Alignment::Center).block(
                         Block::default()
                             .borders(ratatui::widgets::Borders::ALL)
-                            .border_type(ratatui::widgets::BorderType::Thick)
+                                .border_type(ratatui::widgets::BorderType::Thick)
+                                .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right))
                             .title(lang.music_menu_title),
                     );
                     f.render_widget(Clear, rect);
@@ -2272,8 +2284,8 @@ impl App {
                     let p = Paragraph::new(text).alignment(Alignment::Center).block(
                         Block::default()
                             .borders(ratatui::widgets::Borders::ALL)
-                            .border_type(ratatui::widgets::BorderType::Thick)
-                            .title(lang.recommender_title),
+                                .border_type(ratatui::widgets::BorderType::Thick)
+                            .title(lang.recommender_title).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)),
                     );
 
                     f.render_widget(Clear, rect);
@@ -2367,7 +2379,7 @@ impl App {
 
                 let p = Paragraph::new(lines)
                     .alignment(Alignment::Center)
-                    .block(Block::default().borders(Borders::ALL).title("Discord"));
+                    .block(Block::default().borders(Borders::ALL).title("Discord").title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
                 f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
             }
@@ -2475,7 +2487,8 @@ LLLLL     Y   F     F    "#
                 let bouncer_p = Paragraph::new(qr_lines).block(
                     Block::default()
                         .borders(ratatui::widgets::Borders::ALL)
-                        .border_type(ratatui::widgets::BorderType::Thick),
+                                .border_type(ratatui::widgets::BorderType::Thick)
+                                .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)),
                 );
                 let cb =
                     ratatui::widgets::Block::default().style(Style::default().bg(Color::Reset));
