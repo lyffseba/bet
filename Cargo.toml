@@ -1,6 +1,6 @@
 [package]
 name = "bet-cli"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2024"
 description = "A lightning-fast, zero-flicker terminal game hub containing Hangman, Tic-Tac-Toe, and Chess"
 authors = ["lyffseba"]
