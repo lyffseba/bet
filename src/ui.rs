@@ -78,6 +78,7 @@ pub enum RecommenderCategory {
     Meme,
 }
 
+#[derive(Clone)]
 pub enum AppState {
     LanguageSelection,
     GameSelection,
@@ -86,11 +87,51 @@ pub enum AppState {
     PlayingTicTacToe,
     PlayingChess,
     PlayingPong,
+    PlayingMatrix,
+    MatrixGameOver {
+        score: u32,
+        combo: u32,
+        level: u32,
+        initials: String,
+    },
+    MatrixLeaderboard,
     RecommenderMenu,
     MusicMenu,
     Recommendation(RecommenderCategory, String),
     DiscordQr,
     EasterEgg,
+}
+
+use ratatui::widgets::Widget;
+
+#[derive(Clone, Copy)]
+pub struct Particle {
+    pub x: f64,
+    pub y: f64,
+    pub vx: f64,
+    pub vy: f64,
+    pub c: char,
+    pub color: Color,
+    pub lifetime: f64,
+}
+
+pub struct ParticleOverlay<'a> {
+    pub particles: &'a [Particle],
+}
+
+impl<'a> Widget for ParticleOverlay<'a> {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+        for p in self.particles {
+            let x = p.x.round() as i16;
+            let y = p.y.round() as i16;
+            if x >= area.x as i16 && x < (area.x + area.width) as i16 &&
+               y >= area.y as i16 && y < (area.y + area.height) as i16
+                && let Some(cell) = buf.cell_mut((x as u16, y as u16)) {
+                    cell.set_char(p.c);
+                    cell.set_fg(p.color);
+                }
+        }
+    }
 }
 
 pub struct App {
@@ -109,6 +150,7 @@ pub struct App {
     pub chess_cursor: Square,
     pub chess_selected: Option<Square>,
     pub pong: Option<PongGame>,
+    pub matrix: Option<crate::matrix::MatrixGame>,
     pub timer: f64,
     pub last_tick: Instant,
     pub should_quit: bool,
@@ -128,6 +170,8 @@ pub struct App {
     pub shake_timer: f64,
     pub shake_intensity: f64,
     pub poetry_at_top: bool,
+    pub particles: Vec<Particle>,
+    pub confetti_queued: bool,
 }
 
 impl App {
@@ -200,6 +244,7 @@ impl App {
             chess_cursor: Square::from_coords(shakmaty::File::E, shakmaty::Rank::Second),
             chess_selected: None,
             pong: None,
+            matrix: None,
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
@@ -218,6 +263,8 @@ impl App {
             ticker_pause_points: Vec::new(),
             shake_timer: 0.0,
             shake_intensity: 0.0,
+            particles: Vec::new(),
+            confetti_queued: false,
             poetry_at_top: {
                 use rand::Rng;
                 rand::thread_rng().gen_bool(0.5)
@@ -481,12 +528,22 @@ impl App {
                                     self.select_language(Language::Portuguese);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.language_cursor = 3;
-                                    self.select_language(Language::German);
+                                    self.game_cursor = 3;
+                                    self.start_pong();
                                 }
                                 KeyCode::Char('5') => {
-                                    self.language_cursor = 4;
-                                    self.select_language(Language::Dutch);
+                                    self.game_cursor = 4;
+                                    self.start_matrix();
+                                }
+                                KeyCode::Char('6') => {
+                                    self.game_cursor = 5;
+                                    self.state = AppState::RecommenderMenu;
+                                }
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
+                                    self.state = AppState::LanguageSelection;
+                                    self.lang = None;
+                                    self.refresh_main_menu_meme();
                                 }
                                 KeyCode::Char('9') => {
                                     self.language_cursor = 5;
@@ -500,7 +557,7 @@ impl App {
                                     self.game_cursor = self.game_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.game_cursor < 5 {
+                                    if self.game_cursor < 6 {
                                         self.game_cursor += 1;
                                     }
                                 }
@@ -509,8 +566,9 @@ impl App {
                                     1 => self.start_tictactoe(),
                                     2 => self.start_chess(),
                                     3 => self.start_pong(),
-                                    4 => self.state = AppState::RecommenderMenu,
-                                    5 => {
+                                    4 => self.start_matrix(),
+                                    5 => self.state = AppState::RecommenderMenu,
+                                    6 => {
                                         self.state = AppState::LanguageSelection;
                                         self.lang = None;
                                         self.refresh_main_menu_meme();
@@ -535,7 +593,17 @@ impl App {
                                 }
                                 KeyCode::Char('5') => {
                                     self.game_cursor = 4;
+                                    self.start_matrix();
+                                }
+                                KeyCode::Char('6') => {
+                                    self.game_cursor = 5;
                                     self.state = AppState::RecommenderMenu;
+                                }
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
+                                    self.state = AppState::LanguageSelection;
+                                    self.lang = None;
+                                    self.refresh_main_menu_meme();
                                 }
                                 KeyCode::Char('6') | KeyCode::Esc => {
                                     self.game_cursor = 5;
@@ -687,6 +755,61 @@ impl App {
                                     }
                                 }
                             }
+                            AppState::PlayingMatrix => {
+                                if key.code == KeyCode::Esc {
+                                    if let Some(m) = self.matrix.take() {
+                                        crate::matrix_scores::save_score(crate::matrix_scores::ScoreEntry {
+                                            score: m.score,
+                                            combo: m.max_combo,
+                                            level: m.level,
+                                            name: "AAA".to_string(),
+                                        });
+                                    }
+                                    self.state = AppState::MatrixLeaderboard;
+                                } else if let KeyCode::Char(c) = key.code
+                                    && let Some(m) = &mut self.matrix {
+                                        let (hit, completed, explosion) = m.type_char(c);
+                                        if completed {
+                                            self.shake_timer = 0.1;
+                                            self.shake_intensity = 1.0;
+                                            if let Some((ex, ey)) = explosion {
+                                                self.trigger_confetti(30, ex, ey);
+                                            }
+                                        } else if !hit {
+                                            self.shake_timer = 0.05;
+                                            self.shake_intensity = 0.5;
+                                        }
+                                    }
+                            }
+                            AppState::MatrixGameOver { .. } => {
+                                if key.code == KeyCode::Esc {
+                                    self.state = AppState::MatrixLeaderboard;
+                                } else if let KeyCode::Char(c) = key.code {
+                                    if let AppState::MatrixGameOver { initials, .. } = &mut self.state
+                                        && c.is_alphanumeric() && initials.len() < 3 {
+                                            initials.push(c.to_ascii_uppercase());
+                                        }
+                                } else if key.code == KeyCode::Backspace {
+                                    if let AppState::MatrixGameOver { initials, .. } = &mut self.state {
+                                        initials.pop();
+                                    }
+                                } else if key.code == KeyCode::Enter
+                                    && let AppState::MatrixGameOver { score, combo, level, initials } = self.state.clone() {
+                                        let name = if initials.is_empty() { "AAA".to_string() } else { initials };
+                                        crate::matrix_scores::save_score(crate::matrix_scores::ScoreEntry {
+                                            score,
+                                            combo,
+                                            level,
+                                            name,
+                                        });
+                                        self.state = AppState::MatrixLeaderboard;
+                                    }
+                            }
+                            AppState::MatrixLeaderboard => {
+                                if key.code == KeyCode::Esc || key.code == KeyCode::Enter {
+                                    self.state = AppState::GameSelection;
+                                }
+                            }
                             AppState::PlayingPong => {
                                 if key.code == KeyCode::Esc {
                                     self.state = AppState::GameSelection;
@@ -743,12 +866,22 @@ impl App {
                                     self.show_recommendation(RecommenderCategory::Manga);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.recommender_cursor = 3;
-                                    self.show_recommendation(RecommenderCategory::Book);
+                                    self.game_cursor = 3;
+                                    self.start_pong();
                                 }
                                 KeyCode::Char('5') => {
-                                    self.recommender_cursor = 4;
-                                    self.show_recommendation(RecommenderCategory::Anime);
+                                    self.game_cursor = 4;
+                                    self.start_matrix();
+                                }
+                                KeyCode::Char('6') => {
+                                    self.game_cursor = 5;
+                                    self.state = AppState::RecommenderMenu;
+                                }
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
+                                    self.state = AppState::LanguageSelection;
+                                    self.lang = None;
+                                    self.refresh_main_menu_meme();
                                 }
                                 KeyCode::Char('6') => {
                                     self.recommender_cursor = 5;
@@ -803,12 +936,22 @@ impl App {
                                     self.show_recommendation(RecommenderCategory::MusicPop);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.music_cursor = 3;
-                                    self.show_recommendation(RecommenderCategory::MusicElectronic);
+                                    self.game_cursor = 3;
+                                    self.start_pong();
                                 }
                                 KeyCode::Char('5') => {
-                                    self.music_cursor = 4;
-                                    self.show_recommendation(RecommenderCategory::MusicClassical);
+                                    self.game_cursor = 4;
+                                    self.start_matrix();
+                                }
+                                KeyCode::Char('6') => {
+                                    self.game_cursor = 5;
+                                    self.state = AppState::RecommenderMenu;
+                                }
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
+                                    self.state = AppState::LanguageSelection;
+                                    self.lang = None;
+                                    self.refresh_main_menu_meme();
                                 }
                                 KeyCode::Char('6') => {
                                     self.music_cursor = 5;
@@ -930,6 +1073,47 @@ impl App {
             }
         }
 
+        if self.confetti_queued {
+            self.confetti_queued = false;
+            self.trigger_confetti(150, 50.0, 10.0);
+        }
+        
+        for p in &mut self.particles {
+            p.vy += 40.0 * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.lifetime -= dt;
+        }
+        self.particles.retain(|p| p.lifetime > 0.0);
+
+        if let AppState::PlayingMatrix = self.state
+            && let Some(m) = &mut self.matrix {
+                m.terminal_width = 100.0;
+                let (_completed, lost_life) = m.update(dt);
+                if lost_life {
+                    self.shake_timer = 0.8;
+                    self.shake_intensity = 8.0;
+                }
+                if m.status == crate::matrix::GameStatus::GameOver {
+                    self.shake_timer = 1.0;
+                    self.shake_intensity = 15.0;
+                    self.state = AppState::MatrixGameOver {
+                        score: m.score,
+                        combo: m.max_combo,
+                        level: m.level,
+                        initials: String::new(),
+                    };
+                }
+            }
+        
+        if let Some(ttt) = &self.tictactoe
+            && matches!(ttt.status, TicTacToeStatus::Win(_)) && self.particles.is_empty() && self.shake_intensity > 4.0 && self.shake_timer > 0.3 {
+                self.confetti_queued = true;
+            }
+        if let Some(chess) = &self.chess
+            && matches!(chess.status, ChessStatus::Win(_)) && self.particles.is_empty() && self.shake_intensity > 5.0 && self.shake_timer > 0.4 {
+                self.confetti_queued = true;
+            }
         if let AppState::PlayingPong = self.state
             && let Some(pong) = &mut self.pong
         {
@@ -1022,6 +1206,10 @@ impl App {
         self.state = AppState::PlayingChess;
     }
 
+    fn start_matrix(&mut self) {
+        self.state = AppState::PlayingMatrix;
+        self.matrix = Some(crate::matrix::MatrixGame::new(100.0));
+    }
     fn start_pong(&mut self) {
         self.pong = Some(PongGame::new());
         self.state = AppState::PlayingPong;
@@ -1101,6 +1289,36 @@ impl App {
         }
     }
 
+    pub fn trigger_confetti(&mut self, count: usize, start_x: f64, start_y: f64) {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        for _ in 0..count {
+            let angle: f64 = rng.gen_range(0.0..std::f64::consts::PI * 2.0);
+            let speed: f64 = rng.gen_range(10.0..60.0);
+            let lifetime: f64 = rng.gen_range(1.0..4.0);
+            
+            let chars = ['*', '+', '\'', '"', '.', 'o', 'O', 'x', '✧', '★'];
+            use rand::seq::SliceRandom;
+            let c = *chars.choose(&mut rng).unwrap_or(&'*');
+            
+            let color = match rng.gen_range(0..4) {
+                0 => Color::Rgb(180, 255, 50),
+                1 => Color::White,
+                2 => Color::Gray,
+                _ => Color::Rgb(50, 255, 255),
+            };
+            
+            self.particles.push(Particle {
+                x: start_x,
+                y: start_y,
+                vx: angle.cos() * speed,
+                vy: angle.sin() * speed - 20.0,
+                c,
+                color,
+                lifetime,
+            });
+        }
+    }
     pub fn trigger_shake(&mut self, duration: f64, intensity: f64) {
         self.shake_timer = duration;
         self.shake_intensity = intensity;
@@ -1555,7 +1773,7 @@ impl App {
                         }),
                         Line::from(if self.game_cursor == 4 {
                             vec![Span::styled(
-                                format!("  {}  ", lang.menu_recommender),
+                                format!("  {}  ", lang.menu_matrix),
                                 Style::default()
                                     .fg(Color::Black)
                                     .bg(self.get_breathing_mango())
@@ -1563,12 +1781,27 @@ impl App {
                             )]
                         } else {
                             vec![Span::styled(
-                                format!("  {}  ", lang.menu_recommender),
+                                format!("  {}  ", lang.menu_matrix),
                                 Style::default().fg(Color::White),
                             )]
                         }),
                         Line::from(""),
                         Line::from(if self.game_cursor == 5 {
+                            vec![Span::styled(
+                                format!("    {}  ", lang.menu_recommender),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(self.get_breathing_mango())
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("    {}  ", lang.menu_recommender),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(""),
+                        Line::from(if self.game_cursor == 6 {
                             vec![Span::styled(
                                 format!("  {}  ", lang.menu_go_back),
                                 Style::default()
@@ -2435,6 +2668,92 @@ impl App {
                 f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
             }
+            AppState::PlayingMatrix => {
+                if let Some(matrix) = &self.matrix {
+                    let bg_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(ratatui::widgets::BorderType::Thick)
+                        .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right));
+                    f.render_widget(bg_block, area);
+
+                    let stats = format!("SCORE: {}  |  COMBO: {}x  |  LEVEL: {}  |  LIVES: {}", matrix.score, matrix.combo, matrix.level, matrix.lives);
+                    let mut stats_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+                    if matrix.combo > 5 {
+                        stats_style = stats_style.fg(Color::Black).bg(self.get_breathing_mango());
+                    }
+                    
+                    let header = Paragraph::new(Span::styled(stats, stats_style)).alignment(Alignment::Center);
+                    let header_rect = Rect { x: area.x, y: area.y + 1, width: area.width, height: 1 };
+                    f.render_widget(header, header_rect);
+
+                    for word in &matrix.words {
+                        if word.y < 2.0 || word.y as u16 >= area.height.saturating_sub(1) { continue; }
+                        
+                        let typed_part = &word.text[0..word.typed];
+                        let untyped_part = &word.text[word.typed..];
+                        
+                        let mut spans = vec![];
+                        if !typed_part.is_empty() {
+                            spans.push(Span::styled(typed_part, Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                        }
+                        if !untyped_part.is_empty() {
+                            spans.push(Span::styled(untyped_part, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                        }
+                        
+                        let p = Paragraph::new(Line::from(spans));
+                        let word_rect = Rect {
+                            x: (area.x as f64 + word.x).clamp(area.x as f64 + 1.0, (area.x + area.width).saturating_sub(word.text.len() as u16 + 1) as f64) as u16,
+                            y: area.y + word.y as u16,
+                            width: word.text.len() as u16,
+                            height: 1,
+                        };
+                        f.render_widget(p, word_rect);
+                    }
+                }
+            }
+            AppState::MatrixGameOver { score, combo, level, ref initials } => {
+                let rect = centered_rect(50, 30, area);
+                let text = vec![
+                    Line::from(vec![Span::styled("SYSTEM FAILURE", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))]),
+                    Line::from(""),
+                    Line::from(format!("SCORE: {}", score)),
+                    Line::from(format!("MAX COMBO: {}", combo)),
+                    Line::from(format!("LEVEL: {}", level)),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("ENTER ARCADE INITIALS:", Style::default().fg(Color::DarkGray))]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled(format!("> {} <", initials), Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD))]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("(Press Enter to save)", Style::default().fg(Color::DarkGray))]),
+                ];
+                let p = Paragraph::new(text).alignment(Alignment::Center).block(Block::default().borders(Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
+                f.render_widget(Clear, rect);
+                f.render_widget(p, rect);
+            }
+            AppState::MatrixLeaderboard => {
+                let rect = centered_rect(60, 80, area);
+                let scores = crate::matrix_scores::get_scores();
+                let mut text = vec![
+                    Line::from(vec![Span::styled("THE MATRIX - TOP HACKERS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled(format!("{:<5} | {:<5} | {:<10} | {:<8} | {:<5}", "RANK", "INI", "SCORE", "COMBO", "LEVEL"), Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))]),
+                    Line::from(vec![Span::styled("-".repeat(45), Style::default().fg(Color::DarkGray))]),
+                ];
+                for (i, s) in scores.iter().take(20).enumerate() {
+                    let color = if i == 0 { Color::Rgb(180, 255, 50) } else if i < 3 { Color::White } else { Color::Gray };
+                    let style = if i == 0 { Style::default().fg(color).add_modifier(Modifier::BOLD) } else { Style::default().fg(color) };
+                    text.push(Line::from(vec![Span::styled(
+                        format!("{:<5} | {:<5} | {:<10} | {:<8} | {:<5}", i + 1, s.name, s.score, s.combo, s.level),
+                        style
+                    )]));
+                }
+                text.push(Line::from(""));
+                text.push(Line::from(vec![Span::styled("Press ESC to return to Game Selection", Style::default().fg(Color::DarkGray))]));
+                
+                let p = Paragraph::new(text).alignment(Alignment::Center).block(Block::default().borders(Borders::ALL).border_type(ratatui::widgets::BorderType::Thick).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
+                f.render_widget(Clear, rect);
+                f.render_widget(p, rect);
+            }
             AppState::EasterEgg => {
                 let color = Color::White;
                 let art = if is_utf8_supported() {
@@ -2579,6 +2898,10 @@ LLLLL     Y   F     F    "#
             }
             let ticker_p = Paragraph::new(Line::from(spans));
             f.render_widget(ticker_p, ticker_area);
+        }
+        
+        if !self.particles.is_empty() {
+            f.render_widget(ParticleOverlay { particles: &self.particles }, area);
         }
     }
 }

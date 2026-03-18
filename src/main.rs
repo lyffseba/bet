@@ -1,3 +1,5 @@
+pub mod matrix;
+mod matrix_scores;
 mod big_text;
 mod chess_game;
 mod game;
