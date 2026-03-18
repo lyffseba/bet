@@ -143,7 +143,7 @@ impl Lang {
             pong_player_wins: "Player wins!",
             pong_computer_wins: "Computer wins!",
             pong_instructions: "Up/Down to move. ESC to go back.",
-            menu_go_back: "6. Go Back (ESC)",
+            menu_go_back: "7. Go Back (ESC)",
             movies: super::wordlist::ENGLISH_MOVIES,
         }
     }
@@ -175,7 +175,7 @@ impl Lang {
             chess_instructions_over: "Presiona Enter para jugar de nuevo. ESC para volver.",
             menu_pong: "4. Pong",
             menu_matrix: "5. The Matrix",
-            menu_recommender: "5. Recomendador",
+            menu_recommender: "6. Recomendador",
             recommender_title: "RECOMENDADOR",
             recommender_subtitle: "Deberías ver/leer:",
             recommender_menu_movies: "1. Películas",
@@ -214,7 +214,7 @@ impl Lang {
             pong_player_wins: "¡El jugador gana!",
             pong_computer_wins: "¡La computadora gana!",
             pong_instructions: "Arriba/Abajo para mover. ESC para volver.",
-            menu_go_back: "6. Volver (ESC)",
+            menu_go_back: "7. Volver (ESC)",
             movies: super::wordlist::SPANISH_MOVIES,
         }
     }
@@ -222,22 +222,22 @@ impl Lang {
     pub fn portuguese() -> Self {
         Lang {
             title: "FORCA",
-            prompt_guess: "Digite uma letra (ou 'ESC' para sair): ",
-            win_msg: "Parabéns! Você ganhou!",
+            prompt_guess: "Digita uma letra (ou 'ESC' para sair): ",
+            win_msg: "Parabéns! Ganhaste!",
             lose_msg: "Fim de jogo! A palavra era: ",
             press_enter: "Pressione Enter para continuar...",
             word_label: "Palavra: ",
             guessed_label: "Letras adivinhadas: ",
             attempts_label: "Tentativas restantes: ",
             time_left_label: "Tempo restante: ",
-            error_not_letter: "Por favor, digite uma letra",
-            error_already_guessed: "Você já adivinhou essa letra",
+            error_not_letter: "Por favor, digita uma letra",
+            error_already_guessed: "Já adivinhaste esta letra",
             menu_game_selection: "Seleção de Jogo",
             menu_hangman: "1. Forca",
-            menu_tictactoe: "2. Jogo da Velha",
+            menu_tictactoe: "2. Jogo do Galo",
             menu_chess: "3. Xadrez",
             chess_title: "XADREZ",
-            chess_your_turn: "Sua vez",
+            chess_your_turn: "A tua vez",
             chess_white_wins: "As brancas vencem!",
             chess_black_wins: "As pretas vencem!",
             chess_stalemate: "Afogamento!",
@@ -246,7 +246,7 @@ impl Lang {
             chess_instructions_over: "Pressione Enter para jogar novamente. ESC para voltar.",
             menu_pong: "4. Pong",
             menu_matrix: "5. The Matrix",
-            menu_recommender: "5. Recomendador",
+            menu_recommender: "6. Recomendador",
             recommender_title: "RECOMENDADOR",
             recommender_subtitle: "Você deveria conferir:",
             recommender_menu_movies: "1. Filmes",
@@ -285,7 +285,7 @@ impl Lang {
             pong_player_wins: "O jogador vence!",
             pong_computer_wins: "O computador vence!",
             pong_instructions: "Cima/Baixo para mover. ESC para voltar.",
-            menu_go_back: "6. Voltar (ESC)",
+            menu_go_back: "7. Voltar (ESC)",
             movies: super::wordlist::PORTUGUESE_MOVIES,
         }
     }
@@ -356,7 +356,7 @@ impl Lang {
             pong_player_wins: "Spieler gewinnt!",
             pong_computer_wins: "Computer gewinnt!",
             pong_instructions: "Auf/Ab zum Bewegen. ESC zurück.",
-            menu_go_back: "6. Zurück (ESC)",
+            menu_go_back: "7. Zurück (ESC)",
             movies: super::wordlist::GERMAN_MOVIES,
         }
     }
@@ -427,7 +427,7 @@ impl Lang {
             pong_player_wins: "Speler wint!",
             pong_computer_wins: "Computer wint!",
             pong_instructions: "Omhoog/Omlaag om te bewegen. ESC terug.",
-            menu_go_back: "6. Ga terug (ESC)",
+            menu_go_back: "7. Ga terug (ESC)",
             movies: super::wordlist::DUTCH_MOVIES,
         }
     }
