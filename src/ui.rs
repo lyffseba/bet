@@ -117,13 +117,13 @@ pub struct Particle {
 
 pub struct MatrixRainOverlay<'a> {
     pub rain_drops: &'a [crate::matrix::RainDrop],
+    pub poetry_chars: &'a [char],
 }
 
 impl<'a> Widget for MatrixRainOverlay<'a> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
-        use rand::seq::SliceRandom;
+        use rand::Rng;
         let mut rng = rand::thread_rng();
-        let chars = ['0', '1', 'ﾊ', 'ﾐ', 'ﾋ', 'ｰ', 'ｳ', 'ｼ', 'ﾅ', 'ﾓ', 'ﾆ', 'ｻ', 'ﾜ', 'ﾂ', 'ｵ', 'ﾘ', 'ｱ', 'ﾎ', 'ﾃ', 'ﾏ', 'ｹ', 'ﾒ', 'ｴ', 'ｶ', 'ｷ', 'ﾑ', 'ﾕ', 'ﾗ', 'ｾ', 'ﾈ', 'ｽ', 'ﾀ', 'ﾇ', 'ﾍ'];
         
         for r in self.rain_drops {
             let rx = r.x.round() as i16;
@@ -132,9 +132,13 @@ impl<'a> Widget for MatrixRainOverlay<'a> {
                     let ry = (r.y - i as f64).round() as i16;
                     if ry >= area.y as i16 && ry < (area.y + area.height) as i16 {
                         if let Some(cell) = buf.cell_mut((rx as u16, ry as u16)) {
-                            use rand::Rng;
-                            if rng.gen_bool(0.1) || cell.symbol() == " " {
-                                cell.set_char(*chars.choose(&mut rng).unwrap_or(&'0'));
+                            // Extract a poetic character based on the coordinate math to keep it flowing nicely
+                            let char_idx = ((rx as usize).wrapping_mul(73) + (ry as usize).wrapping_mul(17)) % self.poetry_chars.len().max(1);
+                            let p_char = if self.poetry_chars.is_empty() { '0' } else { self.poetry_chars[char_idx] };
+                            
+                            // Let the head of the drop randomly glitch out
+                            if rng.gen_bool(0.05) || cell.symbol() == " " {
+                                cell.set_char(p_char);
                             }
                             
                             let color = if i == 0 {
@@ -584,7 +588,7 @@ impl App {
                                     self.refresh_main_menu_meme();
                                 }
                                 KeyCode::Char('9') => {
-                                    self.language_cursor = 5;
+                                    self.language_cursor = 6;
                                     self.state = AppState::DiscordQr;
                                 }
                                 KeyCode::Esc => self.should_quit = true,
@@ -1683,6 +1687,7 @@ impl App {
                     "3. Português",
                     "4. Deutsch",
                     "5. Nederlands",
+                    "6. Recommender",
                 ];
                 for (i, opt) in options.iter().enumerate() {
                     if i == self.language_cursor {
@@ -1703,7 +1708,7 @@ impl App {
                 text.push(Line::from(""));
                 text.push(Line::from(""));
 
-                if self.language_cursor == 5 {
+                if self.language_cursor == 6 {
                     text.push(Line::from(vec![Span::styled(
                         "  9. Join our Discord! (QR)  ",
                         Style::default()
@@ -2721,7 +2726,10 @@ impl App {
                         width: area.width.saturating_sub(2),
                         height: area.height.saturating_sub(2),
                     };
-                    f.render_widget(MatrixRainOverlay { rain_drops: &matrix.rain_drops }, inner_area);
+                    f.render_widget(MatrixRainOverlay { 
+                        rain_drops: &matrix.rain_drops, 
+                        poetry_chars: &self.ticker_text 
+                    }, inner_area);
 
                     let stats = format!("SCORE: {}  |  COMBO: {}x  |  LEVEL: {}  |  LIVES: {}", matrix.score, matrix.combo, matrix.level, matrix.lives);
                     let mut stats_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
@@ -2736,16 +2744,19 @@ impl App {
                     for word in &matrix.words {
                         if word.y < 2.0 || word.y as u16 >= area.height.saturating_sub(1) { continue; }
                         
-                        let typed_part = &word.text[0..word.typed];
-                        let untyped_part = &word.text[word.typed..];
+                        let char_idx = word.typed;
+                        let byte_idx = word.text.char_indices().nth(char_idx).map(|(i, _)| i).unwrap_or(word.text.len());
+                        let typed_part = &word.text[0..byte_idx];
+                        let untyped_part = &word.text[byte_idx..];
                         
                         let mut spans = vec![];
                         if !typed_part.is_empty() {
                             spans.push(Span::styled(typed_part, Style::default().fg(Color::DarkGray))); // Faded out code
                         }
                         if !untyped_part.is_empty() {
-                            let first_char = &untyped_part[0..1];
-                            let rest = &untyped_part[1..];
+                            let mut chars = untyped_part.chars();
+                            let first_char = chars.next().unwrap().to_string();
+                            let rest = chars.as_str();
                             
                             // White lead character with dark green terminal background block to pop
                             spans.push(Span::styled(first_char, Style::default().fg(Color::White).bg(Color::Rgb(0, 100, 0)).add_modifier(Modifier::BOLD)));
@@ -2789,7 +2800,7 @@ impl App {
                 let rect = centered_rect(60, 80, area);
                 let scores = crate::matrix_scores::get_scores();
                 let mut text = vec![
-                    Line::from(vec![Span::styled("THE MATRIX - TOP HACKERS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))]),
+                    Line::from(vec![Span::styled("MATIX - TOP HACKERS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
                     Line::from(vec![Span::styled(format!("{:<5} | {:<5} | {:<10} | {:<8} | {:<5}", "RANK", "INI", "SCORE", "COMBO", "LEVEL"), Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))]),
                     Line::from(vec![Span::styled("-".repeat(45), Style::default().fg(Color::DarkGray))]),

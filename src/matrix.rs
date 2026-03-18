@@ -173,9 +173,10 @@ impl MatrixGame {
             let base_speed = rng.gen_range(1.5..3.0);
             let speed = base_speed + (self.level as f64 * 0.3);
             
-            // Ensure x is within bounds
-            let max_x = (self.terminal_width - text.len() as f64 - 2.0).max(2.0);
-            let x = rng.gen_range(2.0..max_x);
+            // Ensure x is well within bounds to avoid edge clipping (10 char buffer)
+            let buffer = 10.0;
+            let max_x = (self.terminal_width - text.len() as f64 - buffer).max(buffer);
+            let x = rng.gen_range(buffer..max_x);
             
             self.words.push(ActiveWord {
                 id: self.next_id,
