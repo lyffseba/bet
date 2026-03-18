@@ -891,14 +891,15 @@ impl App {
                 }
             }
 
-            let mut speed = 45.0; // High cruising speed
+            let mut speed = 15.0; // Gentle cruising speed (significantly slower)
             
             // Decelerate as it approaches the target
             if let Some(p) = next_pause {
                 let dist_to_next = p - self.ticker_pos;
-                if dist_to_next < 45.0 {
-                    let factor = (dist_to_next / 45.0).powf(1.5);
-                    speed = 2.0 + (43.0 * factor);
+                if dist_to_next < 30.0 {
+                    // Smoother, less aggressive deceleration curve
+                    let factor = (dist_to_next / 30.0).powf(1.2);
+                    speed = 3.0 + (12.0 * factor);
                 }
             }
             
@@ -906,8 +907,8 @@ impl App {
             if let Some(p) = last_pause {
                 let dist_from_last = self.ticker_pos - p;
                 if dist_from_last < 20.0 {
-                    let factor = (dist_from_last / 20.0).powf(1.5);
-                    let accel_speed = 2.0 + (43.0 * factor);
+                    let factor = (dist_from_last / 20.0).powf(1.2);
+                    let accel_speed = 3.0 + (12.0 * factor);
                     if accel_speed < speed {
                         speed = accel_speed;
                     }
@@ -920,7 +921,7 @@ impl App {
             let new_idx = self.ticker_pos as usize;
 
             if new_idx > old_idx && self.ticker_pause_points.contains(&new_idx) {
-                self.ticker_pause_timer = 7.0; // Read for 7 seconds (increased since it enters fast)
+                self.ticker_pause_timer = 6.0; // Balanced read time for slower transit
                 self.ticker_pos = new_idx as f64; // Snap exactly to prevent drifting
             }
 
