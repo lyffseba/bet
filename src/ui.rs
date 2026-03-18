@@ -130,8 +130,9 @@ impl<'a> Widget for MatrixRainOverlay<'a> {
             if rx >= area.x as i16 && rx < (area.x + area.width) as i16 {
                 for i in 0..r.len {
                     let ry = (r.y - i as f64).round() as i16;
-                    if ry >= area.y as i16 && ry < (area.y + area.height) as i16 {
-                        if let Some(cell) = buf.cell_mut((rx as u16, ry as u16)) {
+                    if ry >= area.y as i16 && ry < (area.y + area.height) as i16
+                        && let Some(cell) = buf.cell_mut((rx as u16, ry as u16))
+                    {
                             // Extract a poetic character based on the coordinate math to keep it flowing nicely
                             let char_idx = ((rx as usize).wrapping_mul(73) + (ry as usize).wrapping_mul(17)) % self.poetry_chars.len().max(1);
                             let p_char = if self.poetry_chars.is_empty() { '0' } else { self.poetry_chars[char_idx] };
@@ -149,7 +150,6 @@ impl<'a> Widget for MatrixRainOverlay<'a> {
                                 Color::Rgb(0, 80, 0)
                             };
                             cell.set_fg(color);
-                        }
                     }
                 }
             }
@@ -591,7 +591,7 @@ impl App {
                                     self.language_cursor = 6;
                                     self.state = AppState::DiscordQr;
                                 }
-                                KeyCode::Esc => self.should_quit = true,
+
                                 _ => {}
                             },
                             AppState::GameSelection => match key.code {
@@ -647,12 +647,7 @@ impl App {
                                     self.lang = None;
                                     self.refresh_main_menu_meme();
                                 }
-                                KeyCode::Char('6') | KeyCode::Esc => {
-                                    self.game_cursor = 5;
-                                    self.state = AppState::LanguageSelection;
-                                    self.lang = None;
-                                    self.refresh_main_menu_meme();
-                                }
+
                                 _ => {}
                             },
                             AppState::Playing => {
@@ -908,22 +903,12 @@ impl App {
                                     self.show_recommendation(RecommenderCategory::Manga);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.game_cursor = 3;
-                                    self.start_pong();
+                                    self.recommender_cursor = 3;
+                                    self.show_recommendation(RecommenderCategory::Book);
                                 }
                                 KeyCode::Char('5') => {
-                                    self.game_cursor = 4;
-                                    self.start_matrix();
-                                }
-                                KeyCode::Char('6') => {
-                                    self.game_cursor = 5;
-                                    self.state = AppState::RecommenderMenu;
-                                }
-                                KeyCode::Char('7') | KeyCode::Esc => {
-                                    self.game_cursor = 6;
-                                    self.state = AppState::LanguageSelection;
-                                    self.lang = None;
-                                    self.refresh_main_menu_meme();
+                                    self.recommender_cursor = 4;
+                                    self.show_recommendation(RecommenderCategory::Anime);
                                 }
                                 KeyCode::Char('6') => {
                                     self.recommender_cursor = 5;
@@ -956,10 +941,8 @@ impl App {
                                     0 => self.show_recommendation(RecommenderCategory::MusicRock),
                                     1 => self.show_recommendation(RecommenderCategory::MusicHipHop),
                                     2 => self.show_recommendation(RecommenderCategory::MusicPop),
-                                    3 => self
-                                        .show_recommendation(RecommenderCategory::MusicElectronic),
-                                    4 => self
-                                        .show_recommendation(RecommenderCategory::MusicClassical),
+                                    3 => self.show_recommendation(RecommenderCategory::MusicElectronic),
+                                    4 => self.show_recommendation(RecommenderCategory::MusicClassical),
                                     5 => self.show_recommendation(RecommenderCategory::MusicSalsa),
                                     6 => self.show_recommendation(RecommenderCategory::MusicReggae),
                                     7 => self.state = AppState::RecommenderMenu,
@@ -978,22 +961,12 @@ impl App {
                                     self.show_recommendation(RecommenderCategory::MusicPop);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.game_cursor = 3;
-                                    self.start_pong();
+                                    self.music_cursor = 3;
+                                    self.show_recommendation(RecommenderCategory::MusicElectronic);
                                 }
                                 KeyCode::Char('5') => {
-                                    self.game_cursor = 4;
-                                    self.start_matrix();
-                                }
-                                KeyCode::Char('6') => {
-                                    self.game_cursor = 5;
-                                    self.state = AppState::RecommenderMenu;
-                                }
-                                KeyCode::Char('7') | KeyCode::Esc => {
-                                    self.game_cursor = 6;
-                                    self.state = AppState::LanguageSelection;
-                                    self.lang = None;
-                                    self.refresh_main_menu_meme();
+                                    self.music_cursor = 4;
+                                    self.show_recommendation(RecommenderCategory::MusicClassical);
                                 }
                                 KeyCode::Char('6') => {
                                     self.music_cursor = 5;
