@@ -544,7 +544,7 @@ impl App {
                                     self.language_cursor = self.language_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.language_cursor < 5 {
+                                    if self.language_cursor < 4 {
                                         self.language_cursor += 1;
                                     }
                                 }
@@ -554,7 +554,6 @@ impl App {
                                     2 => self.select_language(Language::Portuguese),
                                     3 => self.select_language(Language::German),
                                     4 => self.select_language(Language::Dutch),
-                                    5 => self.state = AppState::DiscordQr,
                                     _ => {}
                                 },
                                 KeyCode::Char('1') => {
@@ -570,28 +569,54 @@ impl App {
                                     self.select_language(Language::Portuguese);
                                 }
                                 KeyCode::Char('4') => {
-                                    self.game_cursor = 3;
-                                    self.start_pong();
+                                    self.language_cursor = 3;
+                                    self.select_language(Language::German);
                                 }
                                 KeyCode::Char('5') => {
-                                    self.game_cursor = 4;
-                                    self.start_matrix();
+                                    self.language_cursor = 4;
+                                    self.select_language(Language::Dutch);
                                 }
-                                KeyCode::Char('6') => {
-                                    self.game_cursor = 5;
-                                    self.state = AppState::RecommenderMenu;
+                                
+                                // Recommender Bar Hotkeys
+                                KeyCode::Char('m') | KeyCode::Char('M') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Movie);
                                 }
-                                KeyCode::Char('7') | KeyCode::Esc => {
-                                    self.game_cursor = 6;
-                                    self.state = AppState::LanguageSelection;
-                                    self.lang = None;
-                                    self.refresh_main_menu_meme();
+                                KeyCode::Char('s') | KeyCode::Char('S') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Series);
                                 }
-                                KeyCode::Char('9') => {
-                                    self.language_cursor = 6;
+                                KeyCode::Char('a') | KeyCode::Char('A') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Anime);
+                                }
+                                KeyCode::Char('c') | KeyCode::Char('C') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Cartoon);
+                                }
+                                KeyCode::Char('b') | KeyCode::Char('B') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Book);
+                                }
+                                KeyCode::Char('n') | KeyCode::Char('N') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::Manga);
+                                }
+                                KeyCode::Char('g') | KeyCode::Char('G') => {
+                                    self.select_language(Language::English);
+                                    self.show_recommendation(RecommenderCategory::VideoGame);
+                                }
+                                KeyCode::Char('p') | KeyCode::Char('P') => {
+                                    self.select_language(Language::English);
+                                    self.state = AppState::MusicMenu;
+                                }
+                                
+                                // Discord
+                                KeyCode::Char('0') => {
                                     self.state = AppState::DiscordQr;
                                 }
-
+                                
+                                KeyCode::Esc => self.should_quit = true,
                                 _ => {}
                             },
                             AppState::GameSelection => match key.code {
@@ -599,7 +624,7 @@ impl App {
                                     self.game_cursor = self.game_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.game_cursor < 6 {
+                                    if self.game_cursor < 5 {
                                         self.game_cursor += 1;
                                     }
                                 }
@@ -609,8 +634,7 @@ impl App {
                                     2 => self.start_chess(),
                                     3 => self.start_pong(),
                                     4 => self.start_matrix(),
-                                    5 => self.state = AppState::RecommenderMenu,
-                                    6 => {
+                                    5 => {
                                         self.state = AppState::LanguageSelection;
                                         self.lang = None;
                                         self.refresh_main_menu_meme();
@@ -637,17 +661,12 @@ impl App {
                                     self.game_cursor = 4;
                                     self.start_matrix();
                                 }
-                                KeyCode::Char('6') => {
+                                KeyCode::Char('6') | KeyCode::Esc => {
                                     self.game_cursor = 5;
-                                    self.state = AppState::RecommenderMenu;
-                                }
-                                KeyCode::Char('7') | KeyCode::Esc => {
-                                    self.game_cursor = 6;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                     self.refresh_main_menu_meme();
                                 }
-
                                 _ => {}
                             },
                             AppState::Playing => {
@@ -1803,21 +1822,6 @@ impl App {
                         }),
                         Line::from(""),
                         Line::from(if self.game_cursor == 5 {
-                            vec![Span::styled(
-                                format!("    {}  ", lang.menu_recommender),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("    {}  ", lang.menu_recommender),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(""),
-                        Line::from(if self.game_cursor == 6 {
                             vec![Span::styled(
                                 format!("  {}  ", lang.menu_go_back),
                                 Style::default()
