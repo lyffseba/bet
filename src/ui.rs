@@ -2800,7 +2800,7 @@ impl App {
                 let rect = centered_rect(60, 80, area);
                 let scores = crate::matrix_scores::get_scores();
                 let mut text = vec![
-                    Line::from(vec![Span::styled("MATIX - TOP HACKERS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))]),
+                    Line::from(vec![Span::styled("MATRIX - TOP HACKERS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
                     Line::from(vec![Span::styled(format!("{:<5} | {:<5} | {:<10} | {:<8} | {:<5}", "RANK", "INI", "SCORE", "COMBO", "LEVEL"), Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))]),
                     Line::from(vec![Span::styled("-".repeat(45), Style::default().fg(Color::DarkGray))]),
