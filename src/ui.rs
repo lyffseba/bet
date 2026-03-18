@@ -75,7 +75,6 @@ pub enum RecommenderCategory {
     MusicSalsa,
     MusicReggae,
     VideoGame,
-    Meme,
 }
 
 #[derive(Clone)]
@@ -373,52 +372,29 @@ impl App {
 
     fn parse_args(&mut self) {
         let args: Vec<String> = std::env::args().collect();
-        if args.is_empty() {
-            return;
+        if args.len() < 2 {
+            return; // No subcommands provided
         }
 
-        let exec_name = std::path::Path::new(&args[0])
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-
-        let wants_hangman = exec_name.contains("hangman")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "hangman");
-        let wants_tictactoe = exec_name.contains("tictactoe")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "tictactoe");
-        let wants_chess =
-            exec_name.contains("chess") || args.iter().skip(1).any(|a| a.to_lowercase() == "chess");
-        let wants_pong =
-            exec_name.contains("pong") || args.iter().skip(1).any(|a| a.to_lowercase() == "pong");
-        let wants_movie =
-            exec_name.contains("movie") || args.iter().skip(1).any(|a| a.to_lowercase() == "movie");
-        let wants_series = exec_name.contains("series")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "series");
-        let wants_manga =
-            exec_name.contains("manga") || args.iter().skip(1).any(|a| a.to_lowercase() == "manga");
-        let wants_book =
-            exec_name.contains("book") || args.iter().skip(1).any(|a| a.to_lowercase() == "book");
-        let wants_anime =
-            exec_name.contains("anime") || args.iter().skip(1).any(|a| a.to_lowercase() == "anime");
-        let wants_cartoon = exec_name.contains("cartoon")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "cartoon");
-        let wants_music =
-            exec_name.contains("music") || args.iter().skip(1).any(|a| a.to_lowercase() == "music");
-        let wants_videogame = exec_name.contains("videogame")
-            || exec_name.contains("game")
-            || args
-                .iter()
-                .skip(1)
-                .any(|a| a.to_lowercase() == "videogame" || a.to_lowercase() == "game");
-        let wants_meme =
-            exec_name.contains("meme") || args.iter().skip(1).any(|a| a.to_lowercase() == "meme");
-        let wants_salsa =
-            exec_name.contains("salsa") || args.iter().skip(1).any(|a| a.to_lowercase() == "salsa");
-        let wants_reggae = exec_name.contains("reggae")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "reggae");
-        let wants_rec = exec_name.contains("recommend")
-            || args.iter().skip(1).any(|a| a.to_lowercase() == "recommend");
+        let cmd = args[1].to_lowercase();
+        
+        // Remove global symbolic link detection and strictly rely on subcommands (e.g. `bet hangman`, `bet matrix`)
+        let wants_hangman = cmd == "hangman";
+        let wants_tictactoe = cmd == "tictactoe";
+        let wants_chess = cmd == "chess";
+        let wants_pong = cmd == "pong";
+        let wants_matrix = cmd == "matrix";
+        let wants_movie = cmd == "movies" || cmd == "movie";
+        let wants_series = cmd == "series" || cmd == "tv";
+        let wants_manga = cmd == "manga";
+        let wants_book = cmd == "books" || cmd == "book";
+        let wants_anime = cmd == "anime";
+        let wants_cartoon = cmd == "cartoon" || cmd == "cartoons";
+        let wants_music = cmd == "music";
+        let wants_videogame = cmd == "games" || cmd == "game" || cmd == "videogame" || cmd == "videogames";
+        let wants_salsa = cmd == "salsa";
+        let wants_reggae = cmd == "reggae";
+        let wants_rec = cmd == "recommend" || cmd == "recommender";
 
         if wants_hangman {
             self.select_language(Language::English);
@@ -432,6 +408,9 @@ impl App {
         } else if wants_pong {
             self.select_language(Language::English);
             self.start_pong();
+        } else if wants_matrix {
+            self.select_language(Language::English);
+            self.start_matrix();
         } else if wants_movie {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::Movie);
@@ -450,6 +429,9 @@ impl App {
         } else if wants_cartoon {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::Cartoon);
+        } else if wants_videogame {
+            self.select_language(Language::English);
+            self.show_recommendation(RecommenderCategory::VideoGame);
         } else if wants_music {
             self.select_language(Language::English);
             self.state = AppState::MusicMenu;
@@ -459,12 +441,6 @@ impl App {
         } else if wants_reggae {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::MusicReggae);
-        } else if wants_videogame {
-            self.select_language(Language::English);
-            self.show_recommendation(RecommenderCategory::VideoGame);
-        } else if wants_meme {
-            self.select_language(Language::English);
-            self.show_recommendation(RecommenderCategory::Meme);
         } else if wants_rec {
             self.select_language(Language::English);
             self.state = AppState::RecommenderMenu;
@@ -1282,7 +1258,6 @@ impl App {
                 RecommenderCategory::VideoGame => {
                     lang.videogames.choose(&mut rng).unwrap_or(&"BET")
                 }
-                RecommenderCategory::Meme => lang.memes.choose(&mut rng).unwrap_or(&"BET"),
             }
         } else {
             "BET"

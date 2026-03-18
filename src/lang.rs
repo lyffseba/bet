@@ -60,7 +60,6 @@ pub struct Lang {
     pub animes: &'static [&'static str],
     pub cartoons: &'static [&'static str],
     pub videogames: &'static [&'static str],
-    pub memes: &'static [&'static str],
     pub music_rock: &'static [&'static str],
     pub music_hiphop: &'static [&'static str],
     pub music_pop: &'static [&'static str],
@@ -131,7 +130,7 @@ impl Lang {
             animes: super::wordlist::ANIME,
             cartoons: super::wordlist::CARTOONS,
             videogames: super::wordlist::VIDEO_GAMES,
-            memes: super::wordlist::MEMES,
+            
             music_rock: super::wordlist::MUSIC_ROCK,
             music_hiphop: super::wordlist::MUSIC_HIPHOP,
             music_pop: super::wordlist::MUSIC_POP,
@@ -202,7 +201,7 @@ impl Lang {
             animes: super::wordlist::ANIME,
             cartoons: super::wordlist::CARTOONS,
             videogames: super::wordlist::VIDEO_GAMES,
-            memes: super::wordlist::MEMES,
+            
             music_rock: super::wordlist::MUSIC_ROCK,
             music_hiphop: super::wordlist::MUSIC_HIPHOP,
             music_pop: super::wordlist::MUSIC_POP,
@@ -273,7 +272,7 @@ impl Lang {
             animes: super::wordlist::ANIME,
             cartoons: super::wordlist::CARTOONS,
             videogames: super::wordlist::VIDEO_GAMES,
-            memes: super::wordlist::MEMES,
+            
             music_rock: super::wordlist::MUSIC_ROCK,
             music_hiphop: super::wordlist::MUSIC_HIPHOP,
             music_pop: super::wordlist::MUSIC_POP,
@@ -344,7 +343,7 @@ impl Lang {
             animes: super::wordlist::ANIME,
             cartoons: super::wordlist::CARTOONS,
             videogames: super::wordlist::VIDEO_GAMES,
-            memes: super::wordlist::MEMES,
+            
             music_rock: super::wordlist::MUSIC_ROCK,
             music_hiphop: super::wordlist::MUSIC_HIPHOP,
             music_pop: super::wordlist::MUSIC_POP,
@@ -415,7 +414,7 @@ impl Lang {
             animes: super::wordlist::ANIME,
             cartoons: super::wordlist::CARTOONS,
             videogames: super::wordlist::VIDEO_GAMES,
-            memes: super::wordlist::MEMES,
+            
             music_rock: super::wordlist::MUSIC_ROCK,
             music_hiphop: super::wordlist::MUSIC_HIPHOP,
             music_pop: super::wordlist::MUSIC_POP,
