@@ -115,6 +115,44 @@ pub struct Particle {
     pub lifetime: f64,
 }
 
+pub struct MatrixRainOverlay<'a> {
+    pub rain_drops: &'a [crate::matrix::RainDrop],
+}
+
+impl<'a> Widget for MatrixRainOverlay<'a> {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let chars = ['0', '1', 'ﾊ', 'ﾐ', 'ﾋ', 'ｰ', 'ｳ', 'ｼ', 'ﾅ', 'ﾓ', 'ﾆ', 'ｻ', 'ﾜ', 'ﾂ', 'ｵ', 'ﾘ', 'ｱ', 'ﾎ', 'ﾃ', 'ﾏ', 'ｹ', 'ﾒ', 'ｴ', 'ｶ', 'ｷ', 'ﾑ', 'ﾕ', 'ﾗ', 'ｾ', 'ﾈ', 'ｽ', 'ﾀ', 'ﾇ', 'ﾍ'];
+        
+        for r in self.rain_drops {
+            let rx = r.x.round() as i16;
+            if rx >= area.x as i16 && rx < (area.x + area.width) as i16 {
+                for i in 0..r.len {
+                    let ry = (r.y - i as f64).round() as i16;
+                    if ry >= area.y as i16 && ry < (area.y + area.height) as i16 {
+                        if let Some(cell) = buf.cell_mut((rx as u16, ry as u16)) {
+                            use rand::Rng;
+                            if rng.gen_bool(0.1) || cell.symbol() == " " {
+                                cell.set_char(*chars.choose(&mut rng).unwrap_or(&'0'));
+                            }
+                            
+                            let color = if i == 0 {
+                                Color::White 
+                            } else if i < 4 {
+                                Color::Rgb(180, 255, 50)
+                            } else {
+                                Color::Rgb(0, 80, 0)
+                            };
+                            cell.set_fg(color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub struct ParticleOverlay<'a> {
     pub particles: &'a [Particle],
 }
@@ -2676,6 +2714,15 @@ impl App {
                         .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right));
                     f.render_widget(bg_block, area);
 
+                    // 3A POLISH: Background Digital Rain Layer
+                    let inner_area = ratatui::layout::Rect {
+                        x: area.x + 1,
+                        y: area.y + 1,
+                        width: area.width.saturating_sub(2),
+                        height: area.height.saturating_sub(2),
+                    };
+                    f.render_widget(MatrixRainOverlay { rain_drops: &matrix.rain_drops }, inner_area);
+
                     let stats = format!("SCORE: {}  |  COMBO: {}x  |  LEVEL: {}  |  LIVES: {}", matrix.score, matrix.combo, matrix.level, matrix.lives);
                     let mut stats_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
                     if matrix.combo > 5 {
@@ -2694,10 +2741,18 @@ impl App {
                         
                         let mut spans = vec![];
                         if !typed_part.is_empty() {
-                            spans.push(Span::styled(typed_part, Style::default().fg(Color::Black).bg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                            spans.push(Span::styled(typed_part, Style::default().fg(Color::DarkGray))); // Faded out code
                         }
                         if !untyped_part.is_empty() {
-                            spans.push(Span::styled(untyped_part, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
+                            let first_char = &untyped_part[0..1];
+                            let rest = &untyped_part[1..];
+                            
+                            // White lead character with dark green terminal background block to pop
+                            spans.push(Span::styled(first_char, Style::default().fg(Color::White).bg(Color::Rgb(0, 100, 0)).add_modifier(Modifier::BOLD)));
+                            
+                            if !rest.is_empty() {
+                                spans.push(Span::styled(rest, Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD)));
+                            }
                         }
                         
                         let p = Paragraph::new(Line::from(spans));

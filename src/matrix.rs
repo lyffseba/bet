@@ -7,6 +7,13 @@ pub enum GameStatus {
     GameOver,
 }
 
+pub struct RainDrop {
+    pub x: f64,
+    pub y: f64,
+    pub speed: f64,
+    pub len: usize,
+}
+
 pub struct ActiveWord {
     pub id: u64,
     pub text: String,
@@ -18,6 +25,7 @@ pub struct ActiveWord {
 
 pub struct MatrixGame {
     pub words: Vec<ActiveWord>,
+    pub rain_drops: Vec<RainDrop>,
     pub status: GameStatus,
     pub score: u32,
     pub combo: u32,
@@ -37,6 +45,20 @@ impl MatrixGame {
         let dict = Self::build_dictionary();
         Self {
             words: Vec::new(),
+            rain_drops: {
+                let mut rain = Vec::new();
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                for _ in 0..40 {
+                    rain.push(RainDrop {
+                        x: rng.gen_range(0.0..terminal_width),
+                        y: rng.gen_range(-30.0..30.0), // Some already falling
+                        speed: rng.gen_range(15.0..45.0),
+                        len: rng.gen_range(5..20),
+                    });
+                }
+                rain
+            },
             status: GameStatus::Ongoing,
             score: 0,
             combo: 0,
@@ -101,6 +123,20 @@ impl MatrixGame {
         for w in &mut self.words {
             // Flowing physics: smooth glide downwards
             w.y += w.speed * dt;
+        }
+        
+        // Digital Rain Physics
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        for r in &mut self.rain_drops {
+            r.y += r.speed * dt;
+            if r.y - (r.len as f64) > 30.0 {
+                // Reset drop to the top
+                r.y = rng.gen_range(-10.0..0.0);
+                r.x = rng.gen_range(0.0..self.terminal_width);
+                r.speed = rng.gen_range(15.0..45.0);
+                r.len = rng.gen_range(5..20);
+            }
         }
 
         // Check bounds
