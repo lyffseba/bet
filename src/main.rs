@@ -30,6 +30,34 @@ impl Drop for TerminalGuard {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 {
+        let cmd = args[1].to_lowercase();
+        if cmd == "--help" || cmd == "-h" {
+            println!("bet - 3A Carmack-level terminal multiplexer");
+            println!("Usage: bet [COMMAND]");
+            println!("Commands:");
+            println!("  hangman      Play Hangman");
+            println!("  tictactoe    Play Tic-Tac-Toe");
+            println!("  chess        Play Chess");
+            println!("  pong         Play Pong");
+            println!("  matrix       Enter The Matrix");
+            println!("  movies       Get Movie Recommendations");
+            println!("  series       Get TV Series Recommendations");
+            println!("  manga        Get Manga Recommendations");
+            println!("  books        Get Book Recommendations");
+            println!("  anime        Get Anime Recommendations");
+            println!("  cartoon      Get Cartoon Recommendations");
+            println!("  games        Get Video Game Recommendations");
+            println!("  music        Get Music Recommendations");
+            return Ok(());
+        }
+        if cmd == "--version" || cmd == "-v" {
+            println!("bet v1.0.0");
+            return Ok(());
+        }
+    }
+
     use std::io::IsTerminal;
     // Basic terminal capability check (are we a tty?)
     if !io::stdout().is_terminal() {
