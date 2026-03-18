@@ -1106,6 +1106,18 @@ impl App {
         self.shake_intensity = intensity;
     }
 
+    pub fn get_breathing_mango(&self) -> Color {
+        // 3A POLISH: Breathing UI Color based on absolute uptime
+        let time = self.last_tick.elapsed().as_secs_f64() * 3.0;
+        let sine = (time.sin() + 1.0) / 2.0; // 0.0 to 1.0
+        
+        let r = 130.0 + (50.0 * sine);
+        let g = 200.0 + (55.0 * sine);
+        let b = 20.0 + (30.0 * sine);
+        
+        Color::Rgb(r as u8, g as u8, b as u8)
+    }
+
     fn draw(&self, f: &mut Frame) {
         let mut area = f.area();
         
@@ -1422,7 +1434,7 @@ impl App {
                             format!("  {}  ", opt),
                             Style::default()
                                 .fg(Color::Black)
-                                .bg(Color::Rgb(180, 255, 50))
+                                .bg(self.get_breathing_mango())
                                 .add_modifier(Modifier::BOLD),
                         )]));
                     } else {
@@ -1440,7 +1452,7 @@ impl App {
                         "  9. Join our Discord! (QR)  ",
                         Style::default()
                             .fg(Color::Black)
-                            .bg(Color::Rgb(180, 255, 50))
+                            .bg(self.get_breathing_mango())
                             .add_modifier(Modifier::BOLD),
                     )]));
                 } else {
@@ -1490,7 +1502,7 @@ impl App {
                                 format!("  {}  ", lang.menu_hangman),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1504,7 +1516,7 @@ impl App {
                                 format!("  {}  ", lang.menu_tictactoe),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1518,7 +1530,7 @@ impl App {
                                 format!("  {}  ", lang.menu_chess),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1532,7 +1544,7 @@ impl App {
                                 format!("  {}  ", lang.menu_pong),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1546,7 +1558,7 @@ impl App {
                                 format!("  {}  ", lang.menu_recommender),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1561,7 +1573,7 @@ impl App {
                                 format!("  {}  ", lang.menu_go_back),
                                 Style::default()
                                     .fg(Color::Black)
-                                    .bg(Color::Rgb(180, 255, 50))
+                                    .bg(self.get_breathing_mango())
                                     .add_modifier(Modifier::BOLD),
                             )]
                         } else {
@@ -1641,7 +1653,7 @@ impl App {
                         if is_revealed || (is_won && c.is_alphabetic()) {
                             let mut style = Style::default().fg(Color::Rgb(180, 255, 50)).add_modifier(Modifier::BOLD);
                             if is_won {
-                                style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                                style = style.bg(self.get_breathing_mango()).fg(Color::Black);
                             }
                             word_spans.push(Span::styled(
                                 format!(" {} ", c),
@@ -1784,7 +1796,7 @@ impl App {
                                 let mut style = Style::default().fg(base_color).add_modifier(Modifier::BOLD);
                                 
                                 if is_cursor {
-                                    style = style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                                    style = style.bg(self.get_breathing_mango()).fg(Color::Black);
                                 } else if is_winning {
                                     style = style.fg(Color::Rgb(180, 255, 50));
                                 }
@@ -2199,7 +2211,7 @@ impl App {
                                     format!("  {}  ", opt),
                                     Style::default()
                                         .fg(Color::Black)
-                                        .bg(Color::Rgb(180, 255, 50))
+                                        .bg(self.get_breathing_mango())
                                         .add_modifier(Modifier::BOLD),
                                 ),
                             ]));
@@ -2263,7 +2275,7 @@ impl App {
                                     format!("  {}  ", opt),
                                     Style::default()
                                         .fg(Color::Black)
-                                        .bg(Color::Rgb(180, 255, 50))
+                                        .bg(self.get_breathing_mango())
                                         .add_modifier(Modifier::BOLD),
                                 ),
                             ]));
@@ -2491,7 +2503,7 @@ LLLLL     Y   F     F    "#
                 
                 let mut title_style = Style::default().add_modifier(Modifier::BOLD);
                 if (self.bouncer_timer * 4.0) as i64 % 2 == 0 {
-                    title_style = title_style.bg(Color::Rgb(180, 255, 50)).fg(Color::Black);
+                    title_style = title_style.bg(self.get_breathing_mango()).fg(Color::Black);
                 } else {
                     title_style = title_style.bg(Color::Black).fg(Color::Rgb(180, 255, 50));
                 }
@@ -2767,10 +2779,19 @@ mod theme_tests {
 
             let buffer = terminal.backend().buffer();
             for cell in buffer.content() {
-                if !ALLOWED_COLORS.contains(&cell.fg) {
+                let mut fg_ok = ALLOWED_COLORS.contains(&cell.fg);
+                if let Color::Rgb(r, g, b) = cell.fg {
+                    if r >= 130 && r <= 180 && g >= 200 && b >= 20 && b <= 50 { fg_ok = true; }
+                }
+                if !fg_ok {
                     panic!("Theme violation: Disallowed foreground color {:?}", cell.fg);
                 }
-                if !ALLOWED_COLORS.contains(&cell.bg) {
+                
+                let mut bg_ok = ALLOWED_COLORS.contains(&cell.bg);
+                if let Color::Rgb(r, g, b) = cell.bg {
+                    if r >= 130 && r <= 180 && g >= 200 && b >= 20 && b <= 50 { bg_ok = true; }
+                }
+                if !bg_ok {
                     panic!("Theme violation: Disallowed background color {:?}", cell.bg);
                 }
             }
