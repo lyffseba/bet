@@ -800,16 +800,15 @@ impl App {
                                     self.state = AppState::MatrixLeaderboard;
                                 } else if let KeyCode::Char(c) = key.code
                                     && let Some(m) = &mut self.matrix {
-                                        let (hit, completed, explosion) = m.type_char(c);
+                                        let (hit, completed, _explosion) = m.type_char(c);
                                         if completed {
-                                            self.shake_timer = 0.1;
-                                            self.shake_intensity = 1.0;
-                                            if let Some((ex, ey)) = explosion {
-                                                self.trigger_confetti(30, ex, ey);
-                                            }
-                                        } else if !hit {
+                                            // Soft haptic for destroying a word
                                             self.shake_timer = 0.05;
                                             self.shake_intensity = 0.5;
+                                        } else if !hit {
+                                            // Heavy error penalty
+                                            self.shake_timer = 0.15;
+                                            self.shake_intensity = 2.0;
                                         }
                                     }
                             }
@@ -1360,8 +1359,8 @@ impl App {
                 let offset_y = rng.gen_range(-(current_intensity/2)..=(current_intensity/2)); // Y should shake less because characters are twice as tall as they are wide
                 
                 // Safely apply offset without underflowing u16
-                area.x = (area.x as i16 + offset_x).clamp(0, u16::MAX as i16) as u16;
-                area.y = (area.y as i16 + offset_y).clamp(0, u16::MAX as i16) as u16;
+                area.x = (area.x as i16 + offset_x).clamp(0, i16::MAX) as u16;
+                area.y = (area.y as i16 + offset_y).clamp(0, i16::MAX) as u16;
             }
         }
         // ----------------------------------------------
@@ -2719,8 +2718,9 @@ impl App {
                         }
                         
                         let p = Paragraph::new(Line::from(spans));
+                        let max_x = ((area.x + area.width).saturating_sub(word.text.len() as u16 + 1) as f64).max(area.x as f64 + 1.0);
                         let word_rect = Rect {
-                            x: (area.x as f64 + word.x).clamp(area.x as f64 + 1.0, (area.x + area.width).saturating_sub(word.text.len() as u16 + 1) as f64) as u16,
+                            x: (area.x as f64 + word.x).clamp(area.x as f64 + 1.0, max_x) as u16,
                             y: area.y + word.y as u16,
                             width: word.text.len() as u16,
                             height: 1,

@@ -86,8 +86,8 @@ impl MatrixGame {
         for list in lists.iter() {
             for phrase in list.iter() {
                 for word in phrase.split_whitespace() {
-                    let clean: String = word.chars().filter(|c| c.is_alphabetic()).collect();
-                    if clean.len() > 2 && clean.len() < 15 {
+                    let clean = word.trim_matches(|c: char| !c.is_alphabetic());
+                    if clean.chars().count() > 2 && clean.chars().count() < 15 && clean.chars().all(|c| c.is_ascii_alphabetic()) {
                         words.push(clean.to_lowercase());
                     }
                 }
