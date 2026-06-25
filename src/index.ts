@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 
-type Game = "menu" | "tictactoe" | "hangman" | "recommender";
+type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix";
 
 const HANGMAN_WORDS = [
 	"THE MATRIX", "INCEPTION", "PULP FICTION", "THE DARK KNIGHT", 
@@ -42,6 +42,14 @@ const RECOMMENDATIONS: Record<string, string[]> = {
 		"Minecraft - Infinite creative sandbox exploration"
 	]
 };
+
+const MATRIX_DICTIONARY = [
+	"KUBERNETES", "TYPESCRIPT", "CYBERPUNK", "DOCKER", "COMPILER",
+	"PARADIGM", "DATABASE", "FIREWALL", "TERMINAL", "MAINBOARD",
+	"INTERFACE", "RECURSION", "ALGORITHM", "METADATA", "CONTAINER",
+	"MAINFRAME", "BITCOIN", "REFACTOR", "DECRYPT", "CYBERSPACE",
+	"ETHERNET", "KEYBOARD", "PROCESSOR", "EMULATOR", "FRONTEND"
+];
 
 const HANGMAN_ART: string[][] = [
 	[
@@ -123,6 +131,13 @@ const HANGMAN_ART: string[][] = [
 	]
 ];
 
+interface MatrixWord {
+	text: string;
+	typed: string;
+	x: number;
+	y: number;
+}
+
 class BetNativeComponent {
 	private tui: { requestRender: () => void };
 	private onClose: () => void;
@@ -156,6 +171,15 @@ class BetNativeComponent {
 	private recCategory: string | null = null;
 	private recSelection: string | null = null;
 
+	// Matrix State
+	private matrixWords: MatrixWord[] = [];
+	private matrixScore = 0;
+	private matrixLives = 3;
+	private matrixOver = false;
+	private matrixTargetWord: MatrixWord | null = null;
+	private matrixSpawnCooldown = 0;
+	private matrixInterval: ReturnType<typeof setInterval> | null = null;
+
 	constructor(tui: { requestRender: () => void }, onClose: () => void) {
 		this.tui = tui;
 		this.onClose = onClose;
@@ -164,10 +188,12 @@ class BetNativeComponent {
 	handleInput(data: string): void {
 		if (matchesKey(data, "escape") || data === "q" || data === "Q") {
 			if (this.currentGame !== "menu") {
+				this.stopMatrix();
 				this.currentGame = "menu";
 				this.version++;
 				this.tui.requestRender();
 			} else {
+				this.stopMatrix();
 				this.onClose();
 			}
 			return;
@@ -183,6 +209,9 @@ class BetNativeComponent {
 			} else if (data === "3") {
 				this.currentGame = "recommender";
 				this.resetRecommender();
+			} else if (data === "4") {
+				this.currentGame = "matrix";
+				this.resetMatrix();
 			}
 			this.version++;
 			this.tui.requestRender();
@@ -260,6 +289,45 @@ class BetNativeComponent {
 			this.tui.requestRender();
 			return;
 		}
+
+		if (this.currentGame === "matrix") {
+			if (this.matrixOver) {
+				if (data === "r" || data === "R" || data === " ") {
+					this.resetMatrix();
+					this.version++;
+					this.tui.requestRender();
+				}
+				return;
+			}
+
+			if (/^[a-zA-Z]$/.test(data)) {
+				const letter = data.toUpperCase();
+				if (!this.matrixTargetWord) {
+					// Lock onto a word starting with this letter
+					const found = this.matrixWords.find(w => w.text.startsWith(letter));
+					if (found) {
+						this.matrixTargetWord = found;
+						found.typed = letter;
+					}
+				} else {
+					// Type next letter in target word
+					const targetIndex = this.matrixTargetWord.typed.length;
+					if (this.matrixTargetWord.text[targetIndex] === letter) {
+						this.matrixTargetWord.typed += letter;
+						// Check completion
+						if (this.matrixTargetWord.typed === this.matrixTargetWord.text) {
+							this.matrixScore += this.matrixTargetWord.text.length * 10;
+							const completed = this.matrixTargetWord;
+							this.matrixWords = this.matrixWords.filter(w => w !== completed);
+							this.matrixTargetWord = null;
+						}
+					}
+				}
+			}
+			this.version++;
+			this.tui.requestRender();
+			return;
+		}
 	}
 
 	private resetTicTacToe() {
@@ -315,6 +383,75 @@ class BetNativeComponent {
 		const idx = Math.floor(Math.random() * list.length);
 		this.recCategory = cat;
 		this.recSelection = list[idx];
+	}
+
+	private resetMatrix() {
+		this.matrixWords = [];
+		this.matrixScore = 0;
+		this.matrixLives = 3;
+		this.matrixOver = false;
+		this.matrixTargetWord = null;
+		this.matrixSpawnCooldown = 0;
+
+		this.spawnMatrixWord();
+
+		this.stopMatrix();
+		this.matrixInterval = setInterval(() => {
+			this.matrixTick();
+		}, 180);
+	}
+
+	private spawnMatrixWord() {
+		const idx = Math.floor(Math.random() * MATRIX_DICTIONARY.length);
+		const text = MATRIX_DICTIONARY[idx];
+		if (this.matrixWords.some(w => w.text === text)) return;
+
+		// Ensure word doesn't overflow container width (boxWidth is 46, margins are ~12)
+		const x = Math.floor(Math.random() * 16) + 2;
+		this.matrixWords.push({
+			text,
+			typed: "",
+			x,
+			y: 0
+		});
+	}
+
+	private matrixTick() {
+		if (this.matrixOver) return;
+
+		for (const word of this.matrixWords) {
+			word.y += 0.35; // fall rate
+
+			if (word.y >= 11) {
+				this.matrixLives = Math.max(0, this.matrixLives - 1);
+				if (this.matrixTargetWord === word) {
+					this.matrixTargetWord = null;
+				}
+				this.matrixWords = this.matrixWords.filter(w => w !== word);
+
+				if (this.matrixLives <= 0) {
+					this.matrixOver = true;
+					this.stopMatrix();
+				}
+				break;
+			}
+		}
+
+		this.matrixSpawnCooldown++;
+		if (this.matrixSpawnCooldown >= 10) {
+			this.spawnMatrixWord();
+			this.matrixSpawnCooldown = 0;
+		}
+
+		this.version++;
+		this.tui.requestRender();
+	}
+
+	private stopMatrix() {
+		if (this.matrixInterval) {
+			clearInterval(this.matrixInterval);
+			this.matrixInterval = null;
+		}
 	}
 
 	private checkWinner() {
@@ -396,6 +533,7 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(`  [1] Tic-Tac-Toe  ${dim("(Play vs AI / Local)")}`)));
 			lines.push(padToCenter(boxLine(`  [2] Hangman      ${dim("(Movie word survival)")}`)));
 			lines.push(padToCenter(boxLine(`  [3] Recommender  ${dim("(Book/Anime/Movie recs)")}`)));
+			lines.push(padToCenter(boxLine(`  [4] The Matrix   ${dim("(Hacker typing survival)")}`)));
 			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine(`  [Q] Quit Game Hub`)));
 			lines.push(padToCenter(boxLine("")));
@@ -436,7 +574,6 @@ class BetNativeComponent {
 		} else if (this.currentGame === "hangman") {
 			lines.push(padToCenter(boxLine("")));
 			
-			// Render title
 			let statusStr = `  Guess the movie! Attempts left: ${red(String(this.hangmanAttemptsLeft))}`;
 			if (this.hangmanOver) {
 				statusStr = this.hangmanWon 
@@ -446,7 +583,6 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(statusStr)));
 			lines.push(padToCenter(boxLine("")));
 
-			// Display word blanks
 			let displayWord = "";
 			for (const char of this.hangmanWord) {
 				if (char === " ") {
@@ -460,7 +596,6 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(`  Word: ${bold(displayWord.trim())}`)));
 			lines.push(padToCenter(boxLine("")));
 
-			// Display HANGMAN Art
 			const artIdx = 6 - this.hangmanAttemptsLeft;
 			const artLines = HANGMAN_ART[artIdx];
 			for (const artLine of artLines) {
@@ -468,7 +603,6 @@ class BetNativeComponent {
 			}
 			lines.push(padToCenter(boxLine("")));
 
-			// Guessed list
 			const guessedList = Array.from(this.hangmanGuessed).sort().join(", ");
 			lines.push(padToCenter(boxLine(`  Guessed: [ ${yellow(guessedList)} ]`)));
 			lines.push(padToCenter(boxLine("")));
@@ -493,7 +627,6 @@ class BetNativeComponent {
 				lines.push(padToCenter(boxLine(`  Category: ${bold(green(this.recCategory))}`)));
 				lines.push(padToCenter(boxLine("")));
 				
-				// Wrap recommendation line if too long
 				const rec = this.recSelection;
 				if (rec.length > 40) {
 					lines.push(padToCenter(boxLine(`  "${rec.substring(0, 40)}`)));
@@ -508,6 +641,54 @@ class BetNativeComponent {
 				lines.push(padToCenter(boxLine("")));
 				lines.push(padToCenter(boxLine("")));
 			}
+		} else if (this.currentGame === "matrix") {
+			lines.push(padToCenter(boxLine("")));
+			
+			// Matrix stats header
+			let statusStr = `  Score: ${green(String(this.matrixScore))} │ Lives: ${red("❤".repeat(this.matrixLives))}`;
+			if (this.matrixOver) {
+				statusStr = `  ${bold(red(`SYSTEM CRASH! Final Score: ${this.matrixScore}`))}`;
+			}
+			lines.push(padToCenter(boxLine(statusStr)));
+			lines.push(padToCenter(boxLine("")));
+
+			// Render falling screen grid row-by-row (11 rows)
+			for (let r = 0; r < 11; r++) {
+				const activeWord = this.matrixWords.find(w => Math.floor(w.y) === r);
+				if (activeWord) {
+					const leftSpace = " ".repeat(activeWord.x);
+					const typedPart = inverse(green(activeWord.typed));
+					const remainingPart = bold(activeWord.text.substring(activeWord.typed.length));
+					
+					// Compute remaining spacing on the right side
+					const printedLen = activeWord.x + activeWord.text.length;
+					const rightSpaceLen = Math.max(0, boxWidth - printedLen - 4);
+					const rightSpace = " ".repeat(rightSpaceLen);
+
+					lines.push(padToCenter(boxLine(`  ${leftSpace}${typedPart}${remainingPart}${rightSpace}`)));
+				} else {
+					// Scattered digital rain drop effect
+					const rainEffects = [
+						"       .          o                .      ",
+						" .           o           .                ",
+						"      o            .             o        ",
+						"            .            o                ",
+						" .    o            .            .       o ",
+						"          .               o               ",
+						"    o           o               .         ",
+						" .        .            o             o    "
+					];
+					const rainRow = rainEffects[(r + this.matrixSpawnCooldown) % rainEffects.length];
+					lines.push(padToCenter(boxLine(dim(`  ${green(rainRow.substring(0, boxWidth - 4))}`))));
+				}
+			}
+			
+			lines.push(padToCenter(boxLine("")));
+			if (this.matrixOver) {
+				lines.push(padToCenter(boxLine(`  Press [R] to restart, [Q] for menu`)));
+			} else {
+				lines.push(padToCenter(boxLine(`  Type falling letters to destroy them!`)));
+			}
 		}
 
 		lines.push(padToCenter(dim(` ╰${"─".repeat(boxWidth)}╯`)));
@@ -517,6 +698,10 @@ class BetNativeComponent {
 		this.cachedVersion = this.version;
 
 		return lines;
+	}
+
+	dispose(): void {
+		this.stopMatrix();
 	}
 }
 
@@ -530,7 +715,9 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			await ctx.ui.custom((tui, _theme, _kb, done) => {
-				return new BetNativeComponent(tui, () => done(undefined));
+				return new BetNativeComponent(tui, () => {
+					done(undefined);
+				});
 			});
 		},
 	});
