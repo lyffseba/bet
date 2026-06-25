@@ -944,4 +944,12 @@ export default function (pi: ExtensionAPI) {
 		description: "Play BET natively in the terminal while you wait!",
 		handler: launchBet,
 	});
+	pi.registerCommand("b￥t", {
+		description: "Play BET natively in the terminal while you wait!",
+		handler: launchBet,
+	});
+	pi.registerCommand("b元t", {
+		description: "Play BET natively in the terminal while you wait!",
+		handler: launchBet,
+	});
 }
