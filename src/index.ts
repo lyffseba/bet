@@ -915,19 +915,33 @@ class BetNativeComponent {
 }
 
 export default function (pi: ExtensionAPI) {
+	const launchBet = async (_args: any, ctx: any) => {
+		if (!ctx.hasUI) {
+			ctx.ui.notify("BET requires interactive mode", "error");
+			return;
+		}
+
+		await ctx.ui.custom((tui: any, _theme: any, _kb: any, done: any) => {
+			return new BetNativeComponent(tui, () => {
+				done(undefined);
+			});
+		});
+	};
+
+	pi.registerCommand("bet", {
+		description: "Play BET natively in the terminal while you wait!",
+		handler: launchBet,
+	});
 	pi.registerCommand("b$t", {
 		description: "Play BET natively in the terminal while you wait!",
-		handler: async (_args, ctx) => {
-			if (!ctx.hasUI) {
-				ctx.ui.notify("BET requires interactive mode", "error");
-				return;
-			}
-
-			await ctx.ui.custom((tui, _theme, _kb, done) => {
-				return new BetNativeComponent(tui, () => {
-					done(undefined);
-				});
-			});
-		},
+		handler: launchBet,
+	});
+	pi.registerCommand("b€t", {
+		description: "Play BET natively in the terminal while you wait!",
+		handler: launchBet,
+	});
+	pi.registerCommand("b¥t", {
+		description: "Play BET natively in the terminal while you wait!",
+		handler: launchBet,
 	});
 }
