@@ -1,0 +1,25 @@
+{
+  "name": "bet-pi-hub",
+  "version": "1.0.0",
+  "description": "Play BET natively in pi while you wait",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyffseba/bet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lyffseba/bet/issues"
+  },
+  "homepage": "https://github.com/lyffseba/bet#readme",
+  "main": "src/index.ts",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/lyffseba/bet/main/screenshot.png"
+  },
+  "dependencies": {
+    "@mariozechner/pi-coding-agent": "latest",
+    "@mariozechner/pi-tui": "latest"
+  }
+}

@@ -1,0 +1,31 @@
+[package]
+name = "bet-cli"
+version = "1.0.0"
+edition = "2024"
+description = "A lightning-fast, zero-flicker terminal game hub containing Hangman, Tic-Tac-Toe, and Chess"
+authors = ["lyffseba"]
+license = "MIT"
+repository = "https://github.com/lyffseba/bet"
+readme = "README.md"
+categories = ["games", "command-line-utilities"]
+keywords = ["terminal", "games", "hangman", "tictactoe", "chess"]
+
+[[bin]]
+name = "bet"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28"
+qrcode = "0.14.1"
+rand = "0.8"
+ratatui = "0.30.0"
+open = "5.1.2"
+shakmaty = "0.30.0"
+directories = "6.0.0"
+
+[profile.release]
+opt-level = 3       # Maximize optimizations
+lto = true          # Enable Link Time Optimization (smaller and faster binary)
+codegen-units = 1   # Maximize LTO by compiling in a single unit
+panic = "abort"     # Abort on panic to remove panic unwinding code (smaller binary)
+strip = true        # Strip symbols from the binary (significantly smaller)
