@@ -329,6 +329,7 @@ impl ParadoxGame {
         }
     }
 
+    #[allow(dead_code)]
     pub fn render_wave(width: usize) -> String {
         let w = width.max(20);
         let mut out = String::with_capacity(w + 2);
