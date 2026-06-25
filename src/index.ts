@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix";
+type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix" | "pong";
 
 const HIGHSCORE_FILE = path.join(os.homedir(), ".pi", "bet_highscores.json");
 
@@ -217,6 +217,19 @@ class BetNativeComponent {
 	private matrixSpawnCooldown = 0;
 	private matrixInterval: ReturnType<typeof setInterval> | null = null;
 
+	// Pong State
+	private ballX = 20;
+	private ballY = 5;
+	private ballDX = 0.55;
+	private ballDY = 0.25;
+	private playerY = 5;
+	private compY = 5;
+	private playerScore = 0;
+	private compScore = 0;
+	private pongOver = false;
+	private pongWinner: "Player" | "CPU" | null = null;
+	private pongInterval: ReturnType<typeof setInterval> | null = null;
+
 	// Global Ticker State (Breathing Borders + Confetti)
 	private globalInterval: ReturnType<typeof setInterval> | null = null;
 	private confetti: ConfettiParticle[] = [];
@@ -237,7 +250,6 @@ class BetNativeComponent {
 		// Update Confetti Particles
 		if (this.confettiTimer > 0) {
 			this.confettiTimer--;
-			// Shift particles randomly to simulate falling
 			for (const p of this.confetti) {
 				p.x = (p.x + (Math.random() > 0.5 ? 1 : -1) + 42) % 42;
 			}
@@ -284,11 +296,13 @@ class BetNativeComponent {
 		if (matchesKey(data, "escape") || data === "q" || data === "Q") {
 			if (this.currentGame !== "menu") {
 				this.stopMatrix();
+				this.stopPong();
 				this.currentGame = "menu";
 				this.version++;
 				this.tui.requestRender();
 			} else {
 				this.stopMatrix();
+				this.stopPong();
 				this.onClose();
 			}
 			return;
@@ -307,6 +321,9 @@ class BetNativeComponent {
 			} else if (data === "4") {
 				this.currentGame = "matrix";
 				this.resetMatrix();
+			} else if (data === "5") {
+				this.currentGame = "pong";
+				this.resetPong();
 			}
 			this.version++;
 			this.tui.requestRender();
@@ -419,13 +436,33 @@ class BetNativeComponent {
 								saveHighScore(this.matrixHighScore);
 							}
 
-							this.triggerConfetti(); // Explode on matrix word cleared!
+							this.triggerConfetti();
 							const completed = this.matrixTargetWord;
 							this.matrixWords = this.matrixWords.filter(w => w !== completed);
 							this.matrixTargetWord = null;
 						}
 					}
 				}
+			}
+			this.version++;
+			this.tui.requestRender();
+			return;
+		}
+
+		if (this.currentGame === "pong") {
+			if (this.pongOver) {
+				if (data === "r" || data === "R" || data === " ") {
+					this.resetPong();
+					this.version++;
+					this.tui.requestRender();
+				}
+				return;
+			}
+
+			if (matchesKey(data, "up") || data === "w" || data === "W") {
+				this.playerY = Math.max(1, this.playerY - 1);
+			} else if (matchesKey(data, "down") || data === "s" || data === "S") {
+				this.playerY = Math.min(8, this.playerY + 1);
 			}
 			this.version++;
 			this.tui.requestRender();
@@ -458,7 +495,6 @@ class BetNativeComponent {
 
 		if (empty.length === 0) return;
 
-		// 1. Can AI ("O") win immediately?
 		for (const [r, c] of empty) {
 			const row = this.board[r];
 			if (row) {
@@ -471,7 +507,6 @@ class BetNativeComponent {
 			}
 		}
 
-		// 2. Can Player ("X") win immediately? Block them!
 		for (const [r, c] of empty) {
 			const row = this.board[r];
 			if (row) {
@@ -486,7 +521,6 @@ class BetNativeComponent {
 			}
 		}
 
-		// 3. Take center if available
 		const centerRow = this.board[1];
 		if (centerRow && centerRow[1] === null) {
 			centerRow[1] = "O";
@@ -495,7 +529,6 @@ class BetNativeComponent {
 			return;
 		}
 
-		// 4. Take random corner/side
 		const choice = empty[Math.floor(Math.random() * empty.length)];
 		if (choice) {
 			const [r, c] = choice;
@@ -559,7 +592,7 @@ class BetNativeComponent {
 		if (won) {
 			this.hangmanOver = true;
 			this.hangmanWon = true;
-			this.triggerConfetti(); // Confetti on Hangman win!
+			this.triggerConfetti();
 		}
 	}
 
@@ -609,7 +642,7 @@ class BetNativeComponent {
 		if (this.matrixOver) return;
 
 		for (const word of this.matrixWords) {
-			word.y += 0.35; // fall rate
+			word.y += 0.35;
 
 			if (word.y >= 11) {
 				this.matrixLives = Math.max(0, this.matrixLives - 1);
@@ -640,6 +673,105 @@ class BetNativeComponent {
 		if (this.matrixInterval) {
 			clearInterval(this.matrixInterval);
 			this.matrixInterval = null;
+		}
+	}
+
+	private resetPong() {
+		this.ballX = 20;
+		this.ballY = 5;
+		this.ballDX = 0.65;
+		this.ballDY = 0.22;
+		this.playerY = 5;
+		this.compY = 5;
+		this.playerScore = 0;
+		this.compScore = 0;
+		this.pongOver = false;
+		this.pongWinner = null;
+
+		this.stopPong();
+		this.pongInterval = setInterval(() => {
+			this.pongTick();
+		}, 110); // 110ms update intervals
+	}
+
+	private pongTick() {
+		if (this.pongOver) return;
+
+		// Move Ball
+		this.ballX += this.ballDX;
+		this.ballY += this.ballDY;
+
+		// Ceiling/Floor Collision
+		if (this.ballY <= 0) {
+			this.ballY = 0;
+			this.ballDY = -this.ballDY;
+		} else if (this.ballY >= 9) {
+			this.ballY = 9;
+			this.ballDY = -this.ballDY;
+		}
+
+		// Player Paddle collision (c === 2)
+		if (this.ballDX < 0 && Math.round(this.ballX) === 2) {
+			if (Math.abs(this.ballY - this.playerY) <= 1) {
+				this.ballX = 2;
+				this.ballDX = -this.ballDX * 1.05; // speed up
+				this.ballDY += (this.ballY - this.playerY) * 0.15; // add spin!
+			}
+		}
+
+		// CPU Paddle collision (c === 37)
+		if (this.ballDX > 0 && Math.round(this.ballX) === 37) {
+			if (Math.abs(this.ballY - this.compY) <= 1) {
+				this.ballX = 37;
+				this.ballDX = -this.ballDX * 1.05;
+				this.ballDY += (this.ballY - this.compY) * 0.15;
+			}
+		}
+
+		// Goal checking
+		if (this.ballX < 0) {
+			this.compScore++;
+			if (this.compScore >= 5) {
+				this.pongOver = true;
+				this.pongWinner = "CPU";
+				this.stopPong();
+			} else {
+				this.resetBallTowards(true);
+			}
+		} else if (this.ballX > 39) {
+			this.playerScore++;
+			if (this.playerScore >= 5) {
+				this.pongOver = true;
+				this.pongWinner = "Player";
+				this.triggerConfetti(); // Celebratory victory shower!
+				this.stopPong();
+			} else {
+				this.resetBallTowards(false);
+			}
+		}
+
+		// CPU AI logic (smooth follow)
+		if (this.compY < this.ballY) {
+			this.compY = Math.min(8, this.compY + 0.4);
+		} else if (this.compY > this.ballY) {
+			this.compY = Math.max(1, this.compY - 0.4);
+		}
+
+		this.version++;
+		this.tui.requestRender();
+	}
+
+	private resetBallTowards(player: boolean) {
+		this.ballX = 20;
+		this.ballY = 5;
+		this.ballDX = player ? -0.6 : 0.6;
+		this.ballDY = (Math.random() - 0.5) * 0.45;
+	}
+
+	private stopPong() {
+		if (this.pongInterval) {
+			clearInterval(this.pongInterval);
+			this.pongInterval = null;
 		}
 	}
 
@@ -720,6 +852,7 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(`  [2] Hangman      ${dim("(Movie word survival)")}`)));
 			lines.push(padToCenter(boxLine(`  [3] Recommender  ${dim("(Book/Anime/Movie recs)")}`)));
 			lines.push(padToCenter(boxLine(`  [4] The Matrix   ${dim("(Hacker typing survival)")}`)));
+			lines.push(padToCenter(boxLine(`  [5] Pong         ${dim("(Real-time ball bounce)")}`)));
 			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine(`  [Q] Quit Game Hub`)));
 			lines.push(padToCenter(boxLine("")));
@@ -875,6 +1008,48 @@ class BetNativeComponent {
 			} else {
 				lines.push(padToCenter(boxLine(`  Type falling letters to destroy them!`)));
 			}
+		} else if (this.currentGame === "pong") {
+			lines.push(padToCenter(boxLine("")));
+			
+			let scoreStr = `  Player: ${green(String(this.playerScore))} │ CPU: ${red(String(this.compScore))}  (First to 5 wins!)`;
+			if (this.pongOver) {
+				scoreStr = this.pongWinner === "Player" 
+					? `  ${bold(green("VICTORY! YOU DEFEATED THE CPU!"))}` 
+					: `  ${bold(red("GAME OVER! CPU DEFEATED YOU!"))}`;
+			}
+			lines.push(padToCenter(boxLine(scoreStr)));
+			lines.push(padToCenter(boxLine("")));
+
+			// Render 2D Pong Grid (10 rows, columns 0-39)
+			const roundedBallX = Math.round(this.ballX);
+			const roundedBallY = Math.round(this.ballY);
+			const roundedPlayY = Math.round(this.playerY);
+			const roundedCompY = Math.round(this.compY);
+
+			for (let r = 0; r < 10; r++) {
+				let rowChars = "";
+				for (let c = 0; c < 40; c++) {
+					if (c === roundedBallX && r === roundedBallY) {
+						rowChars += "●"; // The ball
+					} else if (c === 1 && r >= roundedPlayY - 1 && r <= roundedPlayY + 1) {
+						rowChars += "║"; // Player paddle
+					} else if (c === 38 && r >= roundedCompY - 1 && r <= roundedCompY + 1) {
+						rowChars += "║"; // CPU paddle
+					} else if (c === 20) {
+						rowChars += dim("┆"); // Center net
+					} else {
+						rowChars += " ";
+					}
+				}
+				lines.push(padToCenter(boxLine(`  ${rowChars}`)));
+			}
+
+			lines.push(padToCenter(boxLine("")));
+			if (this.pongOver) {
+				lines.push(padToCenter(boxLine(`  Press [R] to restart, [Q] for menu`)));
+			} else {
+				lines.push(padToCenter(boxLine(`  Use [W/S] or Up/Down arrows to slide paddle`)));
+			}
 		}
 
 		if (this.confettiTimer > 0) {
@@ -907,6 +1082,7 @@ class BetNativeComponent {
 
 	dispose(): void {
 		this.stopMatrix();
+		this.stopPong();
 		if (this.globalInterval) {
 			clearInterval(this.globalInterval);
 			this.globalInterval = null;
