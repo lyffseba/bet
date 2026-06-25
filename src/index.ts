@@ -332,17 +332,15 @@ class BetNativeComponent {
 			} else if (matchesKey(data, "right") || data === "d" || data === "D") {
 				this.cursorX = Math.min(2, this.cursorX + 1);
 			} else if (data === "\r" || data === " ") {
-				if (this.board[this.cursorY][this.cursorX] === null) {
-					this.board[this.cursorY][this.cursorX] = "X";
+				const row = this.board[this.cursorY];
+				if (row && row[this.cursorX] === null) {
+					row[this.cursorX] = "X";
 					this.checkWinner();
 					if (this.winner === "X") {
 						this.triggerConfetti();
 					} else if (!this.winner && !this.draw) {
 						this.currentPlayer = "O";
 						this.runTicTacToeAI();
-						if (this.winner === "O") {
-							// AI won, no confetti for AI!
-						}
 					}
 				}
 			}
@@ -409,7 +407,7 @@ class BetNativeComponent {
 						this.matrixTargetWord = found;
 						found.typed = letter;
 					}
-				} else {
+				} else if (this.matrixTargetWord) {
 					const targetIndex = this.matrixTargetWord.typed.length;
 					if (this.matrixTargetWord.text[targetIndex] === letter) {
 						this.matrixTargetWord.typed += letter;
@@ -454,7 +452,7 @@ class BetNativeComponent {
 		const empty: [number, number][] = [];
 		for (let r = 0; r < 3; r++) {
 			for (let c = 0; c < 3; c++) {
-				if (this.board[r][c] === null) empty.push([r, c]);
+				if (this.board[r]?.[c] === null) empty.push([r, c]);
 			}
 		}
 
@@ -462,43 +460,56 @@ class BetNativeComponent {
 
 		// 1. Can AI ("O") win immediately?
 		for (const [r, c] of empty) {
-			this.board[r][c] = "O";
-			if (this.checkWinCondition("O")) {
-				this.winner = "O";
-				return;
+			const row = this.board[r];
+			if (row) {
+				row[c] = "O";
+				if (this.checkWinCondition("O")) {
+					this.winner = "O";
+					return;
+				}
+				row[c] = null;
 			}
-			this.board[r][c] = null;
 		}
 
 		// 2. Can Player ("X") win immediately? Block them!
 		for (const [r, c] of empty) {
-			this.board[r][c] = "X";
-			if (this.checkWinCondition("X")) {
-				this.board[r][c] = "O";
-				this.currentPlayer = "X";
-				this.checkWinner();
-				return;
+			const row = this.board[r];
+			if (row) {
+				row[c] = "X";
+				if (this.checkWinCondition("X")) {
+					row[c] = "O";
+					this.currentPlayer = "X";
+					this.checkWinner();
+					return;
+				}
+				row[c] = null;
 			}
-			this.board[r][c] = null;
 		}
 
 		// 3. Take center if available
-		if (this.board[1][1] === null) {
-			this.board[1][1] = "O";
+		const centerRow = this.board[1];
+		if (centerRow && centerRow[1] === null) {
+			centerRow[1] = "O";
 			this.currentPlayer = "X";
 			this.checkWinner();
 			return;
 		}
 
 		// 4. Take random corner/side
-		const [r, c] = empty[Math.floor(Math.random() * empty.length)];
-		this.board[r][c] = "O";
-		this.currentPlayer = "X";
-		this.checkWinner();
+		const choice = empty[Math.floor(Math.random() * empty.length)];
+		if (choice) {
+			const [r, c] = choice;
+			const row = this.board[r];
+			if (row) {
+				row[c] = "O";
+				this.currentPlayer = "X";
+				this.checkWinner();
+			}
+		}
 	}
 
 	private checkWinCondition(player: string): boolean {
-		const lines = [
+		const lines: [[number, number], [number, number], [number, number]][] = [
 			[[0,0], [0,1], [0,2]],
 			[[1,0], [1,1], [1,2]],
 			[[2,0], [2,1], [2,2]],
@@ -509,7 +520,12 @@ class BetNativeComponent {
 			[[0,2], [1,1], [2,0]]
 		];
 		for (const line of lines) {
-			if (line.every(([r, c]) => this.board[r][c] === player)) {
+			const [a, b, c] = line;
+			if (
+				this.board[a[0]]?.[a[1]] === player &&
+				this.board[b[0]]?.[b[1]] === player &&
+				this.board[c[0]]?.[c[1]] === player
+			) {
 				return true;
 			}
 		}
@@ -628,28 +644,24 @@ class BetNativeComponent {
 	}
 
 	private checkWinner() {
-		const lines = [
-			// rows
+		const lines: [[number, number], [number, number], [number, number]][] = [
 			[[0,0], [0,1], [0,2]],
 			[[1,0], [1,1], [1,2]],
 			[[2,0], [2,1], [2,2]],
-			// cols
 			[[0,0], [1,0], [2,0]],
 			[[0,1], [1,1], [2,1]],
 			[[0,2], [1,2], [2,2]],
-			// diag
 			[[0,0], [1,1], [2,2]],
 			[[0,2], [1,1], [2,0]]
 		];
 
 		for (const line of lines) {
 			const [a, b, c] = line;
-			if (
-				this.board[a[0]][a[1]] &&
-				this.board[a[0]][a[1]] === this.board[b[0]][b[1]] &&
-				this.board[a[0]][a[1]] === this.board[c[0]][c[1]]
-			) {
-				this.winner = this.board[a[0]][a[1]];
+			const cellA = this.board[a[0]]?.[a[1]];
+			const cellB = this.board[b[0]]?.[b[1]];
+			const cellC = this.board[c[0]]?.[c[1]];
+			if (cellA && cellA === cellB && cellA === cellC) {
+				this.winner = cellA;
 				return;
 			}
 		}
@@ -657,7 +669,7 @@ class BetNativeComponent {
 		let isDraw = true;
 		for (let y = 0; y < 3; y++) {
 			for (let x = 0; x < 3; x++) {
-				if (this.board[y][x] === null) isDraw = false;
+				if (this.board[y]?.[x] === null) isDraw = false;
 			}
 		}
 		if (isDraw) this.draw = true;
@@ -696,7 +708,6 @@ class BetNativeComponent {
 			return " ".repeat(leftPad) + line;
 		};
 
-		// Top Breathing Border
 		lines.push(padToCenter(breath + `╭${"─".repeat(boxWidth)}╮\x1b[0m`));
 		lines.push(padToCenter(boxLine(` ${bold(green("★ B$T (BET) - Terminal Game Hub ★"))} `)));
 		lines.push(padToCenter(breath + `├${"─".repeat(boxWidth)}┤\x1b[0m`));
@@ -730,7 +741,7 @@ class BetNativeComponent {
 			for (let y = 0; y < 3; y++) {
 				let rowStr = "           ";
 				for (let x = 0; x < 3; x++) {
-					const cell = this.board[y][x] || " ";
+					const cell = this.board[y]?.[x] || " ";
 					const coloredCell = cell === "X" ? red(cell) : cell === "O" ? blue(cell) : cell;
 					
 					if (this.cursorX === x && this.cursorY === y && !this.winner && !this.draw) {
@@ -866,7 +877,6 @@ class BetNativeComponent {
 			}
 		}
 
-		// Overlay victory falling confetti particles if active
 		if (this.confettiTimer > 0) {
 			let confettiRowStr = "";
 			const activeConfetti = new Map<number, ConfettiParticle>();
@@ -886,7 +896,6 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine("")));
 		}
 
-		// Bottom Breathing Border
 		lines.push(padToCenter(breath + `╰${"─".repeat(boxWidth)}╯\x1b[0m`));
 
 		this.cachedLines = lines;
