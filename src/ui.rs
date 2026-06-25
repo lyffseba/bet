@@ -15,6 +15,7 @@ use ratatui::{
 use crate::chess_game::{ChessGame, GameStatus as ChessStatus};
 use crate::game::{GuessError, Hangman};
 use crate::lang::{Lang, Language};
+use crate::paradox::{ParadoxGame, ParadoxStage, StagePhase};
 use crate::pong::{GameStatus as PongStatus, PongGame};
 use crate::tictactoe::{Cell, GameStatus as TicTacToeStatus, Player, TicTacToe};
 use shakmaty::{Color as ChessColor, Position, Square};
@@ -87,6 +88,7 @@ pub enum AppState {
     PlayingChess,
     PlayingPong,
     PlayingMatrix,
+    PlayingParadox,
     MatrixGameOver {
         score: u32,
         combo: u32,
@@ -192,6 +194,7 @@ pub struct App {
     pub chess_selected: Option<Square>,
     pub pong: Option<PongGame>,
     pub matrix: Option<crate::matrix::MatrixGame>,
+    pub paradox: Option<ParadoxGame>,
     pub timer: f64,
     pub last_tick: Instant,
     pub should_quit: bool,
@@ -286,6 +289,7 @@ impl App {
             chess_selected: None,
             pong: None,
             matrix: None,
+            paradox: None,
             tictactoe_cursor: 4, // center
             timer: 30.0,
             last_tick: Instant::now(),
@@ -384,6 +388,11 @@ impl App {
         let wants_chess = cmd == "chess";
         let wants_pong = cmd == "pong";
         let wants_matrix = cmd == "matrix";
+        let wants_paradox = cmd == "paradox"
+            || std::path::Path::new(&args[0])
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|s| s.eq_ignore_ascii_case("paradox"));
         let wants_movie = cmd == "movies" || cmd == "movie";
         let wants_series = cmd == "series" || cmd == "tv";
         let wants_manga = cmd == "manga";
@@ -411,6 +420,9 @@ impl App {
         } else if wants_matrix {
             self.select_language(Language::English);
             self.start_matrix();
+        } else if wants_paradox {
+            self.select_language(Language::English);
+            self.start_paradox();
         } else if wants_movie {
             self.select_language(Language::English);
             self.show_recommendation(RecommenderCategory::Movie);
@@ -600,7 +612,7 @@ impl App {
                                     self.game_cursor = self.game_cursor.saturating_sub(1);
                                 }
                                 KeyCode::Down => {
-                                    if self.game_cursor < 5 {
+                                    if self.game_cursor < 6 {
                                         self.game_cursor += 1;
                                     }
                                 }
@@ -610,7 +622,8 @@ impl App {
                                     2 => self.start_chess(),
                                     3 => self.start_pong(),
                                     4 => self.start_matrix(),
-                                    5 => {
+                                    5 => self.start_paradox(),
+                                    6 => {
                                         self.state = AppState::LanguageSelection;
                                         self.lang = None;
                                         self.refresh_main_menu_meme();
@@ -637,8 +650,12 @@ impl App {
                                     self.game_cursor = 4;
                                     self.start_matrix();
                                 }
-                                KeyCode::Char('6') | KeyCode::Esc => {
+                                KeyCode::Char('6') => {
                                     self.game_cursor = 5;
+                                    self.start_paradox();
+                                }
+                                KeyCode::Char('7') | KeyCode::Esc => {
+                                    self.game_cursor = 6;
                                     self.state = AppState::LanguageSelection;
                                     self.lang = None;
                                     self.refresh_main_menu_meme();
@@ -840,6 +857,9 @@ impl App {
                                 if key.code == KeyCode::Esc || key.code == KeyCode::Enter {
                                     self.state = AppState::GameSelection;
                                 }
+                            }
+                            AppState::PlayingParadox => {
+                                self.handle_paradox_key(key.code);
                             }
                             AppState::PlayingPong => {
                                 if key.code == KeyCode::Esc {
@@ -1129,6 +1149,12 @@ impl App {
             pong.update(dt);
         }
 
+        if let AppState::PlayingParadox = self.state
+            && let Some(p) = &mut self.paradox
+        {
+            p.update(dt);
+        }
+
         if self.bouncer_active {
             self.bouncer_x += self.bouncer_dx * dt;
             self.bouncer_y += self.bouncer_dy * dt;
@@ -1222,6 +1248,159 @@ impl App {
     fn start_pong(&mut self) {
         self.pong = Some(PongGame::new());
         self.state = AppState::PlayingPong;
+    }
+
+    fn start_paradox(&mut self) {
+        self.paradox = Some(ParadoxGame::new(50, 10));
+        self.state = AppState::PlayingParadox;
+    }
+
+    fn handle_paradox_key(&mut self, code: KeyCode) {
+        let Some(p) = &mut self.paradox else { return };
+        let Some(lang) = self.lang.clone() else { return };
+
+        if code == KeyCode::Esc {
+            if p.stage == ParadoxStage::Complete {
+                self.paradox = None;
+                self.state = AppState::GameSelection;
+            } else {
+                self.paradox = None;
+                self.state = AppState::GameSelection;
+            }
+            return;
+        }
+
+        if p.stage == ParadoxStage::Complete {
+            if code == KeyCode::Enter || code == KeyCode::Char(' ') {
+                self.paradox = None;
+                self.state = AppState::GameSelection;
+            }
+            return;
+        }
+
+        if p.phase == StagePhase::Success || p.phase == StagePhase::Bypassed {
+            if code == KeyCode::Enter || code == KeyCode::Char(' ') {
+                let _ = p.acknowledge();
+            }
+            return;
+        }
+
+        if code == KeyCode::Char('b') || code == KeyCode::Char('B') {
+            let _ = p.logic_bypass();
+            return;
+        }
+
+        match p.stage {
+            ParadoxStage::TeleportingSelector => match code {
+                KeyCode::Up => p.move_cursor(0, -1),
+                KeyCode::Down => p.move_cursor(0, 1),
+                KeyCode::Left => p.move_cursor(-1, 0),
+                KeyCode::Right => p.move_cursor(1, 0),
+                KeyCode::Enter => {
+                    let _ = p.try_select_teleport();
+                }
+                _ => {}
+            },
+            ParadoxStage::LiarsGate => match code {
+                KeyCode::Up => {
+                    p.gate_cursor = p.gate_cursor.saturating_sub(1);
+                }
+                KeyCode::Down => {
+                    if p.gate_cursor < 3 {
+                        p.gate_cursor += 1;
+                    }
+                }
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    let _ = p.gate_choice(p.gate_cursor);
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() => {
+                    let idx = (c as u8).saturating_sub(b'1');
+                    if idx <= 3 {
+                        p.gate_cursor = idx;
+                        let _ = p.gate_choice(idx);
+                    }
+                }
+                _ => {}
+            },
+            ParadoxStage::SchrodingersWave => {
+                if code == KeyCode::Char(' ') {
+                    let ok = p.try_wave_collapse();
+                    p.status_msg = if ok {
+                        lang.paradox_s3_peak.to_string()
+                    } else {
+                        lang.paradox_s3_miss.to_string()
+                    };
+                }
+            }
+            ParadoxStage::ParadoxQuiz => match code {
+                KeyCode::Up => {
+                    p.quiz_cursor = p.quiz_cursor.saturating_sub(1);
+                }
+                KeyCode::Down => {
+                    if p.quiz_cursor < 3 {
+                        p.quiz_cursor += 1;
+                    }
+                }
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    let _ = p.quiz_choice(p.quiz_cursor);
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() => {
+                    let idx = (c as u8).saturating_sub(b'1');
+                    if idx <= 3 {
+                        p.quiz_cursor = idx;
+                        let _ = p.quiz_choice(idx);
+                    }
+                }
+                _ => {}
+            },
+            ParadoxStage::ReverseTuring => match code {
+                KeyCode::Char(c) if c.is_ascii_digit() || c == '-' => {
+                    if p.turing_answer.len() < 8 {
+                        p.turing_answer.push(c);
+                    }
+                }
+                KeyCode::Backspace => {
+                    p.turing_answer.pop();
+                }
+                KeyCode::Enter => {
+                    let _ = p.submit_turing();
+                }
+                _ => {}
+            },
+            ParadoxStage::Complete => {}
+        }
+    }
+
+    fn paradox_quiz_text(lang: &Lang, idx: u8) -> (&'static str, [&'static str; 4]) {
+        match idx {
+            0 => (
+                lang.paradox_s4_q0,
+                [
+                    lang.paradox_s4_q0_a0,
+                    lang.paradox_s4_q0_a1,
+                    lang.paradox_s4_q0_a2,
+                    lang.paradox_s4_q0_a3,
+                ],
+            ),
+            1 => (
+                lang.paradox_s4_q1,
+                [
+                    lang.paradox_s4_q1_a0,
+                    lang.paradox_s4_q1_a1,
+                    lang.paradox_s4_q1_a2,
+                    lang.paradox_s4_q1_a3,
+                ],
+            ),
+            _ => (
+                lang.paradox_s4_q2,
+                [
+                    lang.paradox_s4_q2_a0,
+                    lang.paradox_s4_q2_a1,
+                    lang.paradox_s4_q2_a2,
+                    lang.paradox_s4_q2_a3,
+                ],
+            ),
+        }
     }
 
     fn show_recommendation(&mut self, category: RecommenderCategory) {
@@ -1794,8 +1973,22 @@ impl App {
                                 Style::default().fg(Color::White),
                             )]
                         }),
-                        Line::from(""),
                         Line::from(if self.game_cursor == 5 {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_paradox),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(self.get_breathing_mango())
+                                    .add_modifier(Modifier::BOLD),
+                            )]
+                        } else {
+                            vec![Span::styled(
+                                format!("  {}  ", lang.menu_paradox),
+                                Style::default().fg(Color::White),
+                            )]
+                        }),
+                        Line::from(""),
+                        Line::from(if self.game_cursor == 6 {
                             vec![Span::styled(
                                 format!("  {}  ", lang.menu_go_back),
                                 Style::default()
@@ -2662,6 +2855,238 @@ impl App {
                 f.render_widget(Clear, rect);
                 f.render_widget(p, rect);
             }
+            AppState::PlayingParadox => {
+                if let (Some(lang), Some(p)) = (&self.lang, &self.paradox) {
+                    let rect = centered_rect(85, 85, area);
+                    let lime = Color::Rgb(180, 255, 50);
+                    let mut lines: Vec<Line> = Vec::new();
+
+                    if p.stage == ParadoxStage::Complete {
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.paradox_complete,
+                            Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                        )]));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(lang.paradox_complete_msg));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.press_enter,
+                            Style::default().fg(Color::DarkGray),
+                        )]));
+                    } else if p.phase == StagePhase::Bypassed {
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.paradox_bypass_hint.trim_start_matches('[').trim_end_matches(']'),
+                            Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                        )]));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(lang.paradox_bypass_msg));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.press_enter,
+                            Style::default().fg(Color::DarkGray),
+                        )]));
+                    } else if p.phase == StagePhase::Success {
+                        lines.push(Line::from(vec![Span::styled(
+                            "✓",
+                            Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                        )]));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.press_enter,
+                            Style::default().fg(Color::DarkGray),
+                        )]));
+                    } else {
+                        let stage_num = p.stage.index() + 1;
+                        lines.push(Line::from(vec![
+                            Span::styled(
+                                lang.paradox_title,
+                                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                            ),
+                            Span::raw("  "),
+                            Span::styled(
+                                format!("{} {}/5", lang.paradox_stage, stage_num),
+                                Style::default().fg(Color::DarkGray),
+                            ),
+                        ]));
+                        lines.push(Line::from(""));
+
+                        match p.stage {
+                            ParadoxStage::TeleportingSelector => {
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s1_title,
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                                )]));
+                                lines.push(Line::from(lang.paradox_s1_desc));
+                                lines.push(Line::from(""));
+                                if p.freeze_active() {
+                                    lines.push(Line::from(vec![Span::styled(
+                                        lang.paradox_s1_freeze,
+                                        Style::default().fg(Color::Black).bg(lime).add_modifier(Modifier::BOLD),
+                                    )]));
+                                }
+                                lines.push(Line::from(""));
+                                let mut field = vec![vec![' '; p.field_w as usize]; p.field_h as usize];
+                                let cx = p.cursor_x as usize;
+                                let cy = p.cursor_y as usize;
+                                let bx = p.btn_x as usize;
+                                let by = p.btn_y as usize;
+                                if cy < field.len() && cx < field[cy].len() {
+                                    field[cy][cx] = '▶';
+                                }
+                                if by < field.len() && bx < field[by].len() {
+                                    field[by][bx] = '[';
+                                    if bx + 1 < field[by].len() {
+                                        field[by][bx + 1] = if p.freeze_active() { '█' } else { '?' };
+                                    }
+                                    if bx + 2 < field[by].len() {
+                                        field[by][bx + 2] = ']';
+                                    }
+                                }
+                                for row in &field {
+                                    lines.push(Line::from(
+                                        row.iter().map(|c| Span::raw(c.to_string())).collect::<Vec<_>>(),
+                                    ));
+                                }
+                                lines.push(Line::from(""));
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s1_hint,
+                                    Style::default().fg(Color::DarkGray),
+                                )]));
+                            }
+                            ParadoxStage::LiarsGate => {
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s2_title,
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                                )]));
+                                lines.push(Line::from(lang.paradox_s2_desc));
+                                lines.push(Line::from(""));
+                                lines.push(Line::from(lang.paradox_s2_alpha));
+                                lines.push(Line::from(lang.paradox_s2_beta));
+                                lines.push(Line::from(""));
+                                let opts = [
+                                    lang.paradox_s2_opt0,
+                                    lang.paradox_s2_opt1,
+                                    lang.paradox_s2_opt2,
+                                    lang.paradox_s2_opt3,
+                                ];
+                                for (i, opt) in opts.iter().enumerate() {
+                                    let style = if p.gate_cursor == i as u8 {
+                                        Style::default().fg(Color::Black).bg(lime).add_modifier(Modifier::BOLD)
+                                    } else {
+                                        Style::default().fg(Color::White)
+                                    };
+                                    lines.push(Line::from(vec![Span::styled(
+                                        format!("  {}. {}  ", i + 1, opt),
+                                        style,
+                                    )]));
+                                }
+                            }
+                            ParadoxStage::SchrodingersWave => {
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s3_title,
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                                )]));
+                                lines.push(Line::from(lang.paradox_s3_desc));
+                                lines.push(Line::from(""));
+                                let wave = ParadoxGame::render_wave_at(p.time, 56);
+                                let wave_style = if p.wave_at_peak() {
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD)
+                                } else {
+                                    Style::default().fg(Color::White)
+                                };
+                                lines.push(Line::from(vec![Span::styled(wave, wave_style)]));
+                                if !p.status_msg.is_empty() {
+                                    lines.push(Line::from(""));
+                                    lines.push(Line::from(p.status_msg.as_str()));
+                                }
+                                lines.push(Line::from(""));
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s3_hint,
+                                    Style::default().fg(Color::DarkGray),
+                                )]));
+                            }
+                            ParadoxStage::ParadoxQuiz => {
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s4_title,
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                                )]));
+                                lines.push(Line::from(""));
+                                let (q, opts) = Self::paradox_quiz_text(lang, p.quiz_index);
+                                lines.push(Line::from(q));
+                                lines.push(Line::from(""));
+                                for (i, opt) in opts.iter().enumerate() {
+                                    let style = if p.quiz_cursor == i as u8 {
+                                        Style::default().fg(Color::Black).bg(lime).add_modifier(Modifier::BOLD)
+                                    } else {
+                                        Style::default().fg(Color::White)
+                                    };
+                                    lines.push(Line::from(vec![Span::styled(
+                                        format!("  {}. {}  ", i + 1, opt),
+                                        style,
+                                    )]));
+                                }
+                            }
+                            ParadoxStage::ReverseTuring => {
+                                lines.push(Line::from(vec![Span::styled(
+                                    lang.paradox_s5_title,
+                                    Style::default().fg(lime).add_modifier(Modifier::BOLD),
+                                )]));
+                                lines.push(Line::from(lang.paradox_s5_desc));
+                                lines.push(Line::from(""));
+                                lines.push(Line::from(format!(
+                                    "{} {}/{}",
+                                    lang.paradox_s5_round,
+                                    p.turing_round + 1,
+                                    3
+                                )));
+                                lines.push(Line::from(format!(
+                                    "{}: {:.1}s",
+                                    lang.paradox_s5_timer,
+                                    p.turing_timer.max(0.0)
+                                )));
+                                lines.push(Line::from(""));
+                                lines.push(Line::from(vec![Span::styled(
+                                    format!(
+                                        "{} {} {} {} = ?",
+                                        p.turing_a,
+                                        p.turing_label(),
+                                        p.turing_b,
+                                        if p.turing_answer.is_empty() { "_" } else { "" }
+                                    ),
+                                    Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                                )]));
+                                if !p.turing_answer.is_empty() {
+                                    lines.push(Line::from(format!("> {}", p.turing_answer)));
+                                }
+                            }
+                            ParadoxStage::Complete => {}
+                        }
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(vec![Span::styled(
+                            lang.paradox_bypass_hint,
+                            Style::default().fg(Color::DarkGray),
+                        )]));
+                    }
+
+                    let title = if p.stage == ParadoxStage::Complete {
+                        lang.paradox_complete.to_string()
+                    } else {
+                        lang.paradox_title.to_string()
+                    };
+                    let p_widget = Paragraph::new(lines)
+                        .alignment(Alignment::Center)
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title(title)
+                                .title_bottom(
+                                    Line::from(lang.paradox_esc).alignment(Alignment::Right),
+                                ),
+                        );
+                    f.render_widget(Clear, rect);
+                    f.render_widget(p_widget, rect);
+                }
+            }
             AppState::PlayingMatrix => {
                 if let Some(matrix) = &self.matrix {
                     let bg_block = Block::default()
@@ -3089,6 +3514,7 @@ mod theme_tests {
         app.tictactoe = Some(crate::tictactoe::TicTacToe::new());
         app.chess = Some(crate::chess_game::ChessGame::new(false));
         app.pong = Some(crate::pong::PongGame::new());
+        app.paradox = Some(crate::paradox::ParadoxGame::new(50, 10));
 
         let test_states = vec![
             AppState::LanguageSelection,
@@ -3100,6 +3526,7 @@ mod theme_tests {
             AppState::PlayingTicTacToe,
             AppState::PlayingChess,
             AppState::PlayingPong,
+            AppState::PlayingParadox,
             AppState::DiscordQr,
             AppState::EasterEgg,
             AppState::GameOver(true),

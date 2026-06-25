@@ -4,6 +4,7 @@ mod big_text;
 mod chess_game;
 mod game;
 mod lang;
+mod paradox;
 mod pong;
 mod tictactoe;
 mod ui;
@@ -42,6 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("  chess        Play Chess");
             println!("  pong         Play Pong");
             println!("  matrix       Enter The Matrix");
+            println!("  paradox      Play Paradox");
             println!("  movies       Get Movie Recommendations");
             println!("  series       Get TV Series Recommendations");
             println!("  manga        Get Manga Recommendations");
