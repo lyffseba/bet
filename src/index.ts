@@ -168,6 +168,12 @@ interface MatrixWord {
 	y: number;
 }
 
+interface ConfettiParticle {
+	x: number;
+	char: string;
+	color: string;
+}
+
 class BetNativeComponent {
 	private tui: { requestRender: () => void };
 	private onClose: () => void;
@@ -211,10 +217,67 @@ class BetNativeComponent {
 	private matrixSpawnCooldown = 0;
 	private matrixInterval: ReturnType<typeof setInterval> | null = null;
 
+	// Global Ticker State (Breathing Borders + Confetti)
+	private globalInterval: ReturnType<typeof setInterval> | null = null;
+	private confetti: ConfettiParticle[] = [];
+	private confettiTimer = 0;
+
 	constructor(tui: { requestRender: () => void }, onClose: () => void) {
 		this.tui = tui;
 		this.onClose = onClose;
 		this.matrixHighScore = loadHighScore();
+
+		// Start Global Animation Timer (every 100ms)
+		this.globalInterval = setInterval(() => {
+			this.globalTick();
+		}, 100);
+	}
+
+	private globalTick() {
+		// Update Confetti Particles
+		if (this.confettiTimer > 0) {
+			this.confettiTimer--;
+			// Shift particles randomly to simulate falling
+			for (const p of this.confetti) {
+				p.x = (p.x + (Math.random() > 0.5 ? 1 : -1) + 42) % 42;
+			}
+			if (this.confettiTimer === 0) {
+				this.confetti = [];
+			}
+		}
+
+		this.version++;
+		this.tui.requestRender();
+	}
+
+	private triggerConfetti() {
+		this.confettiTimer = 35; // active for 3.5 seconds
+		const chars = ["*", "+", "o", "◆", "★", "x"];
+		const colors = [
+			"\x1b[31m", // red
+			"\x1b[32m", // green
+			"\x1b[33m", // yellow
+			"\x1b[34m", // blue
+			"\x1b[35m", // magenta
+			"\x1b[36m"  // cyan
+		];
+		this.confetti = [];
+		for (let i = 0; i < 20; i++) {
+			this.confetti.push({
+				x: Math.floor(Math.random() * 40) + 1,
+				char: chars[Math.floor(Math.random() * chars.length)],
+				color: colors[Math.floor(Math.random() * colors.length)]
+			});
+		}
+	}
+
+	private getBreathingGreen(): string {
+		const time = Date.now() / 400; // pulse speed
+		const sine = (Math.sin(time) + 1.0) / 2.0; // scale 0 to 1
+		const r = Math.floor(15 + 25 * sine);
+		const g = Math.floor(160 + 85 * sine); // neon green oscillation
+		const b = Math.floor(15 + 25 * sine);
+		return `\x1b[38;2;${r};${g};${b}m`;
 	}
 
 	handleInput(data: string): void {
@@ -272,9 +335,14 @@ class BetNativeComponent {
 				if (this.board[this.cursorY][this.cursorX] === null) {
 					this.board[this.cursorY][this.cursorX] = "X";
 					this.checkWinner();
-					if (!this.winner && !this.draw) {
+					if (this.winner === "X") {
+						this.triggerConfetti();
+					} else if (!this.winner && !this.draw) {
 						this.currentPlayer = "O";
 						this.runTicTacToeAI();
+						if (this.winner === "O") {
+							// AI won, no confetti for AI!
+						}
 					}
 				}
 			}
@@ -336,27 +404,24 @@ class BetNativeComponent {
 			if (/^[a-zA-Z]$/.test(data)) {
 				const letter = data.toUpperCase();
 				if (!this.matrixTargetWord) {
-					// Lock onto a word starting with this letter
 					const found = this.matrixWords.find(w => w.text.startsWith(letter));
 					if (found) {
 						this.matrixTargetWord = found;
 						found.typed = letter;
 					}
 				} else {
-					// Type next letter in target word
 					const targetIndex = this.matrixTargetWord.typed.length;
 					if (this.matrixTargetWord.text[targetIndex] === letter) {
 						this.matrixTargetWord.typed += letter;
-						// Check completion
 						if (this.matrixTargetWord.typed === this.matrixTargetWord.text) {
 							this.matrixScore += this.matrixTargetWord.text.length * 10;
 							
-							// High Score Live updates
 							if (this.matrixScore > this.matrixHighScore) {
 								this.matrixHighScore = this.matrixScore;
 								saveHighScore(this.matrixHighScore);
 							}
 
+							this.triggerConfetti(); // Explode on matrix word cleared!
 							const completed = this.matrixTargetWord;
 							this.matrixWords = this.matrixWords.filter(w => w !== completed);
 							this.matrixTargetWord = null;
@@ -478,6 +543,7 @@ class BetNativeComponent {
 		if (won) {
 			this.hangmanOver = true;
 			this.hangmanWon = true;
+			this.triggerConfetti(); // Confetti on Hangman win!
 		}
 	}
 
@@ -609,6 +675,7 @@ class BetNativeComponent {
 		const lines: string[] = [];
 		const boxWidth = 46;
 
+		const breath = this.getBreathingGreen();
 		const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 		const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
 		const blue = (s: string) => `\x1b[34m${s}\x1b[0m`;
@@ -620,7 +687,7 @@ class BetNativeComponent {
 		const boxLine = (content: string) => {
 			const contentLen = visibleWidth(content);
 			const padding = Math.max(0, boxWidth - contentLen);
-			return dim(" │") + content + " ".repeat(padding) + dim("│");
+			return breath + "│\x1b[0m" + content + " ".repeat(padding) + breath + "│\x1b[0m";
 		};
 
 		const padToCenter = (line: string) => {
@@ -629,9 +696,10 @@ class BetNativeComponent {
 			return " ".repeat(leftPad) + line;
 		};
 
-		lines.push(padToCenter(dim(` ╭${"─".repeat(boxWidth)}╮`)));
+		// Top Breathing Border
+		lines.push(padToCenter(breath + `╭${"─".repeat(boxWidth)}╮\x1b[0m`));
 		lines.push(padToCenter(boxLine(` ${bold(green("★ B$T (BET) - Terminal Game Hub ★"))} `)));
-		lines.push(padToCenter(dim(` ├${"─".repeat(boxWidth)}┤`)));
+		lines.push(padToCenter(breath + `├${"─".repeat(boxWidth)}┤\x1b[0m`));
 
 		if (this.currentGame === "menu") {
 			lines.push(padToCenter(boxLine("")));
@@ -753,7 +821,6 @@ class BetNativeComponent {
 		} else if (this.currentGame === "matrix") {
 			lines.push(padToCenter(boxLine("")));
 			
-			// Score & High Score Stats
 			let scoreStr = `Score: ${green(String(this.matrixScore))} │ High Score: ${yellow(String(this.matrixHighScore))}`;
 			let livesStr = `Lives: ${red("❤".repeat(this.matrixLives))}`;
 			let statusStr = `  ${scoreStr} │ ${livesStr}`;
@@ -763,7 +830,6 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(statusStr)));
 			lines.push(padToCenter(boxLine("")));
 
-			// Render falling screen grid row-by-row (11 rows)
 			for (let r = 0; r < 11; r++) {
 				const activeWord = this.matrixWords.find(w => Math.floor(w.y) === r);
 				if (activeWord) {
@@ -800,7 +866,28 @@ class BetNativeComponent {
 			}
 		}
 
-		lines.push(padToCenter(dim(` ╰${"─".repeat(boxWidth)}╯`)));
+		// Overlay victory falling confetti particles if active
+		if (this.confettiTimer > 0) {
+			let confettiRowStr = "";
+			const activeConfetti = new Map<number, ConfettiParticle>();
+			for (const p of this.confetti) {
+				activeConfetti.set(p.x, p);
+			}
+			for (let col = 0; col < boxWidth; col++) {
+				const p = activeConfetti.get(col);
+				if (p) {
+					confettiRowStr += p.color + p.char + "\x1b[0m";
+				} else {
+					confettiRowStr += " ";
+				}
+			}
+			lines.push(padToCenter(boxLine(` ${confettiRowStr.substring(0, boxWidth - 2)}`)));
+		} else {
+			lines.push(padToCenter(boxLine("")));
+		}
+
+		// Bottom Breathing Border
+		lines.push(padToCenter(breath + `╰${"─".repeat(boxWidth)}╯\x1b[0m`));
 
 		this.cachedLines = lines;
 		this.cachedWidth = width;
@@ -811,6 +898,10 @@ class BetNativeComponent {
 
 	dispose(): void {
 		this.stopMatrix();
+		if (this.globalInterval) {
+			clearInterval(this.globalInterval);
+			this.globalInterval = null;
+		}
 	}
 }
 
