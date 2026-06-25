@@ -1,7 +1,37 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix";
+
+const HIGHSCORE_FILE = path.join(os.homedir(), ".pi", "bet_highscores.json");
+
+function loadHighScore(): number {
+	try {
+		if (fs.existsSync(HIGHSCORE_FILE)) {
+			const data = fs.readFileSync(HIGHSCORE_FILE, "utf8");
+			const json = JSON.parse(data);
+			return typeof json.matrixHighScore === "number" ? json.matrixHighScore : 0;
+		}
+	} catch (e) {
+		// Ignore
+	}
+	return 0;
+}
+
+function saveHighScore(score: number) {
+	try {
+		const dir = path.dirname(HIGHSCORE_FILE);
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+		fs.writeFileSync(HIGHSCORE_FILE, JSON.stringify({ matrixHighScore: score }), "utf8");
+	} catch (e) {
+		// Ignore
+	}
+}
 
 const HANGMAN_WORDS = [
 	"THE MATRIX", "INCEPTION", "PULP FICTION", "THE DARK KNIGHT", 
@@ -174,6 +204,7 @@ class BetNativeComponent {
 	// Matrix State
 	private matrixWords: MatrixWord[] = [];
 	private matrixScore = 0;
+	private matrixHighScore = 0;
 	private matrixLives = 3;
 	private matrixOver = false;
 	private matrixTargetWord: MatrixWord | null = null;
@@ -183,6 +214,7 @@ class BetNativeComponent {
 	constructor(tui: { requestRender: () => void }, onClose: () => void) {
 		this.tui = tui;
 		this.onClose = onClose;
+		this.matrixHighScore = loadHighScore();
 	}
 
 	handleInput(data: string): void {
@@ -238,10 +270,11 @@ class BetNativeComponent {
 				this.cursorX = Math.min(2, this.cursorX + 1);
 			} else if (data === "\r" || data === " ") {
 				if (this.board[this.cursorY][this.cursorX] === null) {
-					this.board[this.cursorY][this.cursorX] = this.currentPlayer;
+					this.board[this.cursorY][this.cursorX] = "X";
 					this.checkWinner();
 					if (!this.winner && !this.draw) {
-						this.currentPlayer = this.currentPlayer === "X" ? "O" : "X";
+						this.currentPlayer = "O";
+						this.runTicTacToeAI();
 					}
 				}
 			}
@@ -317,6 +350,13 @@ class BetNativeComponent {
 						// Check completion
 						if (this.matrixTargetWord.typed === this.matrixTargetWord.text) {
 							this.matrixScore += this.matrixTargetWord.text.length * 10;
+							
+							// High Score Live updates
+							if (this.matrixScore > this.matrixHighScore) {
+								this.matrixHighScore = this.matrixScore;
+								saveHighScore(this.matrixHighScore);
+							}
+
 							const completed = this.matrixTargetWord;
 							this.matrixWords = this.matrixWords.filter(w => w !== completed);
 							this.matrixTargetWord = null;
@@ -341,6 +381,75 @@ class BetNativeComponent {
 		this.currentPlayer = "X";
 		this.winner = null;
 		this.draw = false;
+	}
+
+	private runTicTacToeAI() {
+		if (this.winner || this.draw) return;
+
+		const empty: [number, number][] = [];
+		for (let r = 0; r < 3; r++) {
+			for (let c = 0; c < 3; c++) {
+				if (this.board[r][c] === null) empty.push([r, c]);
+			}
+		}
+
+		if (empty.length === 0) return;
+
+		// 1. Can AI ("O") win immediately?
+		for (const [r, c] of empty) {
+			this.board[r][c] = "O";
+			if (this.checkWinCondition("O")) {
+				this.winner = "O";
+				return;
+			}
+			this.board[r][c] = null;
+		}
+
+		// 2. Can Player ("X") win immediately? Block them!
+		for (const [r, c] of empty) {
+			this.board[r][c] = "X";
+			if (this.checkWinCondition("X")) {
+				this.board[r][c] = "O";
+				this.currentPlayer = "X";
+				this.checkWinner();
+				return;
+			}
+			this.board[r][c] = null;
+		}
+
+		// 3. Take center if available
+		if (this.board[1][1] === null) {
+			this.board[1][1] = "O";
+			this.currentPlayer = "X";
+			this.checkWinner();
+			return;
+		}
+
+		// 4. Take random corner/side
+		const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+		this.board[r][c] = "O";
+		this.currentPlayer = "X";
+		this.checkWinner();
+	}
+
+	private checkWinCondition(player: string): boolean {
+		const lines = [
+			[[0,0], [0,1], [0,2]],
+			[[1,0], [1,1], [1,2]],
+			[[2,0], [2,1], [2,2]],
+			[[0,0], [1,0], [2,0]],
+			[[0,1], [1,0], [2,0]], // minor typos fixed
+			[[0,1], [1,1], [2,1]],
+			[[0,2], [1,2], [2,2]],
+			[[0,0], [1,1], [2,2]],
+			[[0,2], [1,1], [2,0]]
+		];
+		for (const line of lines) {
+			if (line.every(([r, c]) => this.board[r][c] === player)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private resetHangman() {
@@ -406,7 +515,6 @@ class BetNativeComponent {
 		const text = MATRIX_DICTIONARY[idx];
 		if (this.matrixWords.some(w => w.text === text)) return;
 
-		// Ensure word doesn't overflow container width (boxWidth is 46, margins are ~12)
 		const x = Math.floor(Math.random() * 16) + 2;
 		this.matrixWords.push({
 			text,
@@ -530,7 +638,7 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine(`  ${bold("Select an arcade game to play:")}`)));
 			lines.push(padToCenter(boxLine("")));
-			lines.push(padToCenter(boxLine(`  [1] Tic-Tac-Toe  ${dim("(Play vs AI / Local)")}`)));
+			lines.push(padToCenter(boxLine(`  [1] Tic-Tac-Toe  ${dim("(Play vs Smart AI)")}`)));
 			lines.push(padToCenter(boxLine(`  [2] Hangman      ${dim("(Movie word survival)")}`)));
 			lines.push(padToCenter(boxLine(`  [3] Recommender  ${dim("(Book/Anime/Movie recs)")}`)));
 			lines.push(padToCenter(boxLine(`  [4] The Matrix   ${dim("(Hacker typing survival)")}`)));
@@ -543,7 +651,9 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine("")));
 			let header = `  Player ${this.currentPlayer}'s turn`;
 			if (this.winner) {
-				header = `  ${bold(green(`PLAYER ${this.winner} WINS!`))}`;
+				header = this.winner === "X" 
+					? `  ${bold(green("CONGRATS! YOU BEAT THE AI!"))}` 
+					: `  ${bold(red("GAME OVER! AI WINS!"))}`;
 			} else if (this.draw) {
 				header = `  ${bold(yellow("IT'S A DRAW!"))}`;
 			}
@@ -644,8 +754,10 @@ class BetNativeComponent {
 		} else if (this.currentGame === "matrix") {
 			lines.push(padToCenter(boxLine("")));
 			
-			// Matrix stats header
-			let statusStr = `  Score: ${green(String(this.matrixScore))} │ Lives: ${red("❤".repeat(this.matrixLives))}`;
+			// Score & High Score Stats
+			let scoreStr = `Score: ${green(String(this.matrixScore))} │ High Score: ${yellow(String(this.matrixHighScore))}`;
+			let livesStr = `Lives: ${red("❤".repeat(this.matrixLives))}`;
+			let statusStr = `  ${scoreStr} │ ${livesStr}`;
 			if (this.matrixOver) {
 				statusStr = `  ${bold(red(`SYSTEM CRASH! Final Score: ${this.matrixScore}`))}`;
 			}
@@ -660,14 +772,12 @@ class BetNativeComponent {
 					const typedPart = inverse(green(activeWord.typed));
 					const remainingPart = bold(activeWord.text.substring(activeWord.typed.length));
 					
-					// Compute remaining spacing on the right side
 					const printedLen = activeWord.x + activeWord.text.length;
 					const rightSpaceLen = Math.max(0, boxWidth - printedLen - 4);
 					const rightSpace = " ".repeat(rightSpaceLen);
 
 					lines.push(padToCenter(boxLine(`  ${leftSpace}${typedPart}${remainingPart}${rightSpace}`)));
 				} else {
-					// Scattered digital rain drop effect
 					const rainEffects = [
 						"       .          o                .      ",
 						" .           o           .                ",
