@@ -18,7 +18,11 @@
     ],
     "image": "https://raw.githubusercontent.com/lyffseba/bet/main/screenshot.png"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "devDependencies": {
     "@mariozechner/pi-coding-agent": "latest",
     "@mariozechner/pi-tui": "latest"
   }
