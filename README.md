@@ -21,9 +21,14 @@ Because `pi` generates LLM responses in the background, you no longer have to si
 Install this extension directly into your `pi` agent globally:
 
 ```bash
-pi install ./bet
+pi install npm:bet-pi-hub
 ```
-*(Note: Once published, you will be able to run `pi install npm:bet-pi-hub`)*
+
+Or from a local clone:
+
+```bash
+pi install .
+```
 
 ## 🕹️ Gameplay
 
@@ -33,7 +38,7 @@ Once installed, simply type the following command at any point in your `pi` sess
 /b$t
 ```
 
-1. **Select your game:** Press `1` for Tic-Tac-Toe (more games like Hangman, Chess, and Pong are actively being ported from the legacy Rust engine).
+1. **Select your game:** Tic-Tac-Toe, Hangman, The Matrix, Pong, and more from the hub menu.
 2. **Play:** Use the `Arrow Keys` (or `WASD`) to move the cursor, and press `Enter` or `Space` to make your move.
 3. **Exit:** Press `Q` or `Esc` to instantly close the overlay and return to the chat stream.
 
