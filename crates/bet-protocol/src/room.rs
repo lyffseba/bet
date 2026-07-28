@@ -22,6 +22,9 @@ pub enum RoomError {
     Ledger(String),
     UnknownPlayer,
     AlreadyStarted,
+    BadProto(u32),
+    InvalidStake,
+    InvalidCode,
 }
 
 impl std::fmt::Display for RoomError {
@@ -74,8 +77,14 @@ impl TttRoom {
         stake: i64,
         mut ledger: Ledger,
     ) -> Result<Self, RoomError> {
-        let room_code = room_code.into();
+        if stake <= 0 {
+            return Err(RoomError::InvalidStake);
+        }
+        let room_code = normalize_code(room_code.into())?;
         let host_id = host_id.into();
+        if host_id.trim().is_empty() {
+            return Err(RoomError::UnknownPlayer);
+        }
         let match_id = format!("m-{}", room_code.to_lowercase());
         ledger.ensure_player(host_id.clone());
         ledger.stake(&match_id, host_id.clone(), stake)?;
@@ -127,6 +136,7 @@ impl TttRoom {
             stake: self.stake,
             match_id: self.match_id.clone(),
             room_code: self.room_code.clone(),
+            proto: crate::msg::PROTOCOL_VERSION,
         });
         ev.to_guest.push(ServerMsg::Welcome {
             player_id: guest_id,
@@ -134,6 +144,7 @@ impl TttRoom {
             stake: self.stake,
             match_id: self.match_id.clone(),
             room_code: self.room_code.clone(),
+            proto: crate::msg::PROTOCOL_VERSION,
         });
         let state_h = self.state_msg(true);
         let state_g = self.state_msg(false);
@@ -148,11 +159,16 @@ impl TttRoom {
                 player_id,
                 room_code,
                 stake,
+                proto,
             } => {
                 if from_host {
                     return Err(RoomError::WrongPhase);
                 }
-                if !room_code.eq_ignore_ascii_case(&self.room_code) {
+                if proto != crate::msg::PROTOCOL_VERSION {
+                    return Err(RoomError::BadProto(proto));
+                }
+                let code = normalize_code(room_code)?;
+                if code != self.room_code {
                     return Err(RoomError::BadCode);
                 }
                 self.accept_guest(player_id, stake)
@@ -169,6 +185,14 @@ impl TttRoom {
                 Ok(ev)
             }
         }
+    }
+
+    /// Peer dropped mid-match: the disconnected side forfeits.
+    pub fn disconnect(&mut self, from_host: bool) -> Result<RoomEvent, RoomError> {
+        if self.phase != Phase::Playing {
+            return Err(RoomError::WrongPhase);
+        }
+        self.resign(from_host)
     }
 
     fn player_of(&self, from_host: bool) -> Result<Player, RoomError> {
@@ -270,6 +294,21 @@ impl TttRoom {
     }
 }
 
+/// Uppercase A–Z / 2–9, length 4–8 (no ambiguous 0/O/1/I required but allowed if caller chooses).
+pub fn normalize_code(raw: impl AsRef<str>) -> Result<String, RoomError> {
+    let s: String = raw
+        .as_ref()
+        .trim()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+    if s.len() < 4 || s.len() > 8 {
+        return Err(RoomError::InvalidCode);
+    }
+    Ok(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,5 +359,57 @@ mod tests {
     fn stake_mismatch() {
         let mut r = room();
         assert!(r.accept_guest("guest", 5).is_err());
+    }
+
+    #[test]
+    fn guest_disconnect_forfeits_to_host() {
+        let mut r = room();
+        r.accept_guest("guest", 10).unwrap();
+        let ev = r.disconnect(false).unwrap(); // guest drops
+        assert_eq!(r.phase, Phase::Ended);
+        assert!(ev.to_host.iter().any(|m| matches!(
+            m,
+            ServerMsg::MatchEnded {
+                winner: Some(Role::X),
+                ..
+            }
+        )));
+        assert_eq!(r.ledger.balance("host"), 110);
+        assert_eq!(r.ledger.balance("guest"), 90);
+    }
+
+    #[test]
+    fn draw_refunds_stakes() {
+        let mut r = room();
+        r.accept_guest("guest", 10).unwrap();
+        // X0 O1 X2 O3 X4 O5 X6 O7 X8 — not a forced draw layout; craft via places carefully:
+        // Classic draw:
+        // X O X
+        // X O O
+        // O X X
+        let seq = [
+            (true, 0u8),
+            (false, 1),
+            (true, 2),
+            (false, 4),
+            (true, 3),
+            (false, 5),
+            (true, 7),
+            (false, 6),
+            (true, 8),
+        ];
+        for (h, i) in seq {
+            r.handle(h, ClientMsg::Place { index: i }).unwrap();
+        }
+        assert_eq!(r.phase, Phase::Ended);
+        assert_eq!(r.ledger.balance("host"), 100);
+        assert_eq!(r.ledger.balance("guest"), 100);
+    }
+
+    #[test]
+    fn normalize_code_rules() {
+        assert_eq!(normalize_code("ab12").unwrap(), "AB12");
+        assert!(normalize_code("ab").is_err());
+        assert!(normalize_code("").is_err());
     }
 }

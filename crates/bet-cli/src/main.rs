@@ -42,22 +42,31 @@ fn print_help() {
     println!("  movies | series | manga | books | anime | cartoon | games | music");
     println!();
     println!("Multiplayer (virtual points, tic-tac-toe):");
-    println!("  host [--stake N] [--port P] [--name ID] [--bind ADDR]");
-    println!("  join CODE [--stake N] [--addr HOST:PORT] [--name ID]");
+    println!("  host [--stake N] [--port P] [--name ID] [--bind ADDR] [--code CODE]");
+    println!("  join CODE|CODE@HOST:PORT [--stake N] [--addr HOST:PORT] [--name ID]");
     println!("  balance              Show local virtual ledger");
     println!();
     println!("Options:");
     println!("  --stake N            Points to wager (default 10)");
     println!("  --port P             Host listen port (default {})", mp::DEFAULT_PORT);
-    println!("  --addr HOST:PORT     Guest connect address (default 127.0.0.1:{})", mp::DEFAULT_PORT);
+    println!(
+        "  --addr HOST:PORT     Guest connect address (default 127.0.0.1:{})",
+        mp::DEFAULT_PORT
+    );
     println!("  --name ID            Player id (default $BET_PLAYER or $USER)");
     println!("  --bind ADDR          Host bind address (default 0.0.0.0)");
+    println!("  --code CODE          Fixed room code (4–8 alnum, tests)");
     println!("  -h, --help           Help");
     println!("  -v, --version        Version");
     println!();
+    println!("Env:");
+    println!("  BET_CONFIG_DIR       Ledger directory");
+    println!("  BET_PLAYER           Default player id");
+    println!("  BET_MOVES            Scripted moves e.g. 0,3,1,4,2");
+    println!();
     println!("Example:");
     println!("  bet host --stake 10 --name alice");
-    println!("  bet join ABC123 --stake 10 --name bob");
+    println!("  bet join ABC123@127.0.0.1:7733 --stake 10 --name bob");
 }
 
 fn parse_flag(args: &[String], name: &str) -> Option<String> {
@@ -99,23 +108,27 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap_or(mp::DEFAULT_PORT);
             let name = parse_flag(&args, "--name").unwrap_or_else(ledger_store::default_player_id);
             let bind = parse_flag(&args, "--bind").unwrap_or_else(|| "0.0.0.0".into());
+            let code = parse_flag(&args, "--code");
             return mp::run_host(mp::HostOpts {
                 stake,
                 port,
                 name,
                 bind,
+                code,
             });
         }
         if cmd == "join" {
-            let code = args
+            let raw = args
                 .get(2)
                 .filter(|s| !s.starts_with('-'))
                 .cloned()
-                .ok_or("usage: bet join CODE [--stake N] [--addr HOST:PORT]")?;
+                .ok_or("usage: bet join CODE|CODE@HOST:PORT [--stake N]")?;
+            let (code, addr_from_target) = mp::parse_join_target(&raw);
             let stake = parse_flag(&args, "--stake")
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(10);
             let addr = parse_flag(&args, "--addr")
+                .or(addr_from_target)
                 .unwrap_or_else(|| format!("127.0.0.1:{}", mp::DEFAULT_PORT));
             let name = parse_flag(&args, "--name").unwrap_or_else(ledger_store::default_player_id);
             return mp::run_join(mp::JoinOpts {
@@ -129,7 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     use std::io::IsTerminal;
     if !io::stdout().is_terminal() {
-        eprintln!("Error: 'bet' requires a TTY terminal to run (or use host/join/balance).");
+        eprintln!("Error: 'bet' requires a TTY (or use host/join/balance).");
         std::process::exit(1);
     }
 
