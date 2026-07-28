@@ -2,6 +2,7 @@
  * BET TypeScript surface — loads the Rust `bet-wasm` engine (single source of truth).
  *
  * Build WASM: `bash scripts/build-wasm.sh`
+ * Verify: `bash scripts/verify-engine.sh`
  */
 
 import { createRequire } from "node:module";
@@ -10,9 +11,21 @@ import path from "node:path";
 
 const require = createRequire(import.meta.url);
 
-// wasm-pack nodejs target emits CommonJS (see packages/bet-ts/pkg/package.json type=commonjs).
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const wasm = require("../pkg/bet_wasm.js") as {
+/** Canonical goldens — keep in sync with protocols/fixtures/wasm_goldens.json */
+export const ENGINE_GOLDENS = {
+  hangman: {
+    seed: 99,
+    words: ["ALPHA", "BRAVO", "CHARLIE"] as string[],
+    word: "CHARLIE",
+    hash: "1324f2e7c253daa3",
+  },
+  ttt: {
+    seed: 7,
+    hash: "4328a9625e30b2de",
+  },
+} as const;
+
+type WasmModule = {
   engine_version: () => string;
   WasmHangman: new (
     seed: bigint,
@@ -24,6 +37,20 @@ const wasm = require("../pkg/bet_wasm.js") as {
   golden_hangman_hash: (seed: bigint, wordsJson: string) => string;
   golden_ttt_hash: (seed: bigint) => string;
 };
+
+function loadWasm(): WasmModule {
+  try {
+    // wasm-pack nodejs target is CommonJS (pkg/package.json type=commonjs).
+    return require("../pkg/bet_wasm.js") as WasmModule;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Failed to load BET WASM engine (packages/bet-ts/pkg). Run: bash scripts/build-wasm.sh\n${msg}`,
+    );
+  }
+}
+
+const wasm = loadWasm();
 
 export const BET_TS_VERSION = "2.0.0-alpha.0";
 
@@ -71,6 +98,31 @@ export const goldenHangmanHash = (seed: bigint, wordsJson: string): string =>
   wasm.golden_hangman_hash(seed, wordsJson);
 export const goldenTttHash = (seed: bigint): string => wasm.golden_ttt_hash(seed);
 
+/** Fail fast: WASM must match ENGINE_GOLDENS (same as Rust fixture). */
+export function assertEngineIntegrity(): void {
+  const { hangman, ttt } = ENGINE_GOLDENS;
+  const wordsJson = JSON.stringify(hangman.words);
+  const hh = goldenHangmanHash(BigInt(hangman.seed), wordsJson);
+  if (hh !== hangman.hash) {
+    throw new Error(
+      `BET engine integrity failed: hangman golden ${hh} != ${hangman.hash}`,
+    );
+  }
+  const th = goldenTttHash(BigInt(ttt.seed));
+  if (th !== ttt.hash) {
+    throw new Error(
+      `BET engine integrity failed: ttt golden ${th} != ${ttt.hash}`,
+    );
+  }
+  const probe = createHangman([...hangman.words], BigInt(hangman.seed), 6);
+  if (probe.word() !== hangman.word) {
+    throw new Error(
+      `BET engine integrity failed: word ${probe.word()} != ${hangman.word}`,
+    );
+  }
+  probe.free();
+}
+
 export function toSeed(n: number | bigint): bigint {
   return typeof n === "bigint" ? n : BigInt(n >>> 0);
 }
@@ -103,7 +155,6 @@ export function createLedger(defaultGrant = 1000): LedgerHandle {
   return new wasm.WasmLedger(defaultGrant);
 }
 
-/** Board helpers for pi UI (3x3 from 9-char engine string). */
 export function boardToGrid(board: string): (string | null)[][] {
   const g: (string | null)[][] = [
     [null, null, null],

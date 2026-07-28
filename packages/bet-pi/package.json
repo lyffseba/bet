@@ -6,12 +6,10 @@
   "type": "module",
   "files": [
     "src/index.ts",
-    "README.md",
-    "../bet-ts/src",
-    "../bet-ts/pkg"
+    "README.md"
   ],
   "dependencies": {
-    "@lyffseba/bet-ts": "file:../bet-ts"
+    "@lyffseba/bet-ts": "*"
   },
   "repository": {
     "type": "git",

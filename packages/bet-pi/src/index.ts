@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import {
+	assertEngineIntegrity,
 	boardToGrid,
 	cellIndex,
 	createHangman,
@@ -12,7 +13,7 @@ import {
 	timeSeed,
 	type WasmHangman,
 	type WasmTtt,
-} from "../../bet-ts/src/index.js";
+} from "@lyffseba/bet-ts";
 
 type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix" | "pong";
 
@@ -984,6 +985,15 @@ class BetNativeComponent {
 }
 
 export default function (pi: ExtensionAPI) {
+	// Fail at load time if WASM is missing or goldens drift (stale binary).
+	try {
+		assertEngineIntegrity();
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error(`[bet-pi] engine integrity: ${msg}`);
+		throw e;
+	}
+
 	const launchBet = async (_args: any, ctx: any) => {
 		if (!ctx.hasUI) {
 			ctx.ui.notify("BET requires interactive mode", "error");
