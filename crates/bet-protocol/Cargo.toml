@@ -1,0 +1,16 @@
+[package]
+name = "bet-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Multiplayer match protocol and room authority for BET"
+keywords = ["games", "multiplayer", "protocol"]
+
+[dependencies]
+bet-core = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]

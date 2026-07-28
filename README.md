@@ -62,10 +62,24 @@ docs/                  Epics, quality bar, Nostr notes
 | **OpenCode** | plugin `bet-opencode` → tools `bet_status`, `bet_play` |
 | **CLI** | `bet`, `bet hangman`, `bet tictactoe`, … |
 
+## Multiplayer (virtual points)
+
+```bash
+# Terminal A
+bet host --stake 10 --name alice
+
+# Terminal B (use room code printed by host)
+bet join ROOMCODE --stake 10 --name bob --addr 127.0.0.1:7733
+
+bet balance   # local virtual ledger
+```
+
+Stakes are **virtual points only** (default grant 1000). Ledger file is under the OS config dir (`…/xyz.lyffseba.bet/ledger.json`).
+
 ## Status
 
-- **Alpha monorepo** (`2.0.0-alpha.0`): core extracted, CLI builds, packages scaffolded, OpenCode stub live.
-- **Next:** WebSocket multiplayer + stakes (Epic 2), WASM (Epic 3), golden fixtures on disk.
+- **Alpha** (`2.0.0-alpha.0`): monorepo + **tic-tac-toe multiplayer host/join with stakes**.
+- **Next:** hangman/pong MP (E2-S6+), WASM for pi (E3), Nostr discovery (E5).
 
 ## License
 

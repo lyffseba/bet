@@ -40,5 +40,8 @@ uninstall-extension:
 typecheck:
 	npm run typecheck
 
-ci: test-core build
+ci: test-core test-protocol build
 	@echo "CI rust targets OK (run npm i && make typecheck for TS)"
+
+test-protocol:
+	cargo test -p bet-protocol

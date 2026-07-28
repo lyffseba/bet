@@ -107,6 +107,20 @@ impl Ledger {
             .map(|m| m.values().sum())
             .unwrap_or(0)
     }
+
+    pub fn balances(&self) -> &BTreeMap<PlayerId, i64> {
+        &self.balances
+    }
+
+    pub fn default_grant(&self) -> i64 {
+        self.default_grant
+    }
+
+    /// Replace balances (e.g. load from disk). Clears open stakes.
+    pub fn load_balances(&mut self, balances: BTreeMap<PlayerId, i64>) {
+        self.balances = balances;
+        self.open_stakes.clear();
+    }
 }
 
 #[cfg(test)]

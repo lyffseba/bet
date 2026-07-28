@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 bet-core = { workspace = true }
+bet-protocol = { workspace = true }
 crossterm = { workspace = true }
 qrcode = { workspace = true }
 rand = { workspace = true }
@@ -23,3 +24,5 @@ ratatui = { workspace = true }
 open = { workspace = true }
 shakmaty = { workspace = true }
 directories = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
