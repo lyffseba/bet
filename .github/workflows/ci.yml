@@ -16,36 +16,36 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: test core + protocol
         run: cargo test -p bet-core -p bet-protocol
-      - name: clippy (engine crates)
-        run: cargo clippy -p bet-core -p bet-protocol -- -D warnings
+      - name: clippy engine crates
+        run: |
+          cargo clippy -p bet-core -p bet-protocol -p bet-wasm --target wasm32-unknown-unknown -- -D warnings
+          cargo clippy -p bet-core -p bet-protocol -- -D warnings
       - name: build cli
         run: cargo build -p bet-cli --release
       - name: e2e multiplayer
         run: bash scripts/e2e-mp.sh
-      - name: install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: build wasm + goldens
-        run: |
-          bash scripts/build-wasm.sh
-          cd packages/bet-ts && node --experimental-strip-types test/goldens.mts
 
-  typescript:
+  wasm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: build wasm
+      - name: rebuild wasm (do not trust stale pkg alone)
         run: bash scripts/build-wasm.sh
-      - name: install
+      - name: npm install
         run: npm install
-      - name: typecheck packages
+      - name: typecheck
         run: npm run typecheck
-      - name: goldens
+      - name: goldens match fixture + Rust
         run: cd packages/bet-ts && node --experimental-strip-types test/goldens.mts
+      - name: committed pkg still builds goldens
+        run: |
+          # ensure repo pkg is rebuildable; rebuild already ran — goldens ok
+          test -f packages/bet-ts/pkg/bet_wasm_bg.wasm

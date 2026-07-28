@@ -24,9 +24,13 @@ impl XorShift64 {
     }
 
     /// Uniform in `0..upper` (upper must be > 0).
+    ///
+    /// Uses full `u64` modulus so results match across 32-bit (wasm32) and
+    /// 64-bit hosts. Never cast `next_u64()` to `usize` before `%`.
     pub fn gen_range(&mut self, upper: usize) -> usize {
         debug_assert!(upper > 0);
-        (self.next_u64() as usize) % upper
+        let upper = upper as u64;
+        (self.next_u64() % upper) as usize
     }
 
     pub fn choose<'a, T>(&mut self, items: &'a [T]) -> Option<&'a T> {
@@ -56,5 +60,24 @@ mod tests {
         let mut a = XorShift64::new(1);
         let mut b = XorShift64::new(2);
         assert_ne!(a.next_u64(), b.next_u64());
+    }
+
+    #[test]
+    fn gen_range_uses_full_u64_modulus() {
+        // Fixed stream: first next_u64 after seed 99 must reduce mod 3 stably
+        // on both wasm32 and native (regression for cast-to-usize bug).
+        let mut rng = XorShift64::new(99);
+        let first = rng.next_u64();
+        let mut rng2 = XorShift64::new(99);
+        let idx = rng2.gen_range(3);
+        assert_eq!(idx as u64, first % 3);
+    }
+
+    #[test]
+    fn hangman_seed_99_picks_charlie() {
+        use crate::hangman::Hangman;
+        let words = ["ALPHA", "BRAVO", "CHARLIE"];
+        let h = Hangman::from_seed(99, &words, 6);
+        assert_eq!(h.word(), "CHARLIE");
     }
 }

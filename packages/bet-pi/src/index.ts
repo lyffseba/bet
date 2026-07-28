@@ -483,8 +483,17 @@ class BetNativeComponent {
 		}
 	}
 
+	private freeEngine(engine: { free(): void } | null) {
+		if (!engine) return;
+		try {
+			engine.free();
+		} catch {
+			// already freed
+		}
+	}
+
 	private resetTicTacToe() {
-		this.ttt?.free();
+		this.freeEngine(this.ttt);
 		this.ttt = createTtt(timeSeed());
 		this.cursorX = 1;
 		this.cursorY = 1;
@@ -501,7 +510,7 @@ class BetNativeComponent {
 	}
 
 	private resetHangman() {
-		this.hangman?.free();
+		this.freeEngine(this.hangman);
 		this.hangman = createHangman(HANGMAN_WORDS, timeSeed(), 6);
 		this.syncHangmanFromEngine();
 	}

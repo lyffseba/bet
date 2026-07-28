@@ -308,4 +308,15 @@ mod tests {
         game.update_status();
         assert_eq!(game.status, GameStatus::Draw);
     }
+
+    /// Must match `protocols/fixtures/wasm_goldens.json` and JS goldens.
+    #[test]
+    fn cross_lang_golden_seed_7_center() {
+        use crate::hash::fingerprint_hex;
+        use crate::rng::XorShift64;
+        let mut game = TicTacToe::new();
+        let mut rng = XorShift64::new(7);
+        assert!(game.make_move_vs_ai(4, &mut rng));
+        assert_eq!(fingerprint_hex(game.state_hash()), "4328a9625e30b2de");
+    }
 }
