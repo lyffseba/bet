@@ -119,7 +119,7 @@ impl TicTacToe {
     /// Back-compat: SP move with fixed seed path via ephemeral RNG from board hash.
     pub fn make_move(&mut self, index: usize) -> bool {
         let seed = self.state_hash();
-        let mut rng = XorShift64::new(seed ^ 0xC0FF_EE00_D15E_A5E);
+        let mut rng = XorShift64::new(seed ^ 0x0C0F_FEE0_0D15_EA5E);
         self.make_move_vs_ai(index, &mut rng)
     }
 
