@@ -1,0 +1,8 @@
+{
+  "name": "hangman_smoke",
+  "seed": 99,
+  "words": ["ALPHA", "BRAVO", "CHARLIE"],
+  "max_attempts": 6,
+  "guesses": ["A", "X", "B"],
+  "notes": "Golden file format for E1-S2; hashes asserted in Rust tests first."
+}

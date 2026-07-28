@@ -1,20 +1,20 @@
-[package]
-name = "bet-cli"
-version = "1.0.0"
+[workspace]
+resolver = "2"
+members = [
+    "crates/bet-core",
+    "crates/bet-cli",
+]
+default-members = ["crates/bet-cli"]
+
+[workspace.package]
+version = "2.0.0-alpha.0"
 edition = "2024"
-description = "A lightning-fast, zero-flicker terminal game hub containing Hangman, Tic-Tac-Toe, and Chess"
-authors = ["lyffseba"]
 license = "MIT"
+authors = ["lyffseba"]
 repository = "https://github.com/lyffseba/bet"
-readme = "README.md"
-categories = ["games", "command-line-utilities"]
-keywords = ["terminal", "games", "hangman", "tictactoe", "chess"]
 
-[[bin]]
-name = "bet"
-path = "src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
+bet-core = { path = "crates/bet-core" }
 crossterm = "0.28"
 qrcode = "0.14.1"
 rand = "0.8"
@@ -24,8 +24,8 @@ shakmaty = "0.30.0"
 directories = "6.0.0"
 
 [profile.release]
-opt-level = 3       # Maximize optimizations
-lto = true          # Enable Link Time Optimization (smaller and faster binary)
-codegen-units = 1   # Maximize LTO by compiling in a single unit
-panic = "abort"     # Abort on panic to remove panic unwinding code (smaller binary)
-strip = true        # Strip symbols from the binary (significantly smaller)
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,25 @@
+[package]
+name = "bet-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "BET terminal game hub (ratatui CLI)"
+readme = "../../README.md"
+keywords = ["terminal", "games", "hangman", "tictactoe", "chess"]
+categories = ["games", "command-line-utilities"]
+
+[[bin]]
+name = "bet"
+path = "src/main.rs"
+
+[dependencies]
+bet-core = { workspace = true }
+crossterm = { workspace = true }
+qrcode = { workspace = true }
+rand = { workspace = true }
+ratatui = { workspace = true }
+open = { workspace = true }
+shakmaty = { workspace = true }
+directories = { workspace = true }

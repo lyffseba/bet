@@ -1,12 +1,18 @@
-.PHONY: all build run clean install install-system uninstall uninstall-system install-extension uninstall-extension
+.PHONY: all build test test-core run clean install install-system uninstall \
+	install-extension uninstall-extension typecheck ci
 
 all: build install-extension
 
 build:
-	cargo build --release
+	cargo build -p bet-cli --release
+
+test: test-core
+
+test-core:
+	cargo test -p bet-core
 
 run:
-	cargo run --release
+	cargo run -p bet-cli --release
 
 clean:
 	cargo clean
@@ -30,3 +36,9 @@ install-extension:
 
 uninstall-extension:
 	pi remove bet-pi-hub
+
+typecheck:
+	npm run typecheck
+
+ci: test-core build
+	@echo "CI rust targets OK (run npm i && make typecheck for TS)"

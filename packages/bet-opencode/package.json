@@ -1,0 +1,23 @@
+{
+  "name": "bet-opencode",
+  "version": "2.0.0-alpha.0",
+  "description": "OpenCode plugin: play BET while the agent thinks",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "latest",
+    "typescript": "^7.0.2"
+  },
+  "keywords": ["opencode", "plugin", "bet", "terminal-games"]
+}

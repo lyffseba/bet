@@ -1,0 +1,40 @@
+{
+  "name": "bet-pi-hub",
+  "version": "2.0.0-alpha.0",
+  "description": "Play BET natively in pi while you wait",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src/index.ts",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyffseba/bet.git",
+    "directory": "packages/bet-pi"
+  },
+  "bugs": {
+    "url": "https://github.com/lyffseba/bet/issues"
+  },
+  "homepage": "https://github.com/lyffseba/bet#readme",
+  "main": "src/index.ts",
+  "keywords": ["pi-package", "bet", "terminal-games"],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "latest",
+    "@earendil-works/pi-tui": "latest",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

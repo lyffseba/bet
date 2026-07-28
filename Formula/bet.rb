@@ -8,7 +8,8 @@ class Bet < Formula
   depends_on "rust" => :build
 
   def install
-    system "cargo", "install", *std_cargo_args
+    # Workspace binary lives in crates/bet-cli
+    system "cargo", "install", *std_cargo_args(path: "crates/bet-cli")
   end
 
   test do
