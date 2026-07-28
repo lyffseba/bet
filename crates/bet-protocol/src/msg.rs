@@ -71,6 +71,8 @@ pub enum ServerMsg {
         pot: i64,
         /// Winner player_id if any
         winner_id: Option<String>,
+        host_id: String,
+        guest_id: Option<String>,
         balance_host: i64,
         balance_guest: i64,
     },

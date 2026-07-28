@@ -1,4 +1,4 @@
-//! Persist virtual ledger under ~/.config/bet/ledger.json
+//! Persist virtual ledger under config dir (override with BET_CONFIG_DIR).
 
 use std::fs;
 use std::path::PathBuf;
@@ -14,6 +14,12 @@ struct LedgerFile {
 }
 
 pub fn config_dir() -> PathBuf {
+    if let Ok(p) = std::env::var("BET_CONFIG_DIR") {
+        let p = p.trim();
+        if !p.is_empty() {
+            return PathBuf::from(p);
+        }
+    }
     if let Some(p) = ProjectDirs::from("xyz", "lyffseba", "bet") {
         return p.config_dir().to_path_buf();
     }
@@ -42,12 +48,20 @@ pub fn load_ledger() -> Ledger {
 pub fn save_ledger(led: &Ledger) -> std::io::Result<()> {
     let dir = config_dir();
     fs::create_dir_all(&dir)?;
+    let path = ledger_path();
     let file = LedgerFile {
         default_grant: led.default_grant(),
         balances: led.balances().clone(),
     };
     let raw = serde_json::to_string_pretty(&file).map_err(std::io::Error::other)?;
-    fs::write(ledger_path(), raw)
+    // Atomic replace: write temp in same dir then rename.
+    let tmp = dir.join(format!(
+        ".ledger.{}.tmp",
+        std::process::id()
+    ));
+    fs::write(&tmp, raw)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
 }
 
 pub fn default_player_id() -> String {
@@ -58,17 +72,24 @@ pub fn default_player_id() -> String {
         .unwrap_or_else(|| "player".into())
 }
 
-/// Set one player's balance without wiping other rows (best-effort vs races).
-pub fn merge_player_balance(player: &str, balance: i64) -> std::io::Result<()> {
-    let disk = load_ledger();
-    let mut map = disk.balances().clone();
-    map.insert(player.to_string(), balance);
-    // Re-read once more so a concurrent host write is less likely to be lost.
+/// Merge many balances into the on-disk ledger without dropping other rows.
+pub fn merge_balances(updates: &[(String, i64)]) -> std::io::Result<()> {
+    if updates.is_empty() {
+        return Ok(());
+    }
+    // Two-pass read/merge reduces lost updates when host+guest write near-simultaneously.
+    let mut map = load_ledger().balances().clone();
+    for (id, bal) in updates {
+        map.insert(id.clone(), *bal);
+    }
     let mut again = load_ledger();
     for (k, v) in again.balances() {
         map.entry(k.clone()).or_insert(*v);
     }
-    map.insert(player.to_string(), balance);
+    for (id, bal) in updates {
+        map.insert(id.clone(), *bal);
+    }
     again.load_balances(map);
     save_ledger(&again)
 }
+

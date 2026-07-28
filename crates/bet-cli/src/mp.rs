@@ -1,8 +1,12 @@
 //! Multiplayer host/join over TCP (newline-delimited JSON).
+//!
+//! Scripted (non-interactive) moves for CI: `BET_MOVES=0,3,1,4,2`
 
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -12,7 +16,9 @@ use bet_protocol::msg::{
 };
 use bet_protocol::room::{Phase, TttRoom};
 
-use crate::ledger_store::{default_player_id, load_ledger, merge_player_balance, save_ledger};
+use crate::ledger_store::{
+    default_player_id, ledger_path, load_ledger, merge_balances, save_ledger,
+};
 
 pub const DEFAULT_PORT: u16 = 7733;
 
@@ -42,6 +48,24 @@ fn gen_room_code() -> String {
         .collect()
 }
 
+/// Shared scripted move queue from `BET_MOVES` (comma-separated 0-8 or q).
+fn move_queue() -> &'static Mutex<VecDeque<String>> {
+    use std::sync::OnceLock;
+    static Q: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
+    Q.get_or_init(|| {
+        let mut q = VecDeque::new();
+        if let Ok(raw) = std::env::var("BET_MOVES") {
+            for part in raw.split(|c: char| c == ',' || c.is_whitespace()) {
+                let t = part.trim();
+                if !t.is_empty() {
+                    q.push_back(t.to_string());
+                }
+            }
+        }
+        Mutex::new(q)
+    })
+}
+
 fn print_board(board: &[char; 9]) {
     println!();
     for row in 0..3 {
@@ -69,11 +93,16 @@ fn pretty(c: char) -> char {
 
 fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
     match msg {
-        ServerMsg::Welcome { role, stake, room_code, match_id, player_id } => {
+        ServerMsg::Welcome {
+            role,
+            stake,
+            room_code,
+            match_id,
+            player_id,
+        } => {
             *my_role = Some(*role);
             println!(
-                "Welcome {player_id} as {:?} | stake={stake} | room={room_code} | match={match_id}",
-                role
+                "Welcome {player_id} as {role:?} | stake={stake} | room={room_code} | match={match_id}"
             );
             false
         }
@@ -97,12 +126,14 @@ fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
             winner,
             pot,
             winner_id,
+            host_id,
+            guest_id,
             balance_host,
             balance_guest,
         } => {
             println!("=== MATCH ENDED ===");
             println!("winner={winner:?} winner_id={winner_id:?} pot={pot}");
-            println!("balances: host={balance_host} guest={balance_guest}");
+            println!("host={host_id}={balance_host} guest={guest_id:?}={balance_guest}");
             true
         }
         ServerMsg::Error { message } => {
@@ -113,7 +144,19 @@ fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
     }
 }
 
-fn read_move_stdin() -> Option<u8> {
+/// Returns Some(index) for a place, None for resign / EOF.
+fn read_move() -> Option<u8> {
+    // Prefer scripted moves (CI / automation).
+    if let Ok(mut q) = move_queue().lock() {
+        if let Some(tok) = q.pop_front() {
+            let t = tok.trim();
+            if t.eq_ignore_ascii_case("q") || t.eq_ignore_ascii_case("resign") {
+                return None;
+            }
+            return t.parse::<u8>().ok().filter(|&n| n < 9);
+        }
+    }
+
     eprint!("Your move (0-8), or q to resign: ");
     let _ = std::io::stderr().flush();
     let mut line = String::new();
@@ -127,22 +170,51 @@ fn read_move_stdin() -> Option<u8> {
     t.parse::<u8>().ok().filter(|&n| n < 9)
 }
 
-/// Host authoritative room; host plays as X on stdin; guest via TCP.
+fn persist_match_ended(msg: &ServerMsg) {
+    if let ServerMsg::MatchEnded {
+        host_id,
+        guest_id,
+        balance_host,
+        balance_guest,
+        winner_id,
+        ..
+    } = msg
+    {
+        let mut updates = vec![(host_id.clone(), *balance_host)];
+        if let Some(g) = guest_id {
+            updates.push((g.clone(), *balance_guest));
+        }
+        if let Err(e) = merge_balances(&updates) {
+            eprintln!("warn: ledger merge failed: {e}");
+        } else {
+            println!(
+                "Ledger updated at {} (winner={winner_id:?})",
+                ledger_path().display()
+            );
+        }
+    }
+}
+
+/// Host authoritative room; host plays as X; guest via TCP.
 pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
-    let mut ledger = load_ledger();
+    let ledger = load_ledger();
     let room_code = gen_room_code();
-    let mut room = TttRoom::new(&room_code, &opts.name, opts.stake, ledger.clone())?;
+    let mut room = TttRoom::new(&room_code, &opts.name, opts.stake, ledger)?;
 
     let bind = format!("{}:{}", opts.bind, opts.port);
     let listener = TcpListener::bind(&bind)?;
-    listener.set_nonblocking(false)?;
 
     println!("BET multiplayer host (tic-tac-toe, virtual points)");
     println!("  you:     {} (X)", opts.name);
-    println!("  stake:   {} each (pot will be {})", opts.stake, opts.stake * 2);
+    println!(
+        "  stake:   {} each (pot will be {})",
+        opts.stake,
+        opts.stake * 2
+    );
     println!("  balance: {}", room.ledger.balance(&opts.name));
     println!("  room:    {room_code}");
     println!("  listen:  {bind}");
+    println!("  config:  {}", ledger_path().display());
     println!();
     println!("Guest runs:");
     println!(
@@ -159,7 +231,6 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut writer = stream;
 
-    // Expect Hello
     let mut line = String::new();
     reader.read_line(&mut line)?;
     let hello = decode_client_line(&line)?;
@@ -169,9 +240,12 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         stake,
     } = hello
     else {
-        write_msg(&mut writer, &ServerMsg::Error {
-            message: "expected hello".into(),
-        })?;
+        write_msg(
+            &mut writer,
+            &ServerMsg::Error {
+                message: "expected hello".into(),
+            },
+        )?;
         return Err("expected hello".into());
     };
 
@@ -203,7 +277,6 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         apply_server_msg(m, &mut my_role);
     }
 
-    // Channel: network thread → main
     let (tx, rx) = mpsc::channel::<Result<ClientMsg, String>>();
     thread::spawn(move || {
         let mut reader = reader;
@@ -233,32 +306,34 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    let mut last_ended: Option<ServerMsg> = None;
+
     while room.phase == Phase::Playing {
         let your_turn = room.game.current == bet_core::tictactoe::Player::X;
         if your_turn {
-            match read_move_stdin() {
-                Some(idx) => {
-                    match room.handle(true, ClientMsg::Place { index: idx }) {
-                        Ok(ev) => {
-                            for m in &ev.to_guest {
-                                write_msg(&mut writer, m)?;
-                            }
-                            for m in &ev.to_host {
-                                if apply_server_msg(m, &mut my_role) {
-                                    // ended
-                                }
+            match read_move() {
+                Some(idx) => match room.handle(true, ClientMsg::Place { index: idx }) {
+                    Ok(ev) => {
+                        for m in &ev.to_guest {
+                            write_msg(&mut writer, m)?;
+                        }
+                        for m in &ev.to_host {
+                            if apply_server_msg(m, &mut my_role) {
+                                last_ended = Some(m.clone());
                             }
                         }
-                        Err(e) => eprintln!("illegal: {e:?}"),
                     }
-                }
+                    Err(e) => eprintln!("illegal: {e:?}"),
+                },
                 None => {
                     let ev = room.handle(true, ClientMsg::Resign)?;
                     for m in &ev.to_guest {
                         write_msg(&mut writer, m)?;
                     }
                     for m in &ev.to_host {
-                        apply_server_msg(m, &mut my_role);
+                        if apply_server_msg(m, &mut my_role) {
+                            last_ended = Some(m.clone());
+                        }
                     }
                 }
             }
@@ -271,7 +346,9 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
                             write_msg(&mut writer, m)?;
                         }
                         for m in &ev.to_host {
-                            apply_server_msg(m, &mut my_role);
+                            if apply_server_msg(m, &mut my_role) {
+                                last_ended = Some(m.clone());
+                            }
                         }
                     }
                     Err(e) => {
@@ -289,23 +366,27 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Persist host's view of ledger (both balances updated on host).
-    ledger = room.ledger;
-    save_ledger(&ledger)?;
-    println!("Ledger saved to {}", crate::ledger_store::ledger_path().display());
+    // Host is authority: write full ledger, then also merge MatchEnded ids.
+    save_ledger(&room.ledger)?;
+    if let Some(ended) = last_ended {
+        persist_match_ended(&ended);
+    }
+    println!("Ledger saved to {}", ledger_path().display());
     Ok(())
 }
 
 pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
-    // Guest ledger is local for display only; host is authority for settlement.
-    // After match, guest updates local balance from MatchEnded if same player ids.
+    // Ensure guest row exists locally before match (display / offline).
     let mut ledger = load_ledger();
     ledger.ensure_player(opts.name.clone());
+    let _ = save_ledger(&ledger);
 
     println!(
         "Joining room {} at {} as {} (stake {})…",
         opts.room_code, opts.addr, opts.name, opts.stake
     );
+    println!("  config: {}", ledger_path().display());
+
     let stream = TcpStream::connect(&opts.addr)?;
     stream.set_read_timeout(Some(Duration::from_secs(300)))?;
     stream.set_write_timeout(Some(Duration::from_secs(30)))?;
@@ -332,19 +413,7 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
         let msg = decode_server_line(&line)?;
         let is_end = apply_server_msg(&msg, &mut my_role);
         if is_end {
-            if let ServerMsg::MatchEnded {
-                balance_guest,
-                winner_id,
-                ..
-            } = &msg
-            {
-                if my_role == Some(Role::O) {
-                    let _ = merge_player_balance(&opts.name, *balance_guest);
-                    println!(
-                        "Local ledger updated (guest balance={balance_guest}). winner={winner_id:?}"
-                    );
-                }
-            }
+            persist_match_ended(&msg);
             break;
         }
 
@@ -352,7 +421,7 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
             && *your_turn
             && my_role == Some(Role::O)
         {
-            match read_move_stdin() {
+            match read_move() {
                 Some(idx) => write_msg(&mut writer, &ClientMsg::Place { index: idx })?,
                 None => write_msg(&mut writer, &ClientMsg::Resign)?,
             }
@@ -365,7 +434,10 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn write_msg(w: &mut impl Write, msg: &impl serde::Serialize) -> Result<(), Box<dyn std::error::Error>> {
+fn write_msg(
+    w: &mut impl Write,
+    msg: &impl serde::Serialize,
+) -> Result<(), Box<dyn std::error::Error>> {
     let line = encode_line(msg)?;
     w.write_all(line.as_bytes())?;
     w.flush()?;
@@ -374,12 +446,13 @@ fn write_msg(w: &mut impl Write, msg: &impl serde::Serialize) -> Result<(), Box<
 
 pub fn print_balances() {
     let led = load_ledger();
-    println!("Ledger: {}", crate::ledger_store::ledger_path().display());
+    println!("Ledger: {}", ledger_path().display());
     println!("default_grant: {}", led.default_grant());
     if led.balances().is_empty() {
         println!("(empty — play a match or balances appear after ensure)");
         let id = default_player_id();
-        println!("hint: your id would be `{id}` (BET_PLAYER or $USER)");
+        println!("hint: your id would be `{id}` ($BET_PLAYER or $USER)");
+        println!("hint: set BET_CONFIG_DIR to override ledger location");
         return;
     }
     for (k, v) in led.balances() {

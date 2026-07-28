@@ -1,15 +1,25 @@
-.PHONY: all build test test-core run clean install install-system uninstall \
+.PHONY: all build test test-core test-protocol clippy e2e run clean \
+	install install-system uninstall uninstall-system \
 	install-extension uninstall-extension typecheck ci
 
-all: build install-extension
+all: build
 
 build:
 	cargo build -p bet-cli --release
 
-test: test-core
+test: test-core test-protocol
 
 test-core:
 	cargo test -p bet-core
+
+test-protocol:
+	cargo test -p bet-protocol
+
+clippy:
+	cargo clippy -p bet-core -p bet-protocol -- -D warnings
+
+e2e: build
+	bash scripts/e2e-mp.sh
 
 run:
 	cargo run -p bet-cli --release
@@ -40,8 +50,5 @@ uninstall-extension:
 typecheck:
 	npm run typecheck
 
-ci: test-core test-protocol build
-	@echo "CI rust targets OK (run npm i && make typecheck for TS)"
-
-test-protocol:
-	cargo test -p bet-protocol
+ci: test clippy build e2e
+	@echo "local CI OK"

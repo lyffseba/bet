@@ -238,6 +238,8 @@ impl TttRoom {
             winner: winner.map(Role::from),
             pot: pot_before,
             winner_id,
+            host_id: self.host_id.clone(),
+            guest_id: self.guest_id.clone(),
             balance_host: bal_h,
             balance_guest: bal_g,
         };
