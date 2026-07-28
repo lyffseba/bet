@@ -4,6 +4,7 @@ members = [
     "crates/bet-core",
     "crates/bet-protocol",
     "crates/bet-cli",
+    "crates/bet-wasm",
 ]
 default-members = ["crates/bet-cli"]
 

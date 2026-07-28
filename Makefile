@@ -1,4 +1,4 @@
-.PHONY: all build test test-core test-protocol clippy e2e run clean \
+.PHONY: all build test test-core test-protocol clippy e2e wasm goldens run clean \
 	install install-system uninstall uninstall-system \
 	install-extension uninstall-extension typecheck ci
 
@@ -21,6 +21,12 @@ clippy:
 e2e: build
 	bash scripts/e2e-mp.sh
 
+wasm:
+	bash scripts/build-wasm.sh
+
+goldens: wasm
+	cd packages/bet-ts && node --experimental-strip-types test/goldens.mts
+
 run:
 	cargo run -p bet-cli --release
 
@@ -41,7 +47,7 @@ uninstall:
 uninstall-system:
 	rm -f /usr/local/bin/bet
 
-install-extension:
+install-extension: wasm
 	pi install .
 
 uninstall-extension:
@@ -50,5 +56,5 @@ uninstall-extension:
 typecheck:
 	npm run typecheck
 
-ci: test clippy build e2e
+ci: test clippy build e2e wasm goldens
 	@echo "local CI OK"
