@@ -1,6 +1,15 @@
 {
-  "hangman_seed_99_words": ["ALPHA", "BRAVO", "CHARLIE"],
-  "hangman_hash_after_A_X": "56b97983306c2479",
-  "ttt_seed_7_after_center": "4328a9625e30b2de",
-  "note": "Must match packages/bet-ts goldens and Rust bet-core hashes"
+  "hangman": {
+    "seed": 99,
+    "words": ["ALPHA", "BRAVO", "CHARLIE"],
+    "guesses": ["A", "X"],
+    "word": "CHARLIE",
+    "hash": "1324f2e7c253daa3"
+  },
+  "ttt": {
+    "seed": 7,
+    "center_index": 4,
+    "hash": "4328a9625e30b2de"
+  },
+  "notes": "Asserted in bet-core tests and packages/bet-ts/test/goldens.mts after WASM rebuild"
 }

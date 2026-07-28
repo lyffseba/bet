@@ -25,5 +25,7 @@ Every change touching `bet-core` or multiplayer protocol must pass this checklis
 
 ## Hosts
 
-- [ ] Pi / OpenCode do not reimplement rules (WASM or CLI spawn)
+- [ ] Pi / OpenCode do not reimplement hangman/ttt rules (WASM or CLI spawn)
 - [ ] TypeScript 7 typecheck green for packages
+- [ ] `protocols/fixtures/wasm_goldens.json` matches Rust tests + `make goldens`
+- [ ] RNG uses full u64 modulus (wasm32-safe) — never `(next_u64() as usize) % n`

@@ -192,9 +192,19 @@ mod tests {
         game.guess('B').unwrap();
         game.guess('X').unwrap();
         let hex = fingerprint_hex(game.state_hash());
-        // Fixed expected for regression (update only intentionally).
         assert_eq!(hex.len(), 16);
         let again = fingerprint_hex(game.state_hash());
         assert_eq!(hex, again);
+    }
+
+    /// Must match `protocols/fixtures/wasm_goldens.json` and JS goldens.
+    #[test]
+    fn cross_lang_golden_seed_99() {
+        let words = ["ALPHA", "BRAVO", "CHARLIE"];
+        let mut game = Hangman::from_seed(99, &words, 6);
+        assert_eq!(game.word(), "CHARLIE");
+        game.guess('A').unwrap();
+        game.guess('X').unwrap();
+        assert_eq!(fingerprint_hex(game.state_hash()), "1324f2e7c253daa3");
     }
 }
