@@ -74,7 +74,18 @@ bet join ROOMCODE --stake 10 --name bob --addr 127.0.0.1:7733
 bet balance   # local virtual ledger
 ```
 
-Stakes are **virtual points only** (default grant 1000). Ledger file is under the OS config dir (`…/xyz.lyffseba.bet/ledger.json`).
+Stakes are **virtual points only** (default grant 1000).
+
+| Env | Purpose |
+|-----|---------|
+| `BET_CONFIG_DIR` | Ledger directory (default: OS app config) |
+| `BET_PLAYER` | Default player id |
+| `BET_MOVES` | Scripted moves `0,3,1,4,2` (CI / automation) |
+
+```bash
+make e2e   # scripted two-player smoke test
+make ci    # tests + clippy + e2e
+```
 
 ## Status
 

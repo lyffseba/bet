@@ -14,12 +14,21 @@ docs/               EPICS, QUALITY, NOSTR
 ## Commands
 
 ```bash
-cargo test -p bet-core
+cargo test -p bet-core -p bet-protocol
+cargo clippy -p bet-core -p bet-protocol -- -D warnings
 cargo build -p bet-cli --release
+make e2e                     # multiplayer smoke (BET_MOVES)
+make ci                      # full local gate
 make install                 # CLI → ~/.local/bin
 make install-extension       # pi install monorepo root
 npm run typecheck            # TS packages (after npm i)
 ```
+
+## Multiplayer
+
+- Host authority: `bet host` / `bet join` (TCP NDJSON)
+- Ledger: `BET_CONFIG_DIR` or OS config; atomic write + merge on `MatchEnded`
+- Automation: `BET_MOVES=0,1,2` (host) and `BET_MOVES=3,4` (guest)
 
 ## Rules for agents
 
@@ -28,3 +37,4 @@ npm run typecheck            # TS packages (after npm i)
 3. **Virtual points only** for stakes.
 4. Follow `docs/QUALITY.md` on core changes.
 5. Prefer small vertical stories from `docs/EPICS.md`.
+6. **CI must stay green**: core+protocol tests, clippy -D, `scripts/e2e-mp.sh`.
