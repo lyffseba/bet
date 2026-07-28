@@ -57,3 +57,18 @@ pub fn default_player_id() -> String {
         .or_else(|| std::env::var("USER").ok())
         .unwrap_or_else(|| "player".into())
 }
+
+/// Set one player's balance without wiping other rows (best-effort vs races).
+pub fn merge_player_balance(player: &str, balance: i64) -> std::io::Result<()> {
+    let disk = load_ledger();
+    let mut map = disk.balances().clone();
+    map.insert(player.to_string(), balance);
+    // Re-read once more so a concurrent host write is less likely to be lost.
+    let mut again = load_ledger();
+    for (k, v) in again.balances() {
+        map.entry(k.clone()).or_insert(*v);
+    }
+    map.insert(player.to_string(), balance);
+    again.load_balances(map);
+    save_ledger(&again)
+}

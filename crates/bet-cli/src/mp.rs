@@ -12,7 +12,7 @@ use bet_protocol::msg::{
 };
 use bet_protocol::room::{Phase, TttRoom};
 
-use crate::ledger_store::{default_player_id, load_ledger, save_ledger};
+use crate::ledger_store::{default_player_id, load_ledger, merge_player_balance, save_ledger};
 
 pub const DEFAULT_PORT: u16 = 7733;
 
@@ -339,13 +339,7 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
             } = &msg
             {
                 if my_role == Some(Role::O) {
-                    // Merge into on-disk ledger so we don't wipe the host's row
-                    // when both players share a machine/config dir.
-                    let mut disk = load_ledger();
-                    let mut map = disk.balances().clone();
-                    map.insert(opts.name.clone(), *balance_guest);
-                    disk.load_balances(map);
-                    let _ = save_ledger(&disk);
+                    let _ = merge_player_balance(&opts.name, *balance_guest);
                     println!(
                         "Local ledger updated (guest balance={balance_guest}). winner={winner_id:?}"
                     );
