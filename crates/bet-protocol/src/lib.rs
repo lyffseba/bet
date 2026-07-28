@@ -8,5 +8,5 @@ pub mod loopback;
 pub mod msg;
 pub mod room;
 
-pub use msg::{ClientMsg, Role, ServerMsg};
-pub use room::{Phase, RoomError, RoomEvent, TttRoom};
+pub use msg::{ClientMsg, Role, ServerMsg, PROTOCOL_VERSION};
+pub use room::{normalize_code, Phase, RoomError, RoomEvent, TttRoom};

@@ -1,6 +1,8 @@
 //! Multiplayer host/join over TCP (newline-delimited JSON).
 //!
-//! Scripted (non-interactive) moves for CI: `BET_MOVES=0,3,1,4,2`
+//! - Scripted moves: `BET_MOVES=0,3,1,4,2`
+//! - Machine line: `BET_READY room=CODE port=P stake=N proto=1`
+//! - Empty cells show indices 0–8 for clearer play
 
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
@@ -13,8 +15,9 @@ use std::time::Duration;
 use bet_core::rng::XorShift64;
 use bet_protocol::msg::{
     decode_client_line, decode_server_line, encode_line, ClientMsg, Role, ServerMsg,
+    PROTOCOL_VERSION,
 };
-use bet_protocol::room::{Phase, TttRoom};
+use bet_protocol::room::{normalize_code, Phase, TttRoom};
 
 use crate::ledger_store::{
     default_player_id, ledger_path, load_ledger, merge_balances, save_ledger,
@@ -27,6 +30,8 @@ pub struct HostOpts {
     pub port: u16,
     pub name: String,
     pub bind: String,
+    /// Fixed room code (tests); random if None.
+    pub code: Option<String>,
 }
 
 pub struct JoinOpts {
@@ -48,7 +53,6 @@ fn gen_room_code() -> String {
         .collect()
 }
 
-/// Shared scripted move queue from `BET_MOVES` (comma-separated 0-8 or q).
 fn move_queue() -> &'static Mutex<VecDeque<String>> {
     use std::sync::OnceLock;
     static Q: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
@@ -72,9 +76,9 @@ fn print_board(board: &[char; 9]) {
         let i = row * 3;
         println!(
             "  {} | {} | {}",
-            pretty(board[i]),
-            pretty(board[i + 1]),
-            pretty(board[i + 2])
+            cell_label(board[i], i),
+            cell_label(board[i + 1], i + 1),
+            cell_label(board[i + 2], i + 2)
         );
         if row < 2 {
             println!(" ---+---+---");
@@ -83,9 +87,9 @@ fn print_board(board: &[char; 9]) {
     println!();
 }
 
-fn pretty(c: char) -> char {
+fn cell_label(c: char, idx: usize) -> char {
     if c == '.' {
-        ' '
+        char::from_digit(idx as u32, 10).unwrap_or('?')
     } else {
         c
     }
@@ -99,10 +103,11 @@ fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
             room_code,
             match_id,
             player_id,
+            proto,
         } => {
             *my_role = Some(*role);
             println!(
-                "Welcome {player_id} as {role:?} | stake={stake} | room={room_code} | match={match_id}"
+                "Welcome {player_id} as {role:?} | stake={stake} | room={room_code} | match={match_id} | proto={proto}"
             );
             false
         }
@@ -120,6 +125,9 @@ fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
         } => {
             print_board(board);
             println!("status={status} current={current:?} pot={pot} your_turn={your_turn}");
+            if *your_turn {
+                println!("hint: type empty cell index 0-8 (shown on board), or q to resign");
+            }
             false
         }
         ServerMsg::MatchEnded {
@@ -144,9 +152,7 @@ fn apply_server_msg(msg: &ServerMsg, my_role: &mut Option<Role>) -> bool {
     }
 }
 
-/// Returns Some(index) for a place, None for resign / EOF.
 fn read_move() -> Option<u8> {
-    // Prefer scripted moves (CI / automation).
     if let Ok(mut q) = move_queue().lock() {
         if let Some(tok) = q.pop_front() {
             let t = tok.trim();
@@ -195,14 +201,37 @@ fn persist_match_ended(msg: &ServerMsg) {
     }
 }
 
-/// Host authoritative room; host plays as X; guest via TCP.
+fn broadcast(
+    writer: &mut TcpStream,
+    ev: &bet_protocol::room::RoomEvent,
+    my_role: &mut Option<Role>,
+    last_ended: &mut Option<ServerMsg>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for m in &ev.to_guest {
+        write_msg(writer, m)?;
+    }
+    for m in &ev.to_host {
+        if apply_server_msg(m, my_role) {
+            *last_ended = Some(m.clone());
+        }
+    }
+    Ok(())
+}
+
 pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
+    if opts.stake <= 0 {
+        return Err("stake must be > 0".into());
+    }
     let ledger = load_ledger();
-    let room_code = gen_room_code();
+    let room_code = match opts.code {
+        Some(c) => normalize_code(c)?,
+        None => gen_room_code(),
+    };
     let mut room = TttRoom::new(&room_code, &opts.name, opts.stake, ledger)?;
 
     let bind = format!("{}:{}", opts.bind, opts.port);
     let listener = TcpListener::bind(&bind)?;
+    let local_port = listener.local_addr()?.port();
 
     println!("BET multiplayer host (tic-tac-toe, virtual points)");
     println!("  you:     {} (X)", opts.name);
@@ -213,13 +242,19 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("  balance: {}", room.ledger.balance(&opts.name));
     println!("  room:    {room_code}");
-    println!("  listen:  {bind}");
+    println!("  listen:  {bind} (port {local_port})");
     println!("  config:  {}", ledger_path().display());
+    println!("  proto:   {PROTOCOL_VERSION}");
+    // Machine-parseable ready line for e2e / tooling.
+    println!(
+        "BET_READY room={room_code} port={local_port} stake={} proto={PROTOCOL_VERSION}",
+        opts.stake
+    );
     println!();
     println!("Guest runs:");
     println!(
-        "  bet join {room_code} --stake {} --addr 127.0.0.1:{}",
-        opts.stake, opts.port
+        "  bet join {room_code}@127.0.0.1:{local_port} --stake {}",
+        opts.stake
     );
     println!("Waiting for guest…");
 
@@ -227,6 +262,7 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
     println!("Connected: {peer}");
     stream.set_read_timeout(Some(Duration::from_secs(300)))?;
     stream.set_write_timeout(Some(Duration::from_secs(30)))?;
+    stream.set_nodelay(true)?;
 
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut writer = stream;
@@ -238,6 +274,7 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         player_id,
         room_code: code,
         stake,
+        proto,
     } = hello
     else {
         write_msg(
@@ -255,6 +292,7 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
             player_id: player_id.clone(),
             room_code: code,
             stake,
+            proto,
         },
     ) {
         Ok(ev) => ev,
@@ -269,13 +307,9 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    for m in &ev.to_guest {
-        write_msg(&mut writer, m)?;
-    }
     let mut my_role = Some(Role::X);
-    for m in &ev.to_host {
-        apply_server_msg(m, &mut my_role);
-    }
+    let mut last_ended: Option<ServerMsg> = None;
+    broadcast(&mut writer, &ev, &mut my_role, &mut last_ended)?;
 
     let (tx, rx) = mpsc::channel::<Result<ClientMsg, String>>();
     thread::spawn(move || {
@@ -306,51 +340,24 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let mut last_ended: Option<ServerMsg> = None;
-
     while room.phase == Phase::Playing {
         let your_turn = room.game.current == bet_core::tictactoe::Player::X;
         if your_turn {
             match read_move() {
                 Some(idx) => match room.handle(true, ClientMsg::Place { index: idx }) {
-                    Ok(ev) => {
-                        for m in &ev.to_guest {
-                            write_msg(&mut writer, m)?;
-                        }
-                        for m in &ev.to_host {
-                            if apply_server_msg(m, &mut my_role) {
-                                last_ended = Some(m.clone());
-                            }
-                        }
-                    }
+                    Ok(ev) => broadcast(&mut writer, &ev, &mut my_role, &mut last_ended)?,
                     Err(e) => eprintln!("illegal: {e:?}"),
                 },
                 None => {
                     let ev = room.handle(true, ClientMsg::Resign)?;
-                    for m in &ev.to_guest {
-                        write_msg(&mut writer, m)?;
-                    }
-                    for m in &ev.to_host {
-                        if apply_server_msg(m, &mut my_role) {
-                            last_ended = Some(m.clone());
-                        }
-                    }
+                    broadcast(&mut writer, &ev, &mut my_role, &mut last_ended)?;
                 }
             }
         } else {
             println!("Waiting for guest…");
             match rx.recv_timeout(Duration::from_secs(300)) {
                 Ok(Ok(msg)) => match room.handle(false, msg) {
-                    Ok(ev) => {
-                        for m in &ev.to_guest {
-                            write_msg(&mut writer, m)?;
-                        }
-                        for m in &ev.to_host {
-                            if apply_server_msg(m, &mut my_role) {
-                                last_ended = Some(m.clone());
-                            }
-                        }
-                    }
+                    Ok(ev) => broadcast(&mut writer, &ev, &mut my_role, &mut last_ended)?,
                     Err(e) => {
                         write_msg(
                             &mut writer,
@@ -360,13 +367,22 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
                         )?;
                     }
                 },
-                Ok(Err(e)) => return Err(e.into()),
+                Ok(Err(e)) => {
+                    // Disconnect / protocol error mid-match → guest forfeits.
+                    if room.phase == Phase::Playing {
+                        eprintln!("guest lost: {e} — treating as forfeit");
+                        if let Ok(ev) = room.disconnect(false) {
+                            let _ = broadcast(&mut writer, &ev, &mut my_role, &mut last_ended);
+                        }
+                    } else {
+                        return Err(e.into());
+                    }
+                }
                 Err(_) => return Err("timeout waiting for guest move".into()),
             }
         }
     }
 
-    // Host is authority: write full ledger, then also merge MatchEnded ids.
     save_ledger(&room.ledger)?;
     if let Some(ended) = last_ended {
         persist_match_ended(&ended);
@@ -376,20 +392,25 @@ pub fn run_host(opts: HostOpts) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
-    // Ensure guest row exists locally before match (display / offline).
+    if opts.stake <= 0 {
+        return Err("stake must be > 0".into());
+    }
+    let room_code = normalize_code(&opts.room_code)?;
+
     let mut ledger = load_ledger();
     ledger.ensure_player(opts.name.clone());
     let _ = save_ledger(&ledger);
 
     println!(
-        "Joining room {} at {} as {} (stake {})…",
-        opts.room_code, opts.addr, opts.name, opts.stake
+        "Joining room {room_code} at {} as {} (stake {}, proto {PROTOCOL_VERSION})…",
+        opts.addr, opts.name, opts.stake
     );
     println!("  config: {}", ledger_path().display());
 
     let stream = TcpStream::connect(&opts.addr)?;
     stream.set_read_timeout(Some(Duration::from_secs(300)))?;
     stream.set_write_timeout(Some(Duration::from_secs(30)))?;
+    stream.set_nodelay(true)?;
     let mut writer = stream.try_clone()?;
     let mut reader = BufReader::new(stream);
 
@@ -397,8 +418,9 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
         &mut writer,
         &ClientMsg::Hello {
             player_id: opts.name.clone(),
-            room_code: opts.room_code.clone(),
+            room_code,
             stake: opts.stake,
+            proto: PROTOCOL_VERSION,
         },
     )?;
 
@@ -408,6 +430,7 @@ pub fn run_join(opts: JoinOpts) -> Result<(), Box<dyn std::error::Error>> {
         let mut line = String::new();
         let n = reader.read_line(&mut line)?;
         if n == 0 {
+            eprintln!("host closed connection");
             break;
         }
         let msg = decode_server_line(&line)?;
@@ -449,13 +472,23 @@ pub fn print_balances() {
     println!("Ledger: {}", ledger_path().display());
     println!("default_grant: {}", led.default_grant());
     if led.balances().is_empty() {
-        println!("(empty — play a match or balances appear after ensure)");
+        println!("(empty — play a match first)");
         let id = default_player_id();
-        println!("hint: your id would be `{id}` ($BET_PLAYER or $USER)");
-        println!("hint: set BET_CONFIG_DIR to override ledger location");
+        println!("hint: id=`{id}` ($BET_PLAYER or $USER); BET_CONFIG_DIR overrides path");
         return;
     }
-    for (k, v) in led.balances() {
+    let mut rows: Vec<_> = led.balances().iter().collect();
+    rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+    for (k, v) in rows {
         println!("  {k}: {v}");
+    }
+}
+
+/// Parse `CODE` or `CODE@host:port` into (code, optional addr).
+pub fn parse_join_target(raw: &str) -> (String, Option<String>) {
+    if let Some((code, addr)) = raw.split_once('@') {
+        (code.to_string(), Some(addr.to_string()))
+    } else {
+        (raw.to_string(), None)
     }
 }

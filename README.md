@@ -67,24 +67,28 @@ docs/                  Epics, quality bar, Nostr notes
 ```bash
 # Terminal A
 bet host --stake 10 --name alice
+# prints: BET_READY room=XXXXXX port=7733 …
 
-# Terminal B (use room code printed by host)
-bet join ROOMCODE --stake 10 --name bob --addr 127.0.0.1:7733
+# Terminal B
+bet join XXXXXX@127.0.0.1:7733 --stake 10 --name bob
 
-bet balance   # local virtual ledger
+bet balance
 ```
 
-Stakes are **virtual points only** (default grant 1000).
+Empty cells show their index (`0`–`8`). Type the index to place; `q` resigns.  
+Disconnect mid-match counts as a forfeit. Stakes are **virtual points only** (grant 1000).
 
-| Env | Purpose |
-|-----|---------|
-| `BET_CONFIG_DIR` | Ledger directory (default: OS app config) |
+| Env / flag | Purpose |
+|------------|---------|
+| `BET_CONFIG_DIR` | Ledger directory |
 | `BET_PLAYER` | Default player id |
-| `BET_MOVES` | Scripted moves `0,3,1,4,2` (CI / automation) |
+| `BET_MOVES` | Scripted moves (`0,3,1,4,2` or `q`) |
+| `--code CODE` | Fixed room code (tests) |
+| `CODE@host:port` | Join target shorthand |
 
 ```bash
-make e2e   # scripted two-player smoke test
-make ci    # tests + clippy + e2e
+make e2e   # win + resign + stake-mismatch smoke
+make ci    # unit + clippy + e2e
 ```
 
 ## Status

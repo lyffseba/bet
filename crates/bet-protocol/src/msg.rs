@@ -3,6 +3,9 @@
 use bet_core::tictactoe::{Cell, GameStatus, Player};
 use serde::{Deserialize, Serialize};
 
+/// Wire protocol version. Bump when breaking Hello/State/MatchEnded shape.
+pub const PROTOCOL_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -31,16 +34,23 @@ impl From<Role> for Player {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMsg {
-    /// Guest (or reconnect) announces identity and stake intent.
+    /// Guest announces identity and stake intent.
     Hello {
         player_id: String,
         room_code: String,
         stake: i64,
+        /// Optional; missing treated as 1 for older clients.
+        #[serde(default = "default_proto")]
+        proto: u32,
     },
     /// Place a mark at board index 0..8.
     Place { index: u8 },
     Resign,
     Ping,
+}
+
+fn default_proto() -> u32 {
+    PROTOCOL_VERSION
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +62,7 @@ pub enum ServerMsg {
         stake: i64,
         match_id: String,
         room_code: String,
+        proto: u32,
     },
     PeerJoined {
         player_id: String,

@@ -17,6 +17,7 @@ pub fn play_scripted(
         player_id: guest_id.into(),
         room_code: room.room_code.clone(),
         stake,
+        proto: crate::msg::PROTOCOL_VERSION,
     };
     let ev = room.handle(false, join)?;
     host_log.extend(ev.to_host);

@@ -37,10 +37,12 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E2-S1 | `bet-protocol` crate | **done** (TCP NDJSON; WS later if needed) |
 | E2-S2 | Ledger persistence | **done** (`BET_CONFIG_DIR`, atomic write, merge) |
 | E2-S3 | Loopback MP ttt | **done** (unit tests) |
-| E2-S4 | `bet host` / `bet join` | **done** (TCP + `BET_MOVES` scripting) |
+| E2-S4 | `bet host` / `bet join` | **done** (TCP, `BET_READY`, `CODE@addr`) |
 | E2-S5 | Stake UX | **done** (`--stake`, settle on end) |
-| E2-S6–S8 | Hangman/Pong MP + forfeit | todo (resign works) |
-| E2-CI | clippy + e2e-mp.sh in CI | **done** |
+| E2-S6 | Disconnect forfeit + resign | **done** |
+| E2-S7–S8 | Hangman/Pong MP | todo |
+| E2-CI | clippy + multi-case e2e | **done** |
+| E2-UX | Numbered empty cells, proto v1 | **done** |
 
 ## EPIC 3 — WASM for TS hosts
 
