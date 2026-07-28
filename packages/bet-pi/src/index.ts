@@ -3,6 +3,16 @@ import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import {
+	boardToGrid,
+	cellIndex,
+	createHangman,
+	createTtt,
+	engineVersion,
+	timeSeed,
+	type WasmHangman,
+	type WasmTtt,
+} from "../../bet-ts/src/index.js";
 
 type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix" | "pong";
 
@@ -184,7 +194,8 @@ class BetNativeComponent {
 	private version = 0;
 	private cachedVersion = -1;
 
-	// Tic-Tac-Toe State
+	// Tic-Tac-Toe State (rules from Rust WASM)
+	private ttt: WasmTtt | null = null;
 	private board: (string | null)[][] = [
 		[null, null, null],
 		[null, null, null],
@@ -196,12 +207,14 @@ class BetNativeComponent {
 	private winner: string | null = null;
 	private draw = false;
 
-	// Hangman State
+	// Hangman State (rules from Rust WASM)
+	private hangman: WasmHangman | null = null;
 	private hangmanWord = "";
 	private hangmanGuessed: Set<string> = new Set();
 	private hangmanAttemptsLeft = 6;
 	private hangmanOver = false;
 	private hangmanWon = false;
+	private hangmanDisplay = "";
 
 	// Recommender State
 	private recCategory: string | null = null;
@@ -349,15 +362,13 @@ class BetNativeComponent {
 			} else if (matchesKey(data, "right") || data === "d" || data === "D") {
 				this.cursorX = Math.min(2, this.cursorX + 1);
 			} else if (data === "\r" || data === " ") {
-				const row = this.board[this.cursorY];
-				if (row && row[this.cursorX] === null) {
-					row[this.cursorX] = "X";
-					this.checkWinner();
-					if (this.winner === "X") {
-						this.triggerConfetti();
-					} else if (!this.winner && !this.draw) {
-						this.currentPlayer = "O";
-						this.runTicTacToeAI();
+				if (this.ttt && this.board[this.cursorY]?.[this.cursorX] === null) {
+					const idx = cellIndex(this.cursorY, this.cursorX);
+					if (this.ttt.make_move_vs_ai(idx)) {
+						this.syncTttFromEngine();
+						if (this.winner === "X") {
+							this.triggerConfetti();
+						}
 					}
 				}
 			}
@@ -376,14 +387,16 @@ class BetNativeComponent {
 				return;
 			}
 
-			if (/^[a-zA-Z]$/.test(data)) {
+			if (/^[a-zA-Z]$/.test(data) && this.hangman) {
 				const char = data.toUpperCase();
-				if (!this.hangmanGuessed.has(char)) {
-					this.hangmanGuessed.add(char);
-					if (!this.hangmanWord.includes(char)) {
-						this.hangmanAttemptsLeft = Math.max(0, this.hangmanAttemptsLeft - 1);
+				try {
+					this.hangman.guess(char);
+					this.syncHangmanFromEngine();
+					if (this.hangmanWon) {
+						this.triggerConfetti();
 					}
-					this.checkHangmanStatus();
+				} catch {
+					// already guessed / invalid — ignore
 				}
 			}
 			this.version++;
@@ -471,129 +484,37 @@ class BetNativeComponent {
 	}
 
 	private resetTicTacToe() {
-		this.board = [
-			[null, null, null],
-			[null, null, null],
-			[null, null, null],
-		];
-		this.cursorX = 0;
-		this.cursorY = 0;
-		this.currentPlayer = "X";
-		this.winner = null;
-		this.draw = false;
+		this.ttt?.free();
+		this.ttt = createTtt(timeSeed());
+		this.cursorX = 1;
+		this.cursorY = 1;
+		this.syncTttFromEngine();
 	}
 
-	private runTicTacToeAI() {
-		if (this.winner || this.draw) return;
-
-		const empty: [number, number][] = [];
-		for (let r = 0; r < 3; r++) {
-			for (let c = 0; c < 3; c++) {
-				if (this.board[r]?.[c] === null) empty.push([r, c]);
-			}
-		}
-
-		if (empty.length === 0) return;
-
-		for (const [r, c] of empty) {
-			const row = this.board[r];
-			if (row) {
-				row[c] = "O";
-				if (this.checkWinCondition("O")) {
-					this.winner = "O";
-					return;
-				}
-				row[c] = null;
-			}
-		}
-
-		for (const [r, c] of empty) {
-			const row = this.board[r];
-			if (row) {
-				row[c] = "X";
-				if (this.checkWinCondition("X")) {
-					row[c] = "O";
-					this.currentPlayer = "X";
-					this.checkWinner();
-					return;
-				}
-				row[c] = null;
-			}
-		}
-
-		const centerRow = this.board[1];
-		if (centerRow && centerRow[1] === null) {
-			centerRow[1] = "O";
-			this.currentPlayer = "X";
-			this.checkWinner();
-			return;
-		}
-
-		const choice = empty[Math.floor(Math.random() * empty.length)];
-		if (choice) {
-			const [r, c] = choice;
-			const row = this.board[r];
-			if (row) {
-				row[c] = "O";
-				this.currentPlayer = "X";
-				this.checkWinner();
-			}
-		}
-	}
-
-	private checkWinCondition(player: string): boolean {
-		const lines: [[number, number], [number, number], [number, number]][] = [
-			[[0,0], [0,1], [0,2]],
-			[[1,0], [1,1], [1,2]],
-			[[2,0], [2,1], [2,2]],
-			[[0,0], [1,0], [2,0]],
-			[[0,1], [1,1], [2,1]],
-			[[0,2], [1,2], [2,2]],
-			[[0,0], [1,1], [2,2]],
-			[[0,2], [1,1], [2,0]]
-		];
-		for (const line of lines) {
-			const [a, b, c] = line;
-			if (
-				this.board[a[0]]?.[a[1]] === player &&
-				this.board[b[0]]?.[b[1]] === player &&
-				this.board[c[0]]?.[c[1]] === player
-			) {
-				return true;
-			}
-		}
-		return false;
+	private syncTttFromEngine() {
+		if (!this.ttt) return;
+		this.board = boardToGrid(this.ttt.board());
+		const st = this.ttt.status();
+		this.winner = st === "win_x" ? "X" : st === "win_o" ? "O" : null;
+		this.draw = st === "draw";
+		this.currentPlayer = this.ttt.current().toUpperCase();
 	}
 
 	private resetHangman() {
-		const idx = Math.floor(Math.random() * HANGMAN_WORDS.length);
-		this.hangmanWord = HANGMAN_WORDS[idx];
-		this.hangmanGuessed = new Set();
-		this.hangmanAttemptsLeft = 6;
-		this.hangmanOver = false;
-		this.hangmanWon = false;
+		this.hangman?.free();
+		this.hangman = createHangman(HANGMAN_WORDS, timeSeed(), 6);
+		this.syncHangmanFromEngine();
 	}
 
-	private checkHangmanStatus() {
-		if (this.hangmanAttemptsLeft === 0) {
-			this.hangmanOver = true;
-			this.hangmanWon = false;
-			return;
-		}
-
-		let won = true;
-		for (const char of this.hangmanWord) {
-			if (/[A-Z]/.test(char) && !this.hangmanGuessed.has(char)) {
-				won = false;
-				break;
-			}
-		}
-
-		if (won) {
-			this.hangmanOver = true;
-			this.hangmanWon = true;
-			this.triggerConfetti();
-		}
+	private syncHangmanFromEngine() {
+		if (!this.hangman) return;
+		this.hangmanWord = this.hangman.word();
+		this.hangmanDisplay = this.hangman.display_word();
+		this.hangmanAttemptsLeft = this.hangman.attempts_left();
+		this.hangmanOver = this.hangman.is_over();
+		this.hangmanWon = this.hangman.is_won();
+		const g = this.hangman.guessed();
+		this.hangmanGuessed = new Set(g ? g.split("") : []);
 	}
 
 	private resetRecommender() {
@@ -775,38 +696,6 @@ class BetNativeComponent {
 		}
 	}
 
-	private checkWinner() {
-		const lines: [[number, number], [number, number], [number, number]][] = [
-			[[0,0], [0,1], [0,2]],
-			[[1,0], [1,1], [1,2]],
-			[[2,0], [2,1], [2,2]],
-			[[0,0], [1,0], [2,0]],
-			[[0,1], [1,1], [2,1]],
-			[[0,2], [1,2], [2,2]],
-			[[0,0], [1,1], [2,2]],
-			[[0,2], [1,1], [2,0]]
-		];
-
-		for (const line of lines) {
-			const [a, b, c] = line;
-			const cellA = this.board[a[0]]?.[a[1]];
-			const cellB = this.board[b[0]]?.[b[1]];
-			const cellC = this.board[c[0]]?.[c[1]];
-			if (cellA && cellA === cellB && cellA === cellC) {
-				this.winner = cellA;
-				return;
-			}
-		}
-
-		let isDraw = true;
-		for (let y = 0; y < 3; y++) {
-			for (let x = 0; x < 3; x++) {
-				if (this.board[y]?.[x] === null) isDraw = false;
-			}
-		}
-		if (isDraw) this.draw = true;
-	}
-
 	invalidate(): void {
 		this.cachedWidth = 0;
 	}
@@ -848,14 +737,14 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine(`  ${bold("Select an arcade game to play:")}`)));
 			lines.push(padToCenter(boxLine("")));
-			lines.push(padToCenter(boxLine(`  [1] Tic-Tac-Toe  ${dim("(Play vs Smart AI)")}`)));
-			lines.push(padToCenter(boxLine(`  [2] Hangman      ${dim("(Movie word survival)")}`)));
+			lines.push(padToCenter(boxLine(`  [1] Tic-Tac-Toe  ${dim("(Rust WASM)")}`)));
+			lines.push(padToCenter(boxLine(`  [2] Hangman      ${dim("(Rust WASM)")}`)));
 			lines.push(padToCenter(boxLine(`  [3] Recommender  ${dim("(Book/Anime/Movie recs)")}`)));
 			lines.push(padToCenter(boxLine(`  [4] The Matrix   ${dim("(Hacker typing survival)")}`)));
 			lines.push(padToCenter(boxLine(`  [5] Pong         ${dim("(Real-time ball bounce)")}`)));
 			lines.push(padToCenter(boxLine("")));
+			lines.push(padToCenter(boxLine(`  ${dim("engine " + engineVersion())}`)));
 			lines.push(padToCenter(boxLine(`  [Q] Quit Game Hub`)));
-			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine("")));
 			lines.push(padToCenter(boxLine("")));
 		} else if (this.currentGame === "tictactoe") {
@@ -904,17 +793,12 @@ class BetNativeComponent {
 			lines.push(padToCenter(boxLine(statusStr)));
 			lines.push(padToCenter(boxLine("")));
 
-			let displayWord = "";
-			for (const char of this.hangmanWord) {
-				if (char === " ") {
-					displayWord += "  ";
-				} else if (/[A-Z]/.test(char)) {
-					displayWord += this.hangmanGuessed.has(char) ? `${char} ` : "_ ";
-				} else {
-					displayWord += `${char} `;
-				}
-			}
-			lines.push(padToCenter(boxLine(`  Word: ${bold(displayWord.trim())}`)));
+			const spaced = (this.hangmanDisplay || "")
+				.split("")
+				.map((c) => (c === " " ? "  " : `${c} `))
+				.join("")
+				.trim();
+			lines.push(padToCenter(boxLine(`  Word: ${bold(spaced)}`)));
 			lines.push(padToCenter(boxLine("")));
 
 			const artIdx = 6 - this.hangmanAttemptsLeft;

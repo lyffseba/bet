@@ -3,12 +3,14 @@
 ## Layout
 
 ```
-crates/bet-core     Pure rules + virtual ledger (no I/O)
-crates/bet-cli      ratatui binary `bet`
-packages/bet-ts     TS7 types / future WASM loader
-packages/bet-pi     pi coding-agent extension (/b$t)
+crates/bet-core        Pure rules + virtual ledger (no I/O)
+crates/bet-protocol    Multiplayer room authority
+crates/bet-cli         ratatui + host/join binary `bet`
+crates/bet-wasm        wasm-bindgen surface over bet-core
+packages/bet-ts        TS7 loader + pkg/ (built WASM)
+packages/bet-pi        pi extension (/b$t) — hangman/ttt via WASM
 packages/bet-opencode  OpenCode plugin
-docs/               EPICS, QUALITY, NOSTR
+docs/                  EPICS, QUALITY, NOSTR
 ```
 
 ## Commands
@@ -32,9 +34,10 @@ npm run typecheck            # TS packages (after npm i)
 
 ## Rules for agents
 
-1. **Do not reimplement game rules in TypeScript** once WASM exists; until then, keep pi logic temporary and mark TODO(E3).
+1. **Do not reimplement hangman/ttt rules in TypeScript** — use `@lyffseba/bet-ts` / WASM.
 2. **bet-core stays pure** — no fs/net/thread_rng.
 3. **Virtual points only** for stakes.
 4. Follow `docs/QUALITY.md` on core changes.
 5. Prefer small vertical stories from `docs/EPICS.md`.
-6. **CI must stay green**: core+protocol tests, clippy -D, `scripts/e2e-mp.sh`.
+6. **CI must stay green**: core+protocol tests, clippy -D, e2e-mp, wasm goldens.
+7. After engine changes: `make wasm && make goldens`.

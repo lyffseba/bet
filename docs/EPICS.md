@@ -48,7 +48,11 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 
 | ID | Story | Status |
 |----|-------|--------|
-| E3-S1–S5 | bet-wasm, bet-ts loader, pi consumes WASM | todo |
+| E3-S1 | `bet-wasm` crate (hangman, ttt, ledger) | **done** |
+| E3-S2 | `packages/bet-ts` loader + goldens | **done** |
+| E3-S3 | Pi hangman/ttt use WASM | **done** |
+| E3-S4 | CI wasm + goldens | **done** |
+| E3-S5 | Pi multiplayer overlay | todo |
 
 ## EPIC 4 — OpenCode live
 

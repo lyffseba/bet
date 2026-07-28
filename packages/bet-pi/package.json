@@ -6,8 +6,13 @@
   "type": "module",
   "files": [
     "src/index.ts",
-    "README.md"
+    "README.md",
+    "../bet-ts/src",
+    "../bet-ts/pkg"
   ],
+  "dependencies": {
+    "@lyffseba/bet-ts": "file:../bet-ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lyffseba/bet.git",

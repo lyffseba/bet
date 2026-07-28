@@ -13,6 +13,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: wasm32-unknown-unknown
       - name: test core + protocol
         run: cargo test -p bet-core -p bet-protocol
       - name: clippy (engine crates)
@@ -21,6 +22,12 @@ jobs:
         run: cargo build -p bet-cli --release
       - name: e2e multiplayer
         run: bash scripts/e2e-mp.sh
+      - name: install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: build wasm + goldens
+        run: |
+          bash scripts/build-wasm.sh
+          cd packages/bet-ts && node --experimental-strip-types test/goldens.mts
 
   typescript:
     runs-on: ubuntu-latest
@@ -29,7 +36,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: build wasm
+        run: bash scripts/build-wasm.sh
       - name: install
         run: npm install
       - name: typecheck packages
         run: npm run typecheck
+      - name: goldens
+        run: cd packages/bet-ts && node --experimental-strip-types test/goldens.mts

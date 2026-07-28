@@ -17,7 +17,7 @@
 | **`bet` CLI** | Full ratatui hub; upcoming `host` / `join` multiplayer |
 | **pi extension** | `/b$t` overlay while coding |
 | **OpenCode plugin** | `bet_play` / `bet_status` tools + idle toast |
-| **WASM + TS7** | Same engine in agent hosts (Epic 3) |
+| **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` → pi hangman/ttt |
 | **Nostr** | Room discovery only (Epic 5) — not the tick path |
 
 **Betting is virtual points only** in v1 (no real money).
@@ -87,8 +87,10 @@ Disconnect mid-match counts as a forfeit. Stakes are **virtual points only** (gr
 | `CODE@host:port` | Join target shorthand |
 
 ```bash
-make e2e   # win + resign + stake-mismatch smoke
-make ci    # unit + clippy + e2e
+make e2e      # multiplayer smoke (win / resign / stake mismatch)
+make wasm     # build bet-wasm → packages/bet-ts/pkg
+make goldens  # cross-language WASM smoke
+make ci       # unit + clippy + e2e + wasm goldens
 ```
 
 ## Status

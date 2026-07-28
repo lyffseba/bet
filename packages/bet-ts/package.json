@@ -1,7 +1,7 @@
 {
   "name": "@lyffseba/bet-ts",
   "version": "2.0.0-alpha.0",
-  "description": "TypeScript 7 types and WASM loader for BET core (single Rust engine)",
+  "description": "TypeScript 7 host for BET Rust WASM engine",
   "license": "MIT",
   "type": "module",
   "main": "src/index.ts",
@@ -10,12 +10,16 @@
     ".": "./src/index.ts"
   },
   "files": [
-    "src"
+    "src",
+    "pkg"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:wasm": "bash ../../scripts/build-wasm.sh",
+    "test:goldens": "node --experimental-strip-types test/goldens.mts"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "^7.0.2"
   },
   "keywords": ["bet", "wasm", "typescript7"]

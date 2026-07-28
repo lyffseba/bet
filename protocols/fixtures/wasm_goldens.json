@@ -1,0 +1,6 @@
+{
+  "hangman_seed_99_words": ["ALPHA", "BRAVO", "CHARLIE"],
+  "hangman_hash_after_A_X": "56b97983306c2479",
+  "ttt_seed_7_after_center": "4328a9625e30b2de",
+  "note": "Must match packages/bet-ts goldens and Rust bet-core hashes"
+}
