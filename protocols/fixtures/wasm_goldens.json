@@ -11,5 +11,6 @@
     "center_index": 4,
     "hash": "4328a9625e30b2de"
   },
-  "notes": "Asserted in bet-core tests and packages/bet-ts/test/goldens.mts after WASM rebuild"
+  "rng_stream_seed_1_mod_5": [0, 2, 3, 3, 3, 1, 3, 1, 4, 0, 3, 2],
+  "notes": "Keep in sync with packages/bet-ts ENGINE_GOLDENS and bet-core tests"
 }

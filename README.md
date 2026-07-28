@@ -87,11 +87,12 @@ Disconnect mid-match counts as a forfeit. Stakes are **virtual points only** (gr
 | `CODE@host:port` | Join target shorthand |
 
 ```bash
-make e2e      # multiplayer smoke (win / resign / stake mismatch)
-make wasm     # build bet-wasm → packages/bet-ts/pkg
-make goldens  # cross-language WASM smoke
-make ci       # unit + clippy + e2e + wasm goldens
+make verify   # full integrity gate (recommended)
+make e2e      # multiplayer smoke only
+make wasm     # rebuild bet-wasm → packages/bet-ts/pkg
 ```
+
+`make verify` rebuilds WASM, asserts Rust↔WASM goldens, typechecks, and runs multiplayer e2e.
 
 ## Status
 

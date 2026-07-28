@@ -39,5 +39,7 @@ npm run typecheck            # TS packages (after npm i)
 3. **Virtual points only** for stakes.
 4. Follow `docs/QUALITY.md` on core changes.
 5. Prefer small vertical stories from `docs/EPICS.md`.
-6. **CI must stay green**: core+protocol tests, clippy -D, e2e-mp, wasm goldens.
-7. After engine changes: `make wasm && make goldens`.
+6. **CI is `bash scripts/verify-engine.sh`** (or `make verify`) — must stay green.
+7. After engine changes: update `protocols/fixtures/wasm_goldens.json` **and**
+   `ENGINE_GOLDENS` in `packages/bet-ts/src/index.ts`, then `make verify`.
+8. Pi imports `@lyffseba/bet-ts` only (never reimplement hangman/ttt).
