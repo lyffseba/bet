@@ -1220,7 +1220,12 @@ impl App {
 
     fn start_hangman(&mut self) {
         if let Some(lang) = &self.lang {
-            let game = Hangman::random(lang.movies);
+            // Seeded from wall clock for SP variety; multiplayer will inject seeds via protocol.
+            let seed = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(1);
+            let game = Hangman::from_seed(seed, lang.movies, 6);
             self.game = Some(game);
             self.timer = 30.0;
             self.error_msg = None;
@@ -1472,6 +1477,7 @@ impl App {
             self.error_msg = Some(match e {
                 GuessError::NotLetter => lang.error_not_letter.to_string(),
                 GuessError::AlreadyGuessed => lang.error_already_guessed.to_string(),
+                GuessError::GameOver => String::new(),
             });
         }
     }

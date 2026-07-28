@@ -1,53 +1,86 @@
 <div align="center">
 
-# 🎮 B$T (BET) - The Pi Agent Game Hub
+# B$T (BET) — Terminal multiplayer bets + agent game hub
 
-**Play lightning-fast native TUI games in your terminal while you wait for the LLM to think!**
+**Rust-core games. Virtual-point multiplayer stakes. Play in CLI, pi, or OpenCode while the LLM thinks.**
 
-[![Pi Package](https://img.shields.io/badge/pi-package-blue.svg)](https://github.com/mariozechner/pi-coding-agent)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript 7](https://img.shields.io/badge/TypeScript-7-blue.svg)](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
 
 </div>
 
-## ✨ What is this?
+## Vision (v2 monorepo)
 
-B$T (BET) has fully pivoted into a **native extension package for the `pi` AI coding agent**. 
+| Layer | Role |
+|-------|------|
+| **`bet-core` (Rust)** | Single rules engine + virtual ledger (Carmack/Bellard quality bar) |
+| **`bet` CLI** | Full ratatui hub; upcoming `host` / `join` multiplayer |
+| **pi extension** | `/b$t` overlay while coding |
+| **OpenCode plugin** | `bet_play` / `bet_status` tools + idle toast |
+| **WASM + TS7** | Same engine in agent hosts (Epic 3) |
+| **Nostr** | Room discovery only (Epic 5) — not the tick path |
 
-Because `pi` generates LLM responses in the background, you no longer have to sit and stare at streaming text. Simply type `/b$t` after submitting a prompt, and a beautifully rendered, interactive game hub overlay will appear. You can play games natively using your arrow keys while the model continues to stream its response underneath!
+**Betting is virtual points only** in v1 (no real money).
 
-## 🚀 Installation
+See [docs/EPICS.md](docs/EPICS.md) and [docs/QUALITY.md](docs/QUALITY.md).
 
-Install this extension directly into your `pi` agent globally:
+## Quick start
 
 ```bash
-pi install npm:bet-pi-hub
-```
+# CLI
+cargo build -p bet-cli --release
+./target/release/bet
+# or
+make install   # → ~/.local/bin/bet
 
-Or from a local clone:
+# Tests (pure core)
+cargo test -p bet-core
 
-```bash
+# pi extension (from monorepo root)
 pi install .
+
+# OpenCode (dev)
+# opencode.json → { "plugin": ["file:./packages/bet-opencode"] }
 ```
 
-## 🕹️ Gameplay
+## Monorepo layout
 
-Once installed, simply type the following command at any point in your `pi` session:
+```
+crates/bet-core        Pure hangman, tictactoe, ledger, seeded RNG
+crates/bet-cli         Terminal UI binary
+packages/bet-ts        TypeScript 7 types / WASM loader stub
+packages/bet-pi        pi package (bet-pi-hub)
+packages/bet-opencode  OpenCode plugin
+docs/                  Epics, quality bar, Nostr notes
+```
+
+## Agent commands
+
+| Host | How |
+|------|-----|
+| **pi** | `pi install .` then `/b$t` |
+| **OpenCode** | plugin `bet-opencode` → tools `bet_status`, `bet_play` |
+| **CLI** | `bet`, `bet hangman`, `bet tictactoe`, … |
+
+## Multiplayer (virtual points)
 
 ```bash
-/b$t
+# Terminal A
+bet host --stake 10 --name alice
+
+# Terminal B (use room code printed by host)
+bet join ROOMCODE --stake 10 --name bob --addr 127.0.0.1:7733
+
+bet balance   # local virtual ledger
 ```
 
-1. **Select your game:** Tic-Tac-Toe, Hangman, The Matrix, Pong, and more from the hub menu.
-2. **Play:** Use the `Arrow Keys` (or `WASD`) to move the cursor, and press `Enter` or `Space` to make your move.
-3. **Exit:** Press `Q` or `Esc` to instantly close the overlay and return to the chat stream.
+Stakes are **virtual points only** (default grant 1000). Ledger file is under the OS config dir (`…/xyz.lyffseba.bet/ledger.json`).
 
-## 🛠️ Architecture Pivot
+## Status
 
-This project previously existed as a standalone Rust application built with `ratatui`. To provide the ultimate AI developer experience, it has been completely rewritten in TypeScript to run natively within `pi`'s custom TUI rendering engine.
+- **Alpha** (`2.0.0-alpha.0`): monorepo + **tic-tac-toe multiplayer host/join with stakes**.
+- **Next:** hangman/pong MP (E2-S6+), WASM for pi (E3), Nostr discovery (E5).
 
-The original Rust source code has been safely archived in the `legacy_rust/` directory for reference during the porting process.
+## License
 
-## 🤝 Contributing
-
-We are currently porting the remaining games from the Rust engine to TypeScript. Pull requests are welcome!
+MIT

@@ -1,0 +1,20 @@
+[package]
+name = "bet-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Pure, deterministic game rules and virtual-points ledger for BET"
+readme = "README.md"
+keywords = ["games", "terminal", "deterministic"]
+categories = ["game-development"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[dev-dependencies]

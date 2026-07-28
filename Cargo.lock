@@ -52,15 +52,35 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bet-cli"
-version = "1.0.0"
+version = "2.0.0-alpha.0"
 dependencies = [
+ "bet-core",
+ "bet-protocol",
  "crossterm 0.28.1",
  "directories",
  "open",
  "qrcode",
  "rand",
  "ratatui",
+ "serde",
+ "serde_json",
  "shakmaty",
+]
+
+[[package]]
+name = "bet-core"
+version = "2.0.0-alpha.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "bet-protocol"
+version = "2.0.0-alpha.0"
+dependencies = [
+ "bet-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
