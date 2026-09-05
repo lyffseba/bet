@@ -56,6 +56,7 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E3-S5 | Pi multiplayer overlay | todo |
 | E3-S6 | MCP stdio host (`packages/bet-mcp`) via bet-ts WASM | **done** (first cut) |
 | E3-S7 | Shared WASM play facade (`@lyffseba/bet-ts/play`) for MCP / OpenCode / pi | **done** |
+| E3-S8 | MCP `bet_host` / `bet_join` thin CLI bridge (native `bet`; no TS protocol) | **done** |
 
 ## EPIC 4 — OpenCode live
 
@@ -65,7 +66,7 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E4-S3 | OpenCode ttt/hangman in-process via shared play facade | **done** |
 | E4-S4–S6 | Toast polish, publish, MP args | todo |
 
-MCP (E3-S6) and OpenCode (E4-S3) both call `@lyffseba/bet-ts/play`. CLI spawn remains only for games not yet in WASM.
+MCP (E3-S6) and OpenCode (E4-S3) both call `@lyffseba/bet-ts/play` for solo ttt/hangman. MCP E3-S8 adds `bet_host` / `bet_join` as a thin spawn of the native `bet` CLI (Rust protocol owns MP; no TS rule fork). OpenCode CLI spawn remains only for games not yet in WASM.
 
 ## EPIC 5 — Nostr discovery
 

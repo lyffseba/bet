@@ -1,7 +1,7 @@
 {
   "name": "@lyffseba/bet-mcp",
   "version": "2.0.0-alpha.0",
-  "description": "MCP stdio server: play BET hangman/ttt in-process via WASM (virtual points only)",
+  "description": "MCP stdio server: WASM hangman/ttt plus thin bet host/join CLI bridge (virtual points only)",
   "license": "MIT",
   "type": "module",
   "main": "src/index.ts",
@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types test/cli.mts",
     "start": "node --experimental-strip-types src/index.ts"
   },
   "dependencies": {

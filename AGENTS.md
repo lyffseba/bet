@@ -10,7 +10,7 @@ crates/bet-wasm        wasm-bindgen surface over bet-core
 packages/bet-ts        TS7 loader + pkg/ (built WASM) + `/play` facade
 packages/bet-pi        pi extension (/b$t) — hangman/ttt via `@lyffseba/bet-ts/play`
 packages/bet-opencode  OpenCode plugin — ttt/hangman in-process WASM
-packages/bet-mcp       MCP stdio (Codex / Claude Code) — hangman/ttt via `/play`
+packages/bet-mcp       MCP stdio — hangman/ttt via `/play`; host/join via `bet` CLI
 docs/                  EPICS, QUALITY, NOSTR
 ```
 

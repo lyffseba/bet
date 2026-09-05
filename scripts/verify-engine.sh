@@ -48,5 +48,8 @@ echo "==> multiplayer e2e"
 cargo build -q -p bet-cli --release
 bash scripts/e2e-mp.sh
 
+echo "==> mcp CLI bridge (spawn bet host/join; no TS protocol)"
+BET_BIN="$ROOT/target/release/bet" node --experimental-strip-types packages/bet-mcp/test/cli.mts
+
 echo ""
 echo "verify-engine: OK"
