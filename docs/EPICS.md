@@ -54,6 +54,7 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E3-S3 | Pi hangman/ttt use WASM | **done** |
 | E3-S4 | CI wasm + goldens | **done** |
 | E3-S5 | Pi multiplayer overlay | todo |
+| E3-S6 | MCP stdio host (`packages/bet-mcp`) via bet-ts WASM | **done** (first cut) |
 
 ## EPIC 4 — OpenCode live
 
@@ -61,6 +62,8 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 |----|-------|--------|
 | E4-S1–S2 | Plugin scaffold + tools | done (alpha stub) |
 | E4-S3–S6 | Toast polish, publish, MP args | todo |
+
+Universal host first cut is MCP (E3-S6), not OpenCode. OpenCode stays the CLI-spawn stub.
 
 ## EPIC 5 — Nostr discovery
 

@@ -2,13 +2,13 @@
   "name": "bet-monorepo",
   "version": "2.0.0-alpha.0",
   "private": true,
-  "description": "BET monorepo: Rust core + CLI, pi extension, OpenCode plugin",
+  "description": "BET monorepo: Rust core + CLI, pi extension, OpenCode plugin, MCP server",
   "license": "MIT",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "npm run typecheck -w @lyffseba/bet-ts && npm run typecheck -w bet-pi-hub && npm run typecheck -w bet-opencode",
+    "typecheck": "npm run typecheck -w @lyffseba/bet-ts && npm run typecheck -w bet-pi-hub && npm run typecheck -w bet-opencode && npm run typecheck -w @lyffseba/bet-mcp",
     "test:rust": "cargo test -p bet-core",
     "build:cli": "cargo build -p bet-cli --release"
   },

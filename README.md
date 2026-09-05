@@ -17,7 +17,8 @@
 | **`bet` CLI** | Full ratatui hub; upcoming `host` / `join` multiplayer |
 | **pi extension** | `/b$t` overlay while coding |
 | **OpenCode plugin** | `bet_play` / `bet_status` tools + idle toast |
-| **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` → pi hangman/ttt |
+| **MCP stdio** | `@lyffseba/bet-mcp` — hangman/ttt via WASM (Claude Code, Codex, …) |
+| **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` → pi / MCP hangman/ttt |
 | **Nostr** | Room discovery only (Epic 5) — not the tick path |
 
 **Betting is virtual points only** in v1 (no real money).
@@ -51,6 +52,7 @@ crates/bet-cli         Terminal UI binary
 packages/bet-ts        TypeScript 7 types / WASM loader stub
 packages/bet-pi        pi package (bet-pi-hub)
 packages/bet-opencode  OpenCode plugin
+packages/bet-mcp       MCP stdio server (WASM hangman/ttt)
 docs/                  Epics, quality bar, Nostr notes
 ```
 
@@ -60,6 +62,7 @@ docs/                  Epics, quality bar, Nostr notes
 |------|-----|
 | **pi** | `pi install .` then `/b$t` |
 | **OpenCode** | plugin `bet-opencode` → tools `bet_status`, `bet_play` |
+| **MCP** | `@lyffseba/bet-mcp` stdio → `bet_status`, `bet_play` (WASM, not CLI) |
 | **CLI** | `bet`, `bet hangman`, `bet tictactoe`, … |
 
 ## Multiplayer (virtual points)
