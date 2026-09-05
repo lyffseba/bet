@@ -11,6 +11,26 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Fast MCP typecheck: same `tsc` as verify-engine.sh `npm run typecheck`,
+  # but fails loud without waiting for a full OS matrix cell. Runs in parallel
+  # with verify-engine (matrix fail-fast is already false).
+  mcp-typecheck:
+    name: mcp-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: npm install
+        run: npm install
+
+      - name: typecheck @lyffseba/bet-mcp
+        run: npm run typecheck -w @lyffseba/bet-mcp
+
   # Full integrity gate on every cell. Do not split verify-engine.sh.
   # windows-latest omitted: the gate is Unix bash (verify-engine.sh, build-wasm.sh,
   # e2e-mp.sh job control + python3) and the wasm-pack installer is a shell script.
