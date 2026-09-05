@@ -12,11 +12,15 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@lyffseba/bet-ts": "*"
+  },
   "peerDependencies": {
     "@opencode-ai/plugin": "*"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "latest",
+    "@types/node": "^22.0.0",
     "typescript": "^7.0.2"
   },
   "keywords": ["opencode", "plugin", "bet", "terminal-games"]

@@ -2,7 +2,7 @@
 
 First-cut [MCP](https://modelcontextprotocol.io) stdio server so BET is playable from **Claude Code**, **Codex**, and any other MCP host.
 
-Rules come from **`@lyffseba/bet-ts` (Rust WASM)**. This package does **not** reimplement hangman/ttt and does **not** spawn the `bet` CLI. Stakes are **virtual points only**.
+Rules come from **`@lyffseba/bet-ts` (Rust WASM)**. Play/status helpers live in the shared facade **`@lyffseba/bet-ts/play`**. This package does **not** reimplement hangman/ttt and does **not** spawn the `bet` CLI. Stakes are **virtual points only**.
 
 ## Tools
 
@@ -95,4 +95,4 @@ Then `/mcp` in a Codex session to confirm `bet_status` and `bet_play` are listed
 
 - One in-memory session per game per server process (the host owns process lifetime).
 - Multiplayer `bet host` / `bet join` is **not** wired here yet.
-- OpenCode remains a separate CLI-spawn stub (`packages/bet-opencode`); this package is the WASM host for MCP.
+- OpenCode (`packages/bet-opencode`) imports the same `@lyffseba/bet-ts/play` facade for ttt/hangman (CLI spawn only for games not yet in WASM).

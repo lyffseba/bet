@@ -27,7 +27,7 @@ Every change touching `bet-core` or multiplayer protocol must pass this checklis
 
 ## Hosts
 
-- [ ] Pi / OpenCode / MCP do not reimplement hangman/ttt rules (WASM or CLI spawn)
+- [ ] Pi / OpenCode / MCP do not reimplement hangman/ttt rules (`@lyffseba/bet-ts/play`; CLI spawn only for games not yet in WASM)
 - [ ] TypeScript 7 typecheck green for packages
 - [ ] `protocols/fixtures/wasm_goldens.json` == `ENGINE_GOLDENS` == Rust tests == WASM
 - [ ] RNG: full u64 samples + rejection sampling; never `(next_u64() as usize) % n`

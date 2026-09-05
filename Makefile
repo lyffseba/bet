@@ -28,6 +28,7 @@ wasm:
 
 goldens: wasm
 	cd packages/bet-ts && node --experimental-strip-types test/goldens.mts
+	cd packages/bet-ts && node --experimental-strip-types test/play.mts
 
 verify:
 	bash scripts/verify-engine.sh

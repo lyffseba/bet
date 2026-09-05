@@ -9,7 +9,8 @@
     "forceConsistentCasingInFileNames": true,
     "rootDir": "./src",
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*"]
 }
