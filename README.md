@@ -16,9 +16,9 @@
 | **`bet-core` (Rust)** | Single rules engine + virtual ledger (Carmack/Bellard quality bar) |
 | **`bet` CLI** | Full ratatui hub; upcoming `host` / `join` multiplayer |
 | **pi extension** | `/b$t` overlay while coding |
-| **OpenCode plugin** | `bet_play` / `bet_status` tools + idle toast |
+| **OpenCode plugin** | `bet_play` / `bet_status` — ttt/hangman in-process WASM |
 | **MCP stdio** | `@lyffseba/bet-mcp` — hangman/ttt via WASM (Claude Code, Codex, …) |
-| **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` → pi / MCP hangman/ttt |
+| **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` (+ `/play` facade) → pi / MCP / OpenCode |
 | **Nostr** | Room discovery only (Epic 5) — not the tick path |
 
 **Betting is virtual points only** in v1 (no real money).
@@ -49,9 +49,9 @@ pi install .
 ```
 crates/bet-core        Pure hangman, tictactoe, ledger, seeded RNG
 crates/bet-cli         Terminal UI binary
-packages/bet-ts        TypeScript 7 types / WASM loader stub
+packages/bet-ts        TypeScript 7 WASM loader + `@lyffseba/bet-ts/play` facade
 packages/bet-pi        pi package (bet-pi-hub)
-packages/bet-opencode  OpenCode plugin
+packages/bet-opencode  OpenCode plugin (WASM ttt/hangman)
 packages/bet-mcp       MCP stdio server (WASM hangman/ttt)
 docs/                  Epics, quality bar, Nostr notes
 ```
@@ -61,7 +61,7 @@ docs/                  Epics, quality bar, Nostr notes
 | Host | How |
 |------|-----|
 | **pi** | `pi install .` then `/b$t` |
-| **OpenCode** | plugin `bet-opencode` → tools `bet_status`, `bet_play` |
+| **OpenCode** | plugin `bet-opencode` → `bet_status`, `bet_play` (WASM ttt/hangman; no CLI spawn) |
 | **MCP** | `@lyffseba/bet-mcp` stdio → `bet_status`, `bet_play` (WASM, not CLI) |
 | **CLI** | `bet`, `bet hangman`, `bet tictactoe`, … |
 
@@ -107,7 +107,7 @@ make wasm     # rebuild bet-wasm → packages/bet-ts/pkg
 ## Status
 
 - **Alpha** (`2.0.0-alpha.0`): monorepo + **tic-tac-toe and hangman multiplayer host/join with stakes**.
-- **Next:** pong MP (E2-S8), WASM for pi (E3), Nostr discovery (E5).
+- **Next:** pong MP (E2-S8), Nostr discovery (E5).
 
 ## License
 

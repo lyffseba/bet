@@ -5,7 +5,6 @@ import * as path from "node:path";
 import * as os from "node:os";
 import {
 	assertEngineIntegrity,
-	boardToGrid,
 	cellIndex,
 	createHangman,
 	createTtt,
@@ -14,6 +13,7 @@ import {
 	type WasmHangman,
 	type WasmTtt,
 } from "@lyffseba/bet-ts";
+import { freeEngine, viewHangman, viewTtt } from "@lyffseba/bet-ts/play";
 
 type Game = "menu" | "tictactoe" | "hangman" | "recommender" | "matrix" | "pong";
 
@@ -484,17 +484,8 @@ class BetNativeComponent {
 		}
 	}
 
-	private freeEngine(engine: { free(): void } | null) {
-		if (!engine) return;
-		try {
-			engine.free();
-		} catch {
-			// already freed
-		}
-	}
-
 	private resetTicTacToe() {
-		this.freeEngine(this.ttt);
+		freeEngine(this.ttt);
 		this.ttt = createTtt(timeSeed());
 		this.cursorX = 1;
 		this.cursorY = 1;
@@ -503,28 +494,29 @@ class BetNativeComponent {
 
 	private syncTttFromEngine() {
 		if (!this.ttt) return;
-		this.board = boardToGrid(this.ttt.board());
-		const st = this.ttt.status();
-		this.winner = st === "win_x" ? "X" : st === "win_o" ? "O" : null;
-		this.draw = st === "draw";
-		this.currentPlayer = this.ttt.current().toUpperCase();
+		const v = viewTtt(this.ttt);
+		this.board = v.grid;
+		this.winner = v.status === "win_x" ? "X" : v.status === "win_o" ? "O" : null;
+		this.draw = v.status === "draw";
+		this.currentPlayer = v.current.toUpperCase();
 	}
 
 	private resetHangman() {
-		this.freeEngine(this.hangman);
+		freeEngine(this.hangman);
 		this.hangman = createHangman(HANGMAN_WORDS, timeSeed(), 6);
 		this.syncHangmanFromEngine();
 	}
 
 	private syncHangmanFromEngine() {
 		if (!this.hangman) return;
-		this.hangmanWord = this.hangman.word();
-		this.hangmanDisplay = this.hangman.display_word();
-		this.hangmanAttemptsLeft = this.hangman.attempts_left();
-		this.hangmanOver = this.hangman.is_over();
-		this.hangmanWon = this.hangman.is_won();
-		const g = this.hangman.guessed();
-		this.hangmanGuessed = new Set(g ? g.split("") : []);
+		const v = viewHangman(this.hangman);
+		// Secret stays omitted until the engine reports game over (shared facade contract).
+		this.hangmanWord = v.word ?? "";
+		this.hangmanDisplay = v.display;
+		this.hangmanAttemptsLeft = v.attempts_left;
+		this.hangmanOver = v.over;
+		this.hangmanWon = v.won;
+		this.hangmanGuessed = new Set(v.guessed ? v.guessed.split("") : []);
 	}
 
 	private resetRecommender() {

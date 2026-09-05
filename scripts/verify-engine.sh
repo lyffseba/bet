@@ -20,6 +20,9 @@ bash scripts/build-wasm.sh
 echo "==> JS goldens (must match protocols/fixtures/wasm_goldens.json)"
 node --experimental-strip-types packages/bet-ts/test/goldens.mts
 
+echo "==> play facade (secret omitted until over)"
+node --experimental-strip-types packages/bet-ts/test/play.mts
+
 echo "==> Rust goldens example must match fixture"
 FIX="$ROOT/protocols/fixtures/wasm_goldens.json"
 H_WANT=$(python3 -c "import json;print(json.load(open('$FIX'))['hangman']['hash'])")
