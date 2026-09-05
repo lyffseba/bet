@@ -5,21 +5,45 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel superseded PR runs; leave in-progress main runs alone.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Full integrity gate on every cell. Do not split verify-engine.sh.
+  # windows-latest omitted: the gate is Unix bash (verify-engine.sh, build-wasm.sh,
+  # e2e-mp.sh job control + python3) and the wasm-pack installer is a shell script.
+  # That path has not been verified as a full Windows gate.
+  # Rust stays `stable` only: no MSRV is documented, and a beta cell would flake
+  # under `clippy -D warnings` when new lints land. Node stays 22.
   verify-engine:
-    runs-on: ubuntu-latest
+    name: verify-engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
           targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+
       - name: install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: npm install
         run: npm install
+
       - name: verify-engine (full integrity gate)
         run: bash scripts/verify-engine.sh

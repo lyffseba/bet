@@ -16,7 +16,7 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E0-S2 | `bet-core` ttt + hangman + ledger | done (alpha) |
 | E0-S3 | `packages/*` + pi migrate | done (alpha) |
 | E0-S4 | TypeScript 7 toolchain | in progress |
-| E0-S5 | CI matrix | next |
+| E0-S5 | CI matrix | **done** (ubuntu+macos stable / Node 22; Windows omitted — bash gate) |
 | E0-S6 | Docs EPICS/QUALITY/AGENTS | done (alpha) |
 
 ## EPIC 1 — Core quality (Carmack × Bellard)
