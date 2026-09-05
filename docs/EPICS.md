@@ -55,15 +55,17 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E3-S4 | CI wasm + goldens | **done** |
 | E3-S5 | Pi multiplayer overlay | todo |
 | E3-S6 | MCP stdio host (`packages/bet-mcp`) via bet-ts WASM | **done** (first cut) |
+| E3-S7 | Shared WASM play facade (`@lyffseba/bet-ts/play`) for MCP / OpenCode / pi | **done** |
 
 ## EPIC 4 — OpenCode live
 
 | ID | Story | Status |
 |----|-------|--------|
 | E4-S1–S2 | Plugin scaffold + tools | done (alpha stub) |
-| E4-S3–S6 | Toast polish, publish, MP args | todo |
+| E4-S3 | OpenCode ttt/hangman in-process via shared play facade | **done** |
+| E4-S4–S6 | Toast polish, publish, MP args | todo |
 
-Universal host first cut is MCP (E3-S6), not OpenCode. OpenCode stays the CLI-spawn stub.
+MCP (E3-S6) and OpenCode (E4-S3) both call `@lyffseba/bet-ts/play`. CLI spawn remains only for games not yet in WASM.
 
 ## EPIC 5 — Nostr discovery
 
