@@ -26,7 +26,7 @@ pub fn get_scores() -> Vec<ScoreEntry> {
                         });
                     }
             }
-            scores.sort_by(|a, b| b.score.cmp(&a.score));
+            scores.sort_by_key(|a| std::cmp::Reverse(a.score));
             return scores;
         }
     }
@@ -41,7 +41,7 @@ pub fn save_score(entry: ScoreEntry) {
         
         let mut scores = get_scores();
         scores.push(entry);
-        scores.sort_by(|a, b| b.score.cmp(&a.score));
+        scores.sort_by_key(|a| std::cmp::Reverse(a.score));
         scores.truncate(50); // Keep top 50
         
         let mut content = String::new();
