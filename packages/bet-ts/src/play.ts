@@ -17,7 +17,7 @@ import {
   toSeed,
   type HangmanHandle,
   type TttHandle,
-} from "./index.ts";
+} from "@lyffseba/bet-ts";
 
 /** Same NATO bank as `bet-protocol` when the CLI does not pin a word. */
 export const DEFAULT_HANGMAN_WORDS = [
