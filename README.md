@@ -17,7 +17,7 @@
 | **`bet` CLI** | Full ratatui hub; upcoming `host` / `join` multiplayer |
 | **pi extension** | `/b$t` overlay while coding |
 | **OpenCode plugin** | `bet_play` / `bet_status` — ttt/hangman in-process WASM |
-| **MCP stdio** | `@lyffseba/bet-mcp` — hangman/ttt via WASM (Claude Code, Codex, …) |
+| **MCP stdio** | `@lyffseba/bet-mcp` — hangman/ttt via WASM; host/join via native `bet` CLI |
 | **WASM + TS7** | `bet-wasm` → `@lyffseba/bet-ts` (+ `/play` facade) → pi / MCP / OpenCode |
 | **Nostr** | Room discovery only (Epic 5) — not the tick path |
 
@@ -52,7 +52,7 @@ crates/bet-cli         Terminal UI binary
 packages/bet-ts        TypeScript 7 WASM loader + `@lyffseba/bet-ts/play` facade
 packages/bet-pi        pi package (bet-pi-hub)
 packages/bet-opencode  OpenCode plugin (WASM ttt/hangman)
-packages/bet-mcp       MCP stdio server (WASM hangman/ttt)
+packages/bet-mcp       MCP stdio server (WASM hangman/ttt + CLI host/join)
 docs/                  Epics, quality bar, Nostr notes
 ```
 
@@ -62,7 +62,7 @@ docs/                  Epics, quality bar, Nostr notes
 |------|-----|
 | **pi** | `pi install .` then `/b$t` |
 | **OpenCode** | plugin `bet-opencode` → `bet_status`, `bet_play` (WASM ttt/hangman; no CLI spawn) |
-| **MCP** | `@lyffseba/bet-mcp` stdio → `bet_status`, `bet_play` (WASM, not CLI) |
+| **MCP** | `@lyffseba/bet-mcp` stdio → `bet_status`, `bet_play` (WASM); `bet_host` / `bet_join` (native `bet` CLI) |
 | **CLI** | `bet`, `bet hangman`, `bet tictactoe`, … |
 
 ## Multiplayer (virtual points)
