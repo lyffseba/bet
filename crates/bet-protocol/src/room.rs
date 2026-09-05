@@ -3,7 +3,8 @@
 use bet_core::ledger::{Ledger, LedgerError};
 use bet_core::tictactoe::{GameStatus, Player, TicTacToe};
 
-use crate::msg::{cell_char, status_str, ClientMsg, Role, ServerMsg};
+use crate::msg::{cell_char, status_str, ClientMsg, GameKind, Role, ServerMsg};
+use crate::table::Table;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
@@ -17,19 +18,48 @@ pub enum RoomError {
     BadCode,
     Full,
     WrongPhase,
+    /// Place sent to hangman, Guess sent to ttt, etc.
+    WrongAction,
     NotYourTurn,
     IllegalMove,
-    Ledger(String),
+    Ledger(bet_core::ledger::LedgerError),
+    SamePlayer,
+    EmptyWord,
+    EmptyWordList,
     UnknownPlayer,
     AlreadyStarted,
     BadProto(u32),
     InvalidStake,
     InvalidCode,
+    GameMismatch { room: crate::msg::GameKind, guest: crate::msg::GameKind },
+    StakeMismatch { need: i64, got: i64 },
 }
 
 impl std::fmt::Display for RoomError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        match self {
+            RoomError::BadCode => write!(f, "room code mismatch"),
+            RoomError::Full => write!(f, "room is full"),
+            RoomError::WrongPhase => write!(f, "wrong phase for this action"),
+            RoomError::WrongAction => write!(f, "action does not belong to this game"),
+            RoomError::NotYourTurn => write!(f, "not your turn"),
+            RoomError::IllegalMove => write!(f, "illegal move"),
+            RoomError::Ledger(e) => write!(f, "ledger: {e:?}"),
+            RoomError::SamePlayer => write!(f, "guest id must differ from host"),
+            RoomError::EmptyWord => write!(f, "hangman word has no letters"),
+            RoomError::EmptyWordList => write!(f, "empty hangman word list"),
+            RoomError::UnknownPlayer => write!(f, "unknown player"),
+            RoomError::AlreadyStarted => write!(f, "match already started"),
+            RoomError::BadProto(v) => write!(f, "unsupported proto {v}"),
+            RoomError::InvalidStake => write!(f, "stake must be > 0"),
+            RoomError::InvalidCode => write!(f, "room code must be 4–8 alphanumeric"),
+            RoomError::GameMismatch { room, guest } => {
+                write!(f, "game mismatch: this room is {room}, guest asked for {guest}")
+            }
+            RoomError::StakeMismatch { need, got } => {
+                write!(f, "stake mismatch: this room needs {need}, guest offered {got}")
+            }
+        }
     }
 }
 
@@ -37,7 +67,7 @@ impl std::error::Error for RoomError {}
 
 impl From<LedgerError> for RoomError {
     fn from(e: LedgerError) -> Self {
-        RoomError::Ledger(format!("{e:?}"))
+        RoomError::Ledger(e)
     }
 }
 
@@ -50,7 +80,7 @@ pub struct RoomEvent {
 }
 
 impl RoomEvent {
-    fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Self {
             to_host: Vec::new(),
             to_guest: Vec::new(),
@@ -60,14 +90,8 @@ impl RoomEvent {
 
 /// One host + one guest, tic-tac-toe, virtual pot.
 pub struct TttRoom {
-    pub room_code: String,
-    pub match_id: String,
-    pub host_id: String,
-    pub guest_id: Option<String>,
-    pub stake: i64,
-    pub phase: Phase,
+    pub table: Table,
     pub game: TicTacToe,
-    pub ledger: Ledger,
 }
 
 impl TttRoom {
@@ -75,141 +99,68 @@ impl TttRoom {
         room_code: impl Into<String>,
         host_id: impl Into<String>,
         stake: i64,
-        mut ledger: Ledger,
+        ledger: Ledger,
     ) -> Result<Self, RoomError> {
-        if stake <= 0 {
-            return Err(RoomError::InvalidStake);
-        }
-        let room_code = normalize_code(room_code.into())?;
-        let host_id = host_id.into();
-        if host_id.trim().is_empty() {
-            return Err(RoomError::UnknownPlayer);
-        }
-        let match_id = format!("m-{}", room_code.to_lowercase());
-        ledger.ensure_player(host_id.clone());
-        ledger.stake(&match_id, host_id.clone(), stake)?;
         Ok(Self {
-            room_code,
-            match_id,
-            host_id,
-            guest_id: None,
-            stake,
-            phase: Phase::WaitingForGuest,
+            table: Table::open(room_code, host_id, stake, ledger)?,
             game: TicTacToe::new(),
-            ledger,
         })
     }
 
+    pub fn room_code(&self) -> &str {
+        self.table.room_code()
+    }
+    pub fn match_id(&self) -> &str {
+        self.table.match_id()
+    }
+    pub fn host_id(&self) -> &str {
+        self.table.host_id()
+    }
     pub fn guest_id(&self) -> Option<&str> {
-        self.guest_id.as_deref()
+        self.table.guest_id()
+    }
+    pub fn phase(&self) -> Phase {
+        self.table.phase()
+    }
+    pub fn ledger(&self) -> &Ledger {
+        self.table.ledger()
     }
 
-    pub fn accept_guest(&mut self, guest_id: impl Into<String>, stake: i64) -> Result<RoomEvent, RoomError> {
-        if self.phase != Phase::WaitingForGuest {
-            return Err(RoomError::AlreadyStarted);
-        }
-        if self.guest_id.is_some() {
-            return Err(RoomError::Full);
-        }
-        if stake != self.stake {
-            return Err(RoomError::Ledger(format!(
-                "stake mismatch: need {}, got {}",
-                self.stake, stake
-            )));
-        }
-        let guest_id = guest_id.into();
-        if guest_id == self.host_id {
-            return Err(RoomError::Ledger("guest id must differ from host".into()));
-        }
-        self.ledger.ensure_player(guest_id.clone());
-        self.ledger.stake(&self.match_id, guest_id.clone(), stake)?;
-        self.guest_id = Some(guest_id.clone());
-        self.phase = Phase::Playing;
+    pub fn host_turn(&self) -> bool {
+        self.game.current == Player::X
+    }
 
-        let mut ev = RoomEvent::empty();
-        ev.to_host.push(ServerMsg::PeerJoined {
-            player_id: guest_id.clone(),
-        });
-        ev.to_host.push(ServerMsg::Welcome {
-            player_id: self.host_id.clone(),
-            role: Role::X,
-            stake: self.stake,
-            match_id: self.match_id.clone(),
-            room_code: self.room_code.clone(),
-            proto: crate::msg::PROTOCOL_VERSION,
-        });
-        ev.to_guest.push(ServerMsg::Welcome {
-            player_id: guest_id,
-            role: Role::O,
-            stake: self.stake,
-            match_id: self.match_id.clone(),
-            room_code: self.room_code.clone(),
-            proto: crate::msg::PROTOCOL_VERSION,
-        });
-        let state_h = self.state_msg(true);
-        let state_g = self.state_msg(false);
-        ev.to_host.push(state_h);
-        ev.to_guest.push(state_g);
-        Ok(ev)
+    pub fn accept_guest(
+        &mut self,
+        guest_id: impl Into<String>,
+        stake: i64,
+    ) -> Result<RoomEvent, RoomError> {
+        let guest_id = self.table.accept_guest(guest_id, stake)?;
+        Ok(self.table.join_events(&guest_id, GameKind::Ttt, |h| self.state_msg(h)))
     }
 
     pub fn handle(&mut self, from_host: bool, msg: ClientMsg) -> Result<RoomEvent, RoomError> {
         match msg {
-            ClientMsg::Hello {
-                player_id,
-                room_code,
-                stake,
-                proto,
-            } => {
-                if from_host {
-                    return Err(RoomError::WrongPhase);
-                }
-                if proto != crate::msg::PROTOCOL_VERSION {
-                    return Err(RoomError::BadProto(proto));
-                }
-                let code = normalize_code(room_code)?;
-                if code != self.room_code {
-                    return Err(RoomError::BadCode);
-                }
-                self.accept_guest(player_id, stake)
+            hello @ ClientMsg::Hello { .. } => {
+                let guest = self.table.hello(from_host, GameKind::Ttt, hello)?;
+                Ok(self.table.join_events(&guest, GameKind::Ttt, |h| self.state_msg(h)))
             }
             ClientMsg::Place { index } => self.place(from_host, index as usize),
+            ClientMsg::Guess { .. } => Err(RoomError::WrongAction),
             ClientMsg::Resign => self.resign(from_host),
-            ClientMsg::Ping => {
-                let mut ev = RoomEvent::empty();
-                if from_host {
-                    ev.to_host.push(ServerMsg::Pong);
-                } else {
-                    ev.to_guest.push(ServerMsg::Pong);
-                }
-                Ok(ev)
-            }
+            ClientMsg::Ping => Ok(self.table.ping(from_host)),
         }
     }
 
     /// Peer dropped mid-match: the disconnected side forfeits.
     pub fn disconnect(&mut self, from_host: bool) -> Result<RoomEvent, RoomError> {
-        if self.phase != Phase::Playing {
-            return Err(RoomError::WrongPhase);
-        }
+        self.table.must_be_playing()?;
         self.resign(from_host)
     }
 
-    fn player_of(&self, from_host: bool) -> Result<Player, RoomError> {
-        if from_host {
-            Ok(Player::X)
-        } else if self.guest_id.is_some() {
-            Ok(Player::O)
-        } else {
-            Err(RoomError::UnknownPlayer)
-        }
-    }
-
     fn place(&mut self, from_host: bool, index: usize) -> Result<RoomEvent, RoomError> {
-        if self.phase != Phase::Playing {
-            return Err(RoomError::WrongPhase);
-        }
-        let player = self.player_of(from_host)?;
+        self.table.must_be_playing()?;
+        let player = Player::from(self.table.role_of(from_host)?);
         if self.game.current != player {
             return Err(RoomError::NotYourTurn);
         }
@@ -220,9 +171,7 @@ impl TttRoom {
     }
 
     fn resign(&mut self, from_host: bool) -> Result<RoomEvent, RoomError> {
-        if self.phase != Phase::Playing {
-            return Err(RoomError::WrongPhase);
-        }
+        self.table.must_be_playing()?;
         let winner = if from_host { Player::O } else { Player::X };
         self.game.status = GameStatus::Win(winner);
         self.finish(Some(winner))
@@ -230,49 +179,16 @@ impl TttRoom {
 
     fn after_move(&mut self) -> Result<RoomEvent, RoomError> {
         match self.game.status {
-            GameStatus::Ongoing => {
-                let mut ev = RoomEvent::empty();
-                ev.to_host.push(self.state_msg(true));
-                ev.to_guest.push(self.state_msg(false));
-                Ok(ev)
-            }
+            GameStatus::Ongoing => Ok(self.table.broadcast_state(|h| self.state_msg(h))),
             GameStatus::Win(p) => self.finish(Some(p)),
             GameStatus::Draw => self.finish(None),
         }
     }
 
     fn finish(&mut self, winner: Option<Player>) -> Result<RoomEvent, RoomError> {
-        self.phase = Phase::Ended;
-        let winner_id = match winner {
-            Some(Player::X) => Some(self.host_id.clone()),
-            Some(Player::O) => self.guest_id.clone(),
-            None => None,
-        };
-        let pot_before = self.ledger.open_pot(&self.match_id);
-        self.ledger
-            .settle(&self.match_id, winner_id.as_deref())?;
-        let bal_h = self.ledger.balance(&self.host_id);
-        let bal_g = self
-            .guest_id
-            .as_ref()
-            .map(|g| self.ledger.balance(g))
-            .unwrap_or(0);
-
-        let ended = ServerMsg::MatchEnded {
-            winner: winner.map(Role::from),
-            pot: pot_before,
-            winner_id,
-            host_id: self.host_id.clone(),
-            guest_id: self.guest_id.clone(),
-            balance_host: bal_h,
-            balance_guest: bal_g,
-        };
-        let mut ev = RoomEvent::empty();
-        ev.to_host.push(self.state_msg(true));
-        ev.to_guest.push(self.state_msg(false));
-        ev.to_host.push(ended.clone());
-        ev.to_guest.push(ended);
-        Ok(ev)
+        let host = self.state_msg(true);
+        let guest = self.state_msg(false);
+        self.table.finish(winner.map(Role::from), None, host, guest)
     }
 
     fn state_msg(&self, for_host: bool) -> ServerMsg {
@@ -285,8 +201,8 @@ impl TttRoom {
             board,
             current: Role::from(self.game.current),
             status: status_str(self.game.status),
-            pot: self.ledger.open_pot(&self.match_id),
-            your_turn: self.phase == Phase::Playing && self.game.current == you,
+            pot: self.table.ledger().open_pot(self.table.match_id()),
+            your_turn: self.table.phase() == Phase::Playing && self.game.current == you,
             wins_x: self.game.wins,
             wins_o: self.game.losses,
             draws: self.game.draws,
@@ -324,10 +240,10 @@ mod tests {
     #[test]
     fn full_match_host_wins_and_settles() {
         let mut r = room();
-        assert_eq!(r.ledger.balance("host"), 90); // staked
+        assert_eq!(r.ledger().balance("host"), 90); // staked
         r.accept_guest("guest", 10).unwrap();
-        assert_eq!(r.ledger.balance("guest"), 90);
-        assert_eq!(r.ledger.open_pot(&r.match_id), 20);
+        assert_eq!(r.ledger().balance("guest"), 90);
+        assert_eq!(r.ledger().open_pot(r.match_id()), 20);
 
         // X 0, O 3, X 1, O 4, X 2 => X wins top row
         r.handle(true, ClientMsg::Place { index: 0 }).unwrap();
@@ -335,14 +251,14 @@ mod tests {
         r.handle(true, ClientMsg::Place { index: 1 }).unwrap();
         r.handle(false, ClientMsg::Place { index: 4 }).unwrap();
         let ev = r.handle(true, ClientMsg::Place { index: 2 }).unwrap();
-        assert_eq!(r.phase, Phase::Ended);
+        assert_eq!(r.phase(), Phase::Ended);
         assert!(
             ev.to_host
                 .iter()
                 .any(|m| matches!(m, ServerMsg::MatchEnded { winner: Some(Role::X), .. }))
         );
-        assert_eq!(r.ledger.balance("host"), 110);
-        assert_eq!(r.ledger.balance("guest"), 90);
+        assert_eq!(r.ledger().balance("host"), 110);
+        assert_eq!(r.ledger().balance("guest"), 90);
     }
 
     #[test]
@@ -366,7 +282,7 @@ mod tests {
         let mut r = room();
         r.accept_guest("guest", 10).unwrap();
         let ev = r.disconnect(false).unwrap(); // guest drops
-        assert_eq!(r.phase, Phase::Ended);
+        assert_eq!(r.phase(), Phase::Ended);
         assert!(ev.to_host.iter().any(|m| matches!(
             m,
             ServerMsg::MatchEnded {
@@ -374,8 +290,8 @@ mod tests {
                 ..
             }
         )));
-        assert_eq!(r.ledger.balance("host"), 110);
-        assert_eq!(r.ledger.balance("guest"), 90);
+        assert_eq!(r.ledger().balance("host"), 110);
+        assert_eq!(r.ledger().balance("guest"), 90);
     }
 
     #[test]
@@ -401,9 +317,9 @@ mod tests {
         for (h, i) in seq {
             r.handle(h, ClientMsg::Place { index: i }).unwrap();
         }
-        assert_eq!(r.phase, Phase::Ended);
-        assert_eq!(r.ledger.balance("host"), 100);
-        assert_eq!(r.ledger.balance("guest"), 100);
+        assert_eq!(r.phase(), Phase::Ended);
+        assert_eq!(r.ledger().balance("host"), 100);
+        assert_eq!(r.ledger().balance("guest"), 100);
     }
 
     #[test]

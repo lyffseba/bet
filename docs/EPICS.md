@@ -27,7 +27,7 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E1-S2 | Golden fixtures files | next |
 | E1-S3 | Pong integer physics in core | todo |
 | E1-S4 | Chess pure wrapper | todo |
-| E1-S5 | clippy -D on core | todo |
+| E1-S5 | clippy -D on core | **done** (gate runs `--all-targets` on core+protocol+cli) |
 | E1-S6 | PR quality checklist | todo |
 
 ## EPIC 2 — Multiplayer + virtual bets
@@ -40,7 +40,8 @@ Canonical backlog for the monorepo rebuild. Full cycles: **spec → implement �
 | E2-S4 | `bet host` / `bet join` | **done** (TCP, `BET_READY`, `CODE@addr`) |
 | E2-S5 | Stake UX | **done** (`--stake`, settle on end) |
 | E2-S6 | Disconnect forfeit + resign | **done** |
-| E2-S7–S8 | Hangman/Pong MP | todo |
+| E2-S7 | Hangman MP (host/join, virtual stakes, word off-wire until end) | **done** |
+| E2-S8 | Pong MP | todo |
 | E2-CI | clippy + multi-case e2e | **done** |
 | E2-UX | Numbered empty cells, proto v1 | **done** |
 

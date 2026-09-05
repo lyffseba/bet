@@ -80,14 +80,37 @@ mod tests {
 
     #[test]
     fn gen_range_matches_full_u64_when_no_reject() {
-        // For upper=3, almost all samples are accepted; first sample matches % 3.
+        // For upper=3 the accept limit equals u64::MAX (since u64::MAX % 3 == 0),
+        // so the only sample that would be rejected is u64::MAX itself.
         let mut rng = XorShift64::new(99);
         let first = rng.next_u64();
-        let limit = u64::MAX - (u64::MAX % 3);
-        if first < limit {
+        if first != u64::MAX {
             let mut rng2 = XorShift64::new(99);
             assert_eq!(rng2.gen_range(3) as u64, first % 3);
         }
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn gen_range_rejection_path_uses_next_accepted_sample() {
+        // upper = 2^63 + 1 => accept limit = 2^63 + 1, so ~50% of samples are
+        // rejected. Pick a seed whose FIRST sample rejects; gen_range must then
+        // return the first ACCEPTED sample reduced mod upper. A biased
+        // `next_u64() % upper` implementation would fail this test.
+        let upper = (1usize << 63) + 1;
+        let limit = u64::MAX - (u64::MAX % upper as u64);
+        let seed = (1u64..)
+            .find(|&s| XorShift64::new(s).next_u64() >= limit)
+            .expect("some seed must reject on the first sample");
+        // Replay the stream: first sample rejects, then take the first accepted one.
+        let mut seq = XorShift64::new(seed);
+        let mut accepted = seq.next_u64();
+        assert!(accepted >= limit, "seed selection guarantees first-sample rejection");
+        while accepted >= limit {
+            accepted = seq.next_u64();
+        }
+        let mut rng = XorShift64::new(seed);
+        assert_eq!(rng.gen_range(upper) as u64, accepted % upper as u64);
     }
 
     #[test]
@@ -103,7 +126,8 @@ mod tests {
         use crate::hangman::Hangman;
         let words = ["ALPHA", "BRAVO", "CHARLIE"];
         let h = Hangman::from_seed(99, &words, 6);
-        // After unbiased gen_range, word must stay pinned in fixture.
-        assert_eq!(h.word(), Hangman::from_seed(99, &words, 6).word());
+        // Pin the golden fixture value (protocols/fixtures/wasm_goldens.json):
+        // unbiased gen_range with seed 99 must select CHARLIE on every platform.
+        assert_eq!(h.word(), "CHARLIE");
     }
 }

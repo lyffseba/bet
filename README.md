@@ -67,16 +67,23 @@ docs/                  Epics, quality bar, Nostr notes
 ```bash
 # Terminal A
 bet host --stake 10 --name alice
-# prints: BET_READY room=XXXXXX port=7733 …
+# prints: BET_READY room=XXXXXX port=7733 … game=ttt
 
 # Terminal B
 bet join XXXXXX@127.0.0.1:7733 --stake 10 --name bob
 
+# Hangman (host pins the word for tests; otherwise a seeded pick)
+bet host --game hangman --word BET --stake 10 --name alice
+bet join XXXXXX@127.0.0.1:7733 --game hangman --stake 10 --name bob
+
 bet balance
 ```
 
-Empty cells show their index (`0`–`8`). Type the index to place; `q` resigns.  
-Disconnect mid-match counts as a forfeit. Stakes are **virtual points only** (grant 1000).
+Tic-tac-toe: empty cells show their index (`0`–`8`). Type the index to place.  
+Hangman: type a letter; a hit keeps your turn, a miss hands it over.  
+`q` resigns. Disconnect mid-match counts as a forfeit.  
+The secret word is never sent until `MATCH ENDED`.  
+Stakes are **virtual points only** (grant 1000).
 
 | Env / flag | Purpose |
 |------------|---------|
@@ -96,8 +103,8 @@ make wasm     # rebuild bet-wasm → packages/bet-ts/pkg
 
 ## Status
 
-- **Alpha** (`2.0.0-alpha.0`): monorepo + **tic-tac-toe multiplayer host/join with stakes**.
-- **Next:** hangman/pong MP (E2-S6+), WASM for pi (E3), Nostr discovery (E5).
+- **Alpha** (`2.0.0-alpha.0`): monorepo + **tic-tac-toe and hangman multiplayer host/join with stakes**.
+- **Next:** pong MP (E2-S8), WASM for pi (E3), Nostr discovery (E5).
 
 ## License
 

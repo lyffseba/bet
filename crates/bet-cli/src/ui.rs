@@ -60,6 +60,21 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+/// Like `centered_rect`, but grows the popup to at least `min_height` rows
+/// (vertically centered) when the screen is tall enough, so fixed-height
+/// content is never clipped by a too-small percentage on smaller terminals.
+fn centered_rect_min(percent_x: u16, percent_y: u16, min_height: u16, r: Rect) -> Rect {
+    let rect = centered_rect(percent_x, percent_y, r);
+    if rect.height >= min_height || r.height < min_height {
+        return rect;
+    }
+    Rect {
+        y: r.y + (r.height - min_height) / 2,
+        height: min_height,
+        ..rect
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum RecommenderCategory {
     Movie,
@@ -1265,13 +1280,8 @@ impl App {
         let Some(lang) = self.lang.clone() else { return };
 
         if code == KeyCode::Esc {
-            if p.stage == ParadoxStage::Complete {
-                self.paradox = None;
-                self.state = AppState::GameSelection;
-            } else {
-                self.paradox = None;
-                self.state = AppState::GameSelection;
-            }
+            self.paradox = None;
+            self.state = AppState::GameSelection;
             return;
         }
 
@@ -1527,6 +1537,59 @@ impl App {
         let b = 20.0 + (30.0 * sine);
         
         Color::Rgb(r as u8, g as u8, b as u8)
+    }
+
+    /// Standard bordered selector menu: bold header, blank line, options with
+    /// a breathing-mango cursor, and a dimmed go-back (always the LAST option,
+    /// preceded by a blank spacer line). Returns the widget plus the exact
+    /// popup height the content needs, for `centered_rect_min` — so the go-back
+    /// index and the popup height can never drift out of sync with the options.
+    fn menu_widget<'a>(
+        &self,
+        header: &'a str,
+        border_title: &'a str,
+        border_type: ratatui::widgets::BorderType,
+        options: &[&'a str],
+        cursor: usize,
+    ) -> (Paragraph<'a>, u16) {
+        let last = options.len().saturating_sub(1);
+        let mut text = vec![
+            Line::from(vec![Span::styled(
+                header,
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            )]),
+            Line::from(""),
+        ];
+        for (i, opt) in options.iter().enumerate() {
+            if i == last {
+                text.push(Line::from("")); // spacer before go-back
+            }
+            let style = if i == cursor {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(self.get_breathing_mango())
+                    .add_modifier(Modifier::BOLD)
+            } else if i == last {
+                Style::default().fg(Color::DarkGray)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            text.push(Line::from(vec![Span::styled(format!("  {opt}  "), style)]));
+        }
+        let paragraph = Paragraph::new(text).alignment(Alignment::Center).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(border_type)
+                .title(border_title)
+                .title_bottom(
+                    Line::from(" lyffseba.xyz ").alignment(Alignment::Right),
+                ),
+        );
+        // header + blank + spacer + options + top/bottom border
+        let content_height = options.len() as u16 + 5;
+        (paragraph, content_height)
     }
 
     fn draw(&self, f: &mut Frame) {
@@ -1900,120 +1963,25 @@ impl App {
             }
             AppState::GameSelection => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(80, 80, area);
-                    let text = vec![
-                        Line::from(vec![Span::styled(
-                            lang.menu_game_selection,
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::BOLD),
-                        )]),
-                        Line::from(""),
-                        Line::from(if self.game_cursor == 0 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_hangman),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_hangman),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(if self.game_cursor == 1 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_tictactoe),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_tictactoe),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(if self.game_cursor == 2 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_chess),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_chess),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(if self.game_cursor == 3 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_pong),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_pong),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(if self.game_cursor == 4 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_matrix),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_matrix),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(if self.game_cursor == 5 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_paradox),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_paradox),
-                                Style::default().fg(Color::White),
-                            )]
-                        }),
-                        Line::from(""),
-                        Line::from(if self.game_cursor == 6 {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_go_back),
-                                Style::default()
-                                    .fg(Color::Black)
-                                    .bg(self.get_breathing_mango())
-                                    .add_modifier(Modifier::BOLD),
-                            )]
-                        } else {
-                            vec![Span::styled(
-                                format!("  {}  ", lang.menu_go_back),
-                                Style::default().fg(Color::DarkGray),
-                            )]
-                        }),
+                    let options = [
+                        lang.menu_hangman,
+                        lang.menu_tictactoe,
+                        lang.menu_chess,
+                        lang.menu_pong,
+                        lang.menu_matrix,
+                        lang.menu_paradox,
+                        lang.menu_go_back,
                     ];
-                    let p = Paragraph::new(text)
-                        .alignment(Alignment::Center)
-                        .block(Block::default().borders(Borders::ALL).title("bet").title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)));
+                    let (menu, height) = self.menu_widget(
+                        lang.menu_game_selection,
+                        "bet",
+                        ratatui::widgets::BorderType::Plain,
+                        &options,
+                        self.game_cursor,
+                    );
+                    let rect = centered_rect_min(80, 80, height, area);
                     f.render_widget(Clear, rect);
-                    f.render_widget(p, rect);
+                    f.render_widget(menu, rect);
                 }
             }
             AppState::Playing => {
@@ -2171,7 +2139,8 @@ impl App {
             }
             AppState::PlayingTicTacToe => {
                 if let (Some(_lang), Some(ttt)) = (&self.lang, &self.tictactoe) {
-                    let rect = centered_rect(50, 24, area);
+                    // 3 title + 15 board + 2 status + 2 stats + 1 instructions = 23 rows.
+                    let rect = centered_rect_min(50, 24, 23, area);
                     f.render_widget(Clear, rect);
 
                     let layout = Layout::default()
@@ -2240,10 +2209,12 @@ impl App {
                             board_lines.push(Line::from(line));
                         }
                         
-                        // Horizontal divider
+                        // Horizontal divider — derived from the row geometry:
+                        // 6-wide cells (" {} " + 4-col glyph) joined by 3-wide " │ " gaps.
                         if row < 2 {
+                            let cell = "─".repeat(6);
                             board_lines.push(Line::from(vec![Span::styled(
-                                "──────┼──────┼──────",
+                                format!("{cell}─┼─{cell}─┼─{cell}"),
                                 Style::default().fg(Color::DarkGray),
                             )]));
                         }
@@ -2462,7 +2433,8 @@ impl App {
             }
             AppState::PlayingPong => {
                 if let (Some(lang), Some(pong)) = (&self.lang, &self.pong) {
-                    let rect = centered_rect(65, 24, area);
+                    // 3 title/score + 12 canvas + 2 instructions = 17 rows.
+                    let rect = centered_rect_min(65, 24, 17, area);
                     f.render_widget(Clear, rect);
 
                     let layout = ratatui::layout::Layout::default()
@@ -2603,17 +2575,6 @@ impl App {
             }
             AppState::RecommenderMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(65, 24, area);
-                    let mut text = vec![
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            lang.menu_recommender,
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::BOLD),
-                        )]),
-                        ratatui::text::Line::from(""),
-                    ];
-
                     let options = [
                         lang.recommender_menu_movies,
                         lang.recommender_menu_series,
@@ -2625,60 +2586,20 @@ impl App {
                         lang.recommender_menu_music,
                         lang.recommender_go_back,
                     ];
-
-                    for (i, opt) in options.iter().enumerate() {
-                        if i == 8 {
-                            text.push(ratatui::text::Line::from(""));
-                        } // Spacer before Go Back
-
-                        if i == self.recommender_cursor {
-                            text.push(ratatui::text::Line::from(vec![
-                                ratatui::text::Span::styled(
-                                    format!("  {}  ", opt),
-                                    Style::default()
-                                        .fg(Color::Black)
-                                        .bg(self.get_breathing_mango())
-                                        .add_modifier(Modifier::BOLD),
-                                ),
-                            ]));
-                        } else {
-                            let color = if i == 8 {
-                                Color::DarkGray
-                            } else {
-                                Color::White
-                            };
-                            text.push(ratatui::text::Line::from(vec![
-                                ratatui::text::Span::styled(
-                                    format!("  {}  ", opt),
-                                    Style::default().fg(color),
-                                ),
-                            ]));
-                        }
-                    }
-
-                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
-                        Block::default()
-                            .borders(ratatui::widgets::Borders::ALL)
-                                .border_type(ratatui::widgets::BorderType::Thick)
-                            .title(lang.recommender_title).title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right)),
+                    let (menu, height) = self.menu_widget(
+                        lang.menu_recommender,
+                        lang.recommender_title,
+                        ratatui::widgets::BorderType::Thick,
+                        &options,
+                        self.recommender_cursor,
                     );
+                    let rect = centered_rect_min(65, 24, height, area);
                     f.render_widget(Clear, rect);
-                    f.render_widget(p, rect);
+                    f.render_widget(menu, rect);
                 }
             }
             AppState::MusicMenu => {
                 if let Some(lang) = &self.lang {
-                    let rect = centered_rect(65, 24, area);
-                    let mut text = vec![
-                        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
-                            lang.recommender_menu_music,
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::BOLD),
-                        )]),
-                        ratatui::text::Line::from(""),
-                    ];
-
                     let options = [
                         lang.music_menu_rock,
                         lang.music_menu_hiphop,
@@ -2689,46 +2610,16 @@ impl App {
                         lang.music_menu_reggae,
                         lang.music_go_back,
                     ];
-
-                    for (i, opt) in options.iter().enumerate() {
-                        if i == 9 {
-                            text.push(ratatui::text::Line::from(""));
-                        } // Spacer before Go Back
-
-                        if i == self.music_cursor {
-                            text.push(ratatui::text::Line::from(vec![
-                                ratatui::text::Span::styled(
-                                    format!("  {}  ", opt),
-                                    Style::default()
-                                        .fg(Color::Black)
-                                        .bg(self.get_breathing_mango())
-                                        .add_modifier(Modifier::BOLD),
-                                ),
-                            ]));
-                        } else {
-                            let color = if i == 9 {
-                                Color::DarkGray
-                            } else {
-                                Color::White
-                            };
-                            text.push(ratatui::text::Line::from(vec![
-                                ratatui::text::Span::styled(
-                                    format!("  {}  ", opt),
-                                    Style::default().fg(color),
-                                ),
-                            ]));
-                        }
-                    }
-
-                    let p = Paragraph::new(text).alignment(Alignment::Center).block(
-                        Block::default()
-                            .borders(ratatui::widgets::Borders::ALL)
-                                .border_type(ratatui::widgets::BorderType::Thick)
-                                .title_bottom(ratatui::text::Line::from(" lyffseba.xyz ").alignment(ratatui::layout::Alignment::Right))
-                            .title(lang.music_menu_title),
+                    let (menu, height) = self.menu_widget(
+                        lang.recommender_menu_music,
+                        lang.music_menu_title,
+                        ratatui::widgets::BorderType::Thick,
+                        &options,
+                        self.music_cursor,
                     );
+                    let rect = centered_rect_min(65, 24, height, area);
                     f.render_widget(Clear, rect);
-                    f.render_widget(p, rect);
+                    f.render_widget(menu, rect);
                 }
             }
             AppState::Recommendation(_, ref item) => {
@@ -3161,7 +3052,8 @@ impl App {
                 }
             }
             AppState::MatrixGameOver { score, combo, level, ref initials } => {
-                let rect = centered_rect(50, 30, area);
+                // 11 content lines + 2 border rows = 13 rows.
+                let rect = centered_rect_min(50, 30, 13, area);
                 let text = vec![
                     Line::from(vec![Span::styled("SYSTEM FAILURE", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))]),
                     Line::from(""),
@@ -3493,6 +3385,62 @@ mod theme_tests {
     use ratatui::backend::TestBackend;
     use ratatui::style::Color;
 
+    /// Regression: the TicTacToe popup must be tall enough for the full
+    /// 14-line board (3x4 glyph lines + 2 dividers), and the horizontal
+    /// dividers must align with the vertical ones.
+    #[test]
+    fn test_tictactoe_board_renders_aligned() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut app = App::new();
+        app.select_language(Language::English);
+        let mut ttt = crate::tictactoe::TicTacToe::new();
+        // Script an X win on the top row (0,1,2).
+        ttt.place(crate::tictactoe::Player::X, 0);
+        ttt.place(crate::tictactoe::Player::O, 3);
+        ttt.place(crate::tictactoe::Player::X, 1);
+        ttt.place(crate::tictactoe::Player::O, 4);
+        ttt.place(crate::tictactoe::Player::X, 2);
+        app.tictactoe = Some(ttt);
+        app.state = AppState::PlayingTicTacToe;
+        terminal.draw(|f| app.draw(f)).unwrap();
+
+        let buf = terminal.backend().buffer().clone();
+        let area = buf.area;
+        let mut raw_lines: Vec<String> = vec![];
+        for y in area.top()..area.bottom() {
+            let mut line = String::new();
+            for x in area.left()..area.right() {
+                line.push_str(buf[(x, y)].symbol());
+            }
+            raw_lines.push(line);
+        }
+        let lines: Vec<&str> = raw_lines
+            .iter()
+            .map(|l| l.trim_end())
+            .filter(|l| !l.is_empty())
+            .collect();
+
+        // Full board: exactly two horizontal divider lines must be visible.
+        let dividers: Vec<&String> = raw_lines.iter().filter(|l| l.contains('\u{253c}')).collect();
+        assert_eq!(dividers.len(), 2, "board is clipped, expected 2 divider lines: {lines:?}");
+
+        // Alignment: \u{253c} crossings must sit exactly on the \u{2502} columns.
+        // NOTE: compare char indices (screen columns), not byte indices —
+        // box-drawing and block glyphs are multi-byte UTF-8.
+        let col_of = |s: &str, ch: char| -> Vec<usize> {
+            s.chars().enumerate().filter(|&(_, c)| c == ch).map(|(i, _)| i).collect()
+        };
+        let pipe_line = raw_lines.iter().find(|l| l.contains('\u{2502}')).unwrap();
+        for d in &dividers {
+            assert_eq!(col_of(d, '\u{253c}'), col_of(pipe_line, '\u{2502}'), "dividers misaligned");
+        }
+
+        // Glyphs + outcome render.
+        assert!(lines.iter().any(|l| l.contains("\u{2588}  \u{2588}")), "big X/O glyphs missing");
+        assert!(lines.iter().any(|l| l.contains("You win!")));
+    }
+
     const ALLOWED_COLORS: &[Color] = &[
         Color::Reset,
         Color::Black,
@@ -3552,23 +3500,134 @@ mod theme_tests {
                 .unwrap();
 
             let buffer = terminal.backend().buffer();
+            // Breathing-mango shades fall inside this band around Rgb(180, 255, 50).
+            let is_breathing_mango = |r: u8, g: u8, b: u8| {
+                (130..=180).contains(&r) && g >= 200 && (20..=50).contains(&b)
+            };
             for cell in buffer.content() {
-                let mut fg_ok = ALLOWED_COLORS.contains(&cell.fg);
-                if let Color::Rgb(r, g, b) = cell.fg {
-                    if r >= 130 && r <= 180 && g >= 200 && b >= 20 && b <= 50 { fg_ok = true; }
-                }
+                let fg_ok = ALLOWED_COLORS.contains(&cell.fg)
+                    || matches!(cell.fg, Color::Rgb(r, g, b) if is_breathing_mango(r, g, b));
                 if !fg_ok {
                     panic!("Theme violation: Disallowed foreground color {:?}", cell.fg);
                 }
-                
-                let mut bg_ok = ALLOWED_COLORS.contains(&cell.bg);
-                if let Color::Rgb(r, g, b) = cell.bg {
-                    if r >= 130 && r <= 180 && g >= 200 && b >= 20 && b <= 50 { bg_ok = true; }
-                }
+                let bg_ok = ALLOWED_COLORS.contains(&cell.bg)
+                    || matches!(cell.bg, Color::Rgb(r, g, b) if is_breathing_mango(r, g, b));
                 if !bg_ok {
                     panic!("Theme violation: Disallowed background color {:?}", cell.bg);
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
+
+    fn render_state(app: &mut App, state: AppState, w: u16, h: u16) -> (Vec<String>, Buffer) {
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        app.state = state;
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let buf = terminal.backend().buffer().clone();
+        let area = buf.area;
+        let lines = (area.top()..area.bottom())
+            .map(|y| {
+                (area.left()..area.right())
+                    .map(|x| buf[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect();
+        (lines, buf)
+    }
+
+    #[test]
+    fn test_centered_rect_min_grows_to_fit_content() {
+        let screen = Rect::new(0, 0, 120, 40);
+        // 24% of 40 rows is ~9 -> grows to the 17-row floor, centered.
+        let r = centered_rect_min(65, 24, 17, screen);
+        assert_eq!(r.height, 17);
+        assert_eq!(r.y, (40 - 17) / 2);
+        // Percentage already large enough keeps the designer's size.
+        let big = centered_rect_min(65, 80, 17, screen);
+        assert_eq!(big.height, centered_rect(65, 80, screen).height);
+        // Screen smaller than the floor never overflows.
+        let tiny = centered_rect_min(65, 24, 17, Rect::new(0, 0, 120, 12));
+        assert!(tiny.height <= 12);
+    }
+
+    /// Regression: popups whose content has a fixed height must not clip on a
+    /// standard 120x40 terminal (they used to get ~24% of screen height).
+    #[test]
+    fn test_popups_render_unclipped() {
+        let mut app = App::new();
+        app.select_language(Language::English);
+
+        // RecommenderMenu: the last option must be visible.
+        let (lines, _) = render_state(&mut app, AppState::RecommenderMenu, 120, 40);
+        assert!(
+            lines.iter().any(|l| l.contains("A. Go Back")),
+            "recommender menu clipped: {lines:?}"
+        );
+
+        // GameSelection (shared menu helper): every option visible, go-back dimmed.
+        let (lines, buf) = render_state(&mut app, AppState::GameSelection, 120, 40);
+        for opt in ["1. Hangman", "2. Tic-Tac-Toe", "7. Go Back"] {
+            assert!(lines.iter().any(|l| l.contains(opt)), "game menu missing {opt}: {lines:?}");
+        }
+        let y = lines.iter().position(|l| l.contains("7. Go Back")).unwrap();
+        let byte_idx = lines[y].find("7. Go Back").unwrap();
+        let x = lines[y].chars().take(byte_idx).count() as u16;
+        assert_eq!(buf[(x, y as u16)].fg, Color::DarkGray, "game menu go-back should be dimmed");
+
+        // MusicMenu: go-back visible and dimmed like the other menus
+        // (regression: spacer/color index was 9, but the options end at 7).
+        let (lines, buf) = render_state(&mut app, AppState::MusicMenu, 120, 40);
+        let y = lines
+            .iter()
+            .position(|l| l.contains("8. Go Back"))
+            .expect("music menu clipped");
+        // str::find is a byte offset; convert to a screen column (char index)
+        // because the thick border glyphs are multi-byte UTF-8.
+        let byte_idx = lines[y].find("8. Go Back").unwrap();
+        let x = lines[y].chars().take(byte_idx).count() as u16;
+        assert_eq!(
+            buf[(x, y as u16)].fg,
+            Color::DarkGray,
+            "go-back should be dimmed like other menus"
+        );
+
+        // Pong: canvas (thick border) must get its 12-row minimum.
+        app.pong = Some(crate::pong::PongGame::new());
+        let (lines, _) = render_state(&mut app, AppState::PlayingPong, 120, 40);
+        let top = lines.iter().position(|l| l.contains('\u{250f}'));
+        let bottom = lines.iter().position(|l| l.contains('\u{2517}'));
+        match (top, bottom) {
+            (Some(t), Some(b)) => assert!(
+                b + 1 - t >= 12,
+                "pong canvas squashed: top={t} bottom={b}"
+            ),
+            _ => panic!("pong canvas borders missing: {lines:?}"),
+        }
+
+        // MatrixGameOver: bottom hint must be visible.
+        let (lines, _) = render_state(
+            &mut app,
+            AppState::MatrixGameOver {
+                score: 100,
+                combo: 5,
+                level: 2,
+                initials: "ABC".to_string(),
+            },
+            120,
+            40,
+        );
+        assert!(
+            lines.iter().any(|l| l.contains("Press Enter to save")),
+            "matrix game-over clipped: {lines:?}"
+        );
     }
 }

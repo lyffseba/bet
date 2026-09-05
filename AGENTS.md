@@ -17,7 +17,8 @@ docs/                  EPICS, QUALITY, NOSTR
 
 ```bash
 cargo test -p bet-core -p bet-protocol
-cargo clippy -p bet-core -p bet-protocol -- -D warnings
+cargo clippy -p bet-core -p bet-protocol --all-targets -- -D warnings
+cargo clippy -p bet-cli --all-targets -- -D warnings
 cargo build -p bet-cli --release
 make e2e                     # multiplayer smoke (BET_MOVES)
 make ci                      # full local gate
@@ -29,8 +30,14 @@ npm run typecheck            # TS packages (after npm i)
 ## Multiplayer
 
 - Host authority: `bet host` / `bet join` (TCP NDJSON)
+- Games: `--game ttt` (default) or `--game hangman`
+- Hangman: `--word WORD` pins the secret (tests); otherwise `--seed` / wall-clock pick
+- Secret word is never on the wire until `MatchEnded`
+- Join / stake / settle live in `bet-protocol::Table` (rooms own rules only)
+- `HostRoom` is the protocol dispatch (`Ttt` | `Hangman`); CLI owns sockets only
 - Ledger: `BET_CONFIG_DIR` or OS config; atomic write + merge on `MatchEnded`
-- Automation: `BET_MOVES=0,1,2` (host) and `BET_MOVES=3,4` (guest)
+- Automation: `BET_MOVES=0,1,2` (ttt) or `BET_MOVES=B,E,T` (hangman).
+  If `BET_MOVES` is set (even empty), stdin is never read — exhausted script resigns.
 
 ## Rules for agents
 

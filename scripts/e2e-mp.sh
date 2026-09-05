@@ -138,9 +138,107 @@ case_stake_mismatch() {
   return 0
 }
 
+case_hangman_host_solves() {
+  local CFG PORT HPID BAL
+  CFG="$(mktemp -d "${TMPDIR:-/tmp}/bet-e2e.XXXXXX")"
+  PORT=$((21000 + RANDOM % 1000))
+  export BET_CONFIG_DIR="$CFG"
+
+  BET_MOVES=B,E,T "$BET" host --game hangman --word BET --stake 10 --name alice \
+    --port "$PORT" --bind 127.0.0.1 --code HNG001 \
+    >"$CFG/host.log" 2>&1 &
+  HPID=$!
+
+  for _ in $(seq 1 50); do
+    grep -q '^BET_READY ' "$CFG/host.log" 2>/dev/null && break
+    sleep 0.1
+  done
+  if ! grep -q 'game=hangman' "$CFG/host.log"; then
+    echo "host BET_READY missing game=hangman"
+    cat "$CFG/host.log" || true
+    kill "$HPID" 2>/dev/null || true
+    rm -rf "$CFG"
+    return 1
+  fi
+
+  # Guest never guesses — host solves on their own turn streak.
+  BET_MOVES= "$BET" join "HNG001@127.0.0.1:$PORT" --game hangman --stake 10 --name bob \
+    >"$CFG/guest.log" 2>&1
+  wait "$HPID"
+
+  BAL="$("$BET" balance)"
+  echo "$BAL"
+  if ! echo "$BAL" | grep -q 'alice: 1010'; then
+    tail -40 "$CFG/host.log" || true
+    tail -20 "$CFG/guest.log" || true
+    rm -rf "$CFG"
+    return 1
+  fi
+  if ! echo "$BAL" | grep -q 'bob: 990'; then rm -rf "$CFG"; return 1; fi
+  if ! grep -q 'word=BET' "$CFG/host.log"; then
+    echo "host never revealed word"
+    tail -40 "$CFG/host.log" || true
+    rm -rf "$CFG"
+    return 1
+  fi
+  if ! grep -q '+---+' "$CFG/host.log"; then
+    echo "host never drew the gallows"
+    tail -40 "$CFG/host.log" || true
+    rm -rf "$CFG"
+    return 1
+  fi
+  # Secret must not appear on the guest wire *before* MATCH ENDED.
+  if awk 'BEGIN{leak=0} /word=BET/ && !seen {leak=1} /MATCH ENDED/{seen=1} END{exit leak}' "$CFG/guest.log"; then
+    :
+  else
+    echo "secret leaked to guest before match end"
+    cat "$CFG/guest.log" || true
+    rm -rf "$CFG"
+    return 1
+  fi
+  rm -rf "$CFG"
+  return 0
+}
+
+case_hangman_guest_after_miss() {
+  local CFG PORT HPID BAL
+  CFG="$(mktemp -d "${TMPDIR:-/tmp}/bet-e2e.XXXXXX")"
+  PORT=$((22000 + RANDOM % 1000))
+  export BET_CONFIG_DIR="$CFG"
+
+  # Host misses first (X), guest then solves BET.
+  BET_MOVES=Z "$BET" host --game hangman --word BET --stake 10 --name alice \
+    --port "$PORT" --bind 127.0.0.1 --code HNG002 \
+    >"$CFG/host.log" 2>&1 &
+  HPID=$!
+
+  for _ in $(seq 1 50); do
+    grep -q '^BET_READY ' "$CFG/host.log" 2>/dev/null && break
+    sleep 0.1
+  done
+
+  BET_MOVES=B,E,T "$BET" join "HNG002@127.0.0.1:$PORT" --game hangman --stake 10 --name bob \
+    >"$CFG/guest.log" 2>&1
+  wait "$HPID"
+
+  BAL="$("$BET" balance)"
+  echo "$BAL"
+  if ! echo "$BAL" | grep -q 'bob: 1010'; then
+    tail -40 "$CFG/host.log" || true
+    tail -20 "$CFG/guest.log" || true
+    rm -rf "$CFG"
+    return 1
+  fi
+  if ! echo "$BAL" | grep -q 'alice: 990'; then rm -rf "$CFG"; return 1; fi
+  rm -rf "$CFG"
+  return 0
+}
+
 run_case "host_wins_top_row" case_host_wins
 run_case "guest_resigns" case_guest_resigns
 run_case "stake_mismatch" case_stake_mismatch
+run_case "hangman_host_solves" case_hangman_host_solves
+run_case "hangman_guest_after_miss" case_hangman_guest_after_miss
 
 echo ""
 echo "======== SUMMARY: $pass passed, $fail failed ========"

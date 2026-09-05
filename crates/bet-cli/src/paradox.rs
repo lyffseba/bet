@@ -128,7 +128,7 @@ impl ParadoxGame {
 
     pub fn freeze_active(&self) -> bool {
         let t = (self.time % FREEZE_CYCLE) / FREEZE_CYCLE;
-        t >= FREEZE_START && t <= FREEZE_END
+        (FREEZE_START..=FREEZE_END).contains(&t)
     }
 
     pub fn wave_value(&self) -> f64 {
@@ -168,7 +168,7 @@ impl ParadoxGame {
     }
 
     fn cursor_on_button(&self) -> bool {
-        self.cursor_x.abs_diff(self.btn_x) <= 1 && self.cursor_y.abs_diff(self.btn_y) <= 0
+        self.cursor_x.abs_diff(self.btn_x) <= 1 && self.cursor_y == self.btn_y
     }
 
     pub fn update(&mut self, dt: f64) -> ParadoxAction {

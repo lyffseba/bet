@@ -36,11 +36,11 @@ pub fn ledger_path() -> PathBuf {
 pub fn load_ledger() -> Ledger {
     let path = ledger_path();
     let mut led = Ledger::new(1000);
-    if let Ok(raw) = fs::read_to_string(&path) {
-        if let Ok(file) = serde_json::from_str::<LedgerFile>(&raw) {
-            led = Ledger::new(file.default_grant);
-            led.load_balances(file.balances);
-        }
+    if let Ok(raw) = fs::read_to_string(&path)
+        && let Ok(file) = serde_json::from_str::<LedgerFile>(&raw)
+    {
+        led = Ledger::new(file.default_grant);
+        led.load_balances(file.balances);
     }
     led
 }

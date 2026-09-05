@@ -41,12 +41,15 @@ fn print_help() {
     println!("  hangman | tictactoe | chess | pong | matrix | paradox");
     println!("  movies | series | manga | books | anime | cartoon | games | music");
     println!();
-    println!("Multiplayer (virtual points, tic-tac-toe):");
-    println!("  host [--stake N] [--port P] [--name ID] [--bind ADDR] [--code CODE]");
-    println!("  join CODE|CODE@HOST:PORT [--stake N] [--addr HOST:PORT] [--name ID]");
+    println!("Multiplayer (virtual points):");
+    println!("  host [--game ttt|hangman] [--stake N] [--port P] [--name ID]");
+    println!("       [--bind ADDR] [--code CODE] [--word WORD] [--seed N]");
+    println!("  join CODE|CODE@HOST:PORT [--game ttt|hangman] [--stake N]");
+    println!("       [--addr HOST:PORT] [--name ID]");
     println!("  balance              Show local virtual ledger");
     println!();
     println!("Options:");
+    println!("  --game ttt|hangman   Multiplayer game (default ttt)");
     println!("  --stake N            Points to wager (default 10)");
     println!("  --port P             Host listen port (default {})", mp::DEFAULT_PORT);
     println!(
@@ -56,17 +59,24 @@ fn print_help() {
     println!("  --name ID            Player id (default $BET_PLAYER or $USER)");
     println!("  --bind ADDR          Host bind address (default 0.0.0.0)");
     println!("  --code CODE          Fixed room code (4–8 alnum, tests)");
+    println!("  --word WORD          Hangman host: pin the secret word (tests)");
+    println!("  --seed N             Hangman host: pick word from default bank");
     println!("  -h, --help           Help");
     println!("  -v, --version        Version");
     println!();
     println!("Env:");
     println!("  BET_CONFIG_DIR       Ledger directory");
     println!("  BET_PLAYER           Default player id");
-    println!("  BET_MOVES            Scripted moves e.g. 0,3,1,4,2");
+    println!("  BET_MOVES            Scripted moves e.g. 0,3,1,4,2 or B,E,T");
     println!();
-    println!("Example:");
+    println!("Example (two terminals):");
+    println!("  # Terminal 1: start the host");
     println!("  bet host --stake 10 --name alice");
-    println!("  bet join ABC123@127.0.0.1:7733 --stake 10 --name bob");
+    println!("  # Terminal 2: join using the room code printed in BET_READY");
+    println!("  bet join JEST33@127.0.0.1:7733 --stake 10 --name bob");
+    println!("Hangman:");
+    println!("  bet host --game hangman --word BET --stake 10 --name alice");
+    println!("  bet join CODE@127.0.0.1:7733 --game hangman --stake 10 --name bob");
 }
 
 fn parse_flag(args: &[String], name: &str) -> Option<String> {
@@ -109,12 +119,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             let name = parse_flag(&args, "--name").unwrap_or_else(ledger_store::default_player_id);
             let bind = parse_flag(&args, "--bind").unwrap_or_else(|| "0.0.0.0".into());
             let code = parse_flag(&args, "--code");
+            let game = parse_flag(&args, "--game")
+                .map(|s| s.parse())
+                .transpose()
+                .map_err(|e: String| e)?
+                .unwrap_or_default();
+            let word = parse_flag(&args, "--word");
+            let seed = parse_flag(&args, "--seed").and_then(|s| s.parse().ok());
             return mp::run_host(mp::HostOpts {
                 stake,
                 port,
                 name,
                 bind,
                 code,
+                game,
+                word,
+                seed,
             });
         }
         if cmd == "join" {
@@ -122,7 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get(2)
                 .filter(|s| !s.starts_with('-'))
                 .cloned()
-                .ok_or("usage: bet join CODE|CODE@HOST:PORT [--stake N]")?;
+                .ok_or("usage: bet join CODE|CODE@HOST:PORT [--stake N] [--game ttt|hangman]")?;
             let (code, addr_from_target) = mp::parse_join_target(&raw);
             let stake = parse_flag(&args, "--stake")
                 .and_then(|s| s.parse().ok())
@@ -131,11 +151,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .or(addr_from_target)
                 .unwrap_or_else(|| format!("127.0.0.1:{}", mp::DEFAULT_PORT));
             let name = parse_flag(&args, "--name").unwrap_or_else(ledger_store::default_player_id);
+            let game = parse_flag(&args, "--game")
+                .map(|s| s.parse())
+                .transpose()
+                .map_err(|e: String| e)?
+                .unwrap_or_default();
             return mp::run_join(mp::JoinOpts {
                 stake,
                 addr,
                 room_code: code,
                 name,
+                game,
             });
         }
     }

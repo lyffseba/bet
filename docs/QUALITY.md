@@ -22,6 +22,8 @@ Every change touching `bet-core` or multiplayer protocol must pass this checklis
 - [ ] Virtual points only in v1 (no real money, no zaps)
 - [ ] Ledger never mixes into pixel code
 - [ ] Overdraw refused; draw refunds stakes
+- [ ] Join / stake / settle live in one `Table` (rooms own rules only)
+- [ ] Hangman secret never on the wire until `MatchEnded`
 
 ## Hosts
 

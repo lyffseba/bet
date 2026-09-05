@@ -8,10 +8,11 @@ export PATH="${HOME}/.cargo/bin:${PATH}"
 echo "==> cargo test bet-core + bet-protocol"
 cargo test -p bet-core -p bet-protocol
 
-echo "==> clippy (native + wasm32)"
-cargo clippy -p bet-core -p bet-protocol -- -D warnings
+echo "==> clippy (native + wasm32 + cli, all targets)"
+cargo clippy -p bet-core -p bet-protocol --all-targets -- -D warnings
 rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 cargo clippy -p bet-core -p bet-wasm --target wasm32-unknown-unknown -- -D warnings
+cargo clippy -p bet-cli --all-targets -- -D warnings
 
 echo "==> rebuild wasm"
 bash scripts/build-wasm.sh

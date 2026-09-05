@@ -16,8 +16,9 @@ test-protocol:
 	cargo test -p bet-protocol
 
 clippy:
-	cargo clippy -p bet-core -p bet-protocol -- -D warnings
+	cargo clippy -p bet-core -p bet-protocol --all-targets -- -D warnings
 	cargo clippy -p bet-core -p bet-wasm --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy -p bet-cli --all-targets -- -D warnings
 
 e2e: build
 	bash scripts/e2e-mp.sh
