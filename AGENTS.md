@@ -10,6 +10,7 @@ crates/bet-wasm        wasm-bindgen surface over bet-core
 packages/bet-ts        TS7 loader + pkg/ (built WASM)
 packages/bet-pi        pi extension (/b$t) — hangman/ttt via WASM
 packages/bet-opencode  OpenCode plugin
+packages/bet-mcp       MCP stdio (Codex / Claude Code) — hangman/ttt via WASM
 docs/                  EPICS, QUALITY, NOSTR
 ```
 
@@ -49,4 +50,4 @@ npm run typecheck            # TS packages (after npm i)
 6. **CI is `bash scripts/verify-engine.sh`** (or `make verify`) — must stay green.
 7. After engine changes: update `protocols/fixtures/wasm_goldens.json` **and**
    `ENGINE_GOLDENS` in `packages/bet-ts/src/index.ts`, then `make verify`.
-8. Pi imports `@lyffseba/bet-ts` only (never reimplement hangman/ttt).
+8. Pi / MCP import `@lyffseba/bet-ts` only (never reimplement hangman/ttt).
