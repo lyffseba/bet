@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Single integrity gate: native tests + wasm rebuild + shared goldens + typecheck.
+# Single integrity gate: stack doc + native tests + wasm rebuild + shared goldens + typecheck.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export PATH="${HOME}/.cargo/bin:${PATH}"
+
+echo "==> stack doc"
+test -s "$ROOT/docs/STACK.md"
+grep -q 'docs/STACK.md' "$ROOT/README.md"
 
 echo "==> cargo test bet-core + bet-protocol"
 cargo test -p bet-core -p bet-protocol
