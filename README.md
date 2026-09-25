@@ -23,7 +23,7 @@
 
 **Betting is virtual points only** in v1 (no real money).
 
-See [docs/EPICS.md](docs/EPICS.md) and [docs/QUALITY.md](docs/QUALITY.md).
+See [docs/EPICS.md](docs/EPICS.md), [docs/QUALITY.md](docs/QUALITY.md), and [docs/STACK.md](docs/STACK.md).
 
 ## Quick start
 
@@ -53,7 +53,7 @@ packages/bet-ts        TypeScript 7 WASM loader + `@lyffseba/bet-ts/play` facade
 packages/bet-pi        pi package (bet-pi-hub)
 packages/bet-opencode  OpenCode plugin (WASM ttt/hangman)
 packages/bet-mcp       MCP stdio server (WASM hangman/ttt + CLI host/join)
-docs/                  Epics, quality bar, Nostr notes
+docs/                  Epics, quality bar, stack pins, Nostr notes
 ```
 
 ## Agent commands
