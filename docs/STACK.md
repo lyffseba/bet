@@ -2,7 +2,7 @@
 
 Pins for the v2 monorepo (`2.0.0-alpha.0`): Rust workspace, WASM host, npm workspaces, CI, and the Homebrew formula. Official links below are each project's current stable docs (language `/stable` or `/latest`, docs.rs `/latest`, or the project's own docs site).
 
-**Last checked: 2026-09-25.**
+**Last checked: 2026-10-12.**
 
 | Column | Meaning |
 |--------|---------|
@@ -117,11 +117,11 @@ Windows is omitted: the gate is Unix bash (`verify-engine.sh`, `build-wasm.sh`, 
 | Action | Ref we use | That ref today | Newest stable release | Docs |
 |--------|------------|----------------|----------------------|------|
 | `actions/checkout` | `v4` | `v4` updated 2026-07-16 | `v7.0.1` | [checkout](https://github.com/actions/checkout), [Actions](https://docs.github.com/en/actions) |
-| `actions/setup-node` | `v4` | `v4` updated 2025-04-02 | `v7.0.0` | [setup-node](https://github.com/actions/setup-node) |
-| `dtolnay/rust-toolchain` | `stable` | channel commit 2026-09-03, rustc **1.98.1** | action tag `v1` (2026-09-12) is the action, separate from the channel | [rust-toolchain](https://github.com/dtolnay/rust-toolchain) |
+| `actions/setup-node` | `v4` | `v4` updated 2025-04-02 | `v7.1.0` | [setup-node](https://github.com/actions/setup-node) |
+| `dtolnay/rust-toolchain` | `stable` | channel commit 2026-10-09, rustc **1.99.0** (2026-09-28) | action tag `v1` (2026-10-09) is the action, separate from the channel | [rust-toolchain](https://github.com/dtolnay/rust-toolchain) |
 | `Swatinem/rust-cache` | `v2` | tag points at **2.9.2** (2026-08-06) | `v2.9.2` | [rust-cache](https://github.com/Swatinem/rust-cache) |
 
-`@stable` on `dtolnay/rust-toolchain` is the Rust channel ref. It is how this repo tracks stable rustc. The action's `v1` tag is a different ref and has moved since the `stable` ref's last channel bump.
+`@stable` on `dtolnay/rust-toolchain` is the Rust channel ref. It is how this repo tracks stable rustc, now **1.99.0** (2026-09-28). CI does not pin a channel date. The action's `v1` tag is a different ref (updated 2026-10-09) and is separate from the channel.
 
 ## Formula
 
@@ -138,22 +138,22 @@ The tagged source URL is the v1.0.0 release. `head` follows `main`.
 
 ## Ours vs latest
 
-Checked 2026-09-25. "In sync" means the locked build matches the latest stable release, or a floating channel is defined to track it.
+Checked 2026-10-12. "In sync" means the locked build matches the latest stable release, or a floating channel is defined to track it.
 
 ### Toolchain
 
 | Component | Requirement | Locked / resolved | Latest stable | Drift |
 |-----------|-------------|-------------------|---------------|-------|
-| rustc | `stable` | 1.98.1 via `@stable` (2026-09-03) | 1.98.1 | in sync (channel) |
+| rustc | `stable` | 1.99.0 via `@stable` (2026-09-28) | 1.99.0 | in sync (channel) |
 | edition | 2024 | 2024 | 2024 | in sync |
 | Cargo resolver | `"2"` | `"2"` | `"3"` (edition 2024 default) | explicit pin behind the edition default |
-| Node.js | `22` | newest 22.x at CI time | 22.23.3 on this line; Active LTS 24.21.0 (Krypton); Current 26.10.0 | line is Maintenance LTS (Jod); patch floats |
+| Node.js | `22` | newest 22.x at CI time | 22.23.3 on this line; Active LTS 24.21.0 (Krypton); Current 26.11.1 | line is Maintenance LTS (Jod); patch floats |
 | TypeScript | `^7.0.2` | 7.0.2 | 7.0.2 | in sync |
 | wasm-pack | installer | whatever the installer ships that run | 0.15.0 | tracks latest |
 | wasm-bindgen-cli | `--locked` install, fallback only | installed on demand | 0.2.129 | unpinned fallback |
-| Python 3 | `python3` on PATH | runner default | 3.14.7 | unpinned |
+| Python 3 | `python3` on PATH | runner default | 3.15.0 | unpinned |
 | `actions/checkout` | `@v4` | v4 line | v7.0.1 | major behind |
-| `actions/setup-node` | `@v4` | v4 line (last move 2025-04-02) | v7.0.0 | major behind |
+| `actions/setup-node` | `@v4` | v4 line (last move 2025-04-02) | v7.1.0 | major behind |
 | `Swatinem/rust-cache` | `@v2` | 2.9.2 | 2.9.2 | in sync |
 | Homebrew formula source | `v1.0.0` tarball | tag v1.0.0 | workspace `2.0.0-alpha.0` on `main` | release tarball behind `head` |
 
@@ -166,10 +166,10 @@ Checked 2026-09-25. "In sync" means the locked build matches the latest stable r
 | `rand` | 0.8 | 0.8.5 | 0.10.3 | minor line behind |
 | `ratatui` | 0.30.0 | 0.30.0 | 0.30.2 | patch behind |
 | `open` | 5.1.2 | 5.3.3 | 5.4.4 | patch behind the caret range's ceiling |
-| `shakmaty` | 0.30.0 | 0.30.0 | 0.30.1 | patch behind |
+| `shakmaty` | 0.30.0 | 0.30.0 | 0.30.2 | patch behind |
 | `directories` | 6.0.0 | 6.0.0 | 6.0.0 | in sync |
 | `serde` | 1 | 1.0.228 | 1.0.229 | patch behind |
-| `serde_json` | 1 | 1.0.149 | 1.0.151 | patch behind |
+| `serde_json` | 1 | 1.0.149 | 1.0.154 | patch behind |
 | `wasm-bindgen` | 0.2 | 0.2.114 | 0.2.129 | patch line behind |
 | `js-sys` | 0.3 | 0.3.91 | 0.3.106 | patch line behind |
 | `serde-wasm-bindgen` | 0.6 | 0.6.5 | 0.6.5 | in sync |
@@ -179,12 +179,12 @@ Checked 2026-09-25. "In sync" means the locked build matches the latest stable r
 | Package | Requirement | Locked | Latest stable | Drift |
 |---------|-------------|--------|---------------|-------|
 | `typescript` | `^7.0.2` | 7.0.2 | 7.0.2 | in sync |
-| `@types/node` | `^22.0.0` | 22.20.1 | 22.20.4 on the 22 line; `latest` tag is 26.6.2 | patch behind on the Node 22 line |
-| `zod` | `^4.0.0` | 4.5.4 | 4.6.5 | minor behind |
-| `@modelcontextprotocol/server` | `^2.0.0` | 2.0.0 | 2.1.0 | minor behind |
-| `@earendil-works/pi-coding-agent` | `latest` | 0.82.1 | 0.87.1 | lock behind the dist-tag |
-| `@earendil-works/pi-tui` | `latest` | 0.82.1 | 0.87.1 | lock behind the dist-tag |
-| `@opencode-ai/plugin` | `latest` | 1.18.8 | 1.18.32 | lock behind the dist-tag |
+| `@types/node` | `^22.0.0` | 22.20.1 | 22.20.5 on the 22 line; `latest` tag is 26.6.5 | patch behind on the Node 22 line |
+| `zod` | `^4.0.0` | 4.5.4 | 4.6.6 | minor behind |
+| `@modelcontextprotocol/server` | `^2.0.0` | 2.0.0 | 2.3.1 | minor behind |
+| `@earendil-works/pi-coding-agent` | `latest` | 0.82.1 | 1.1.0 | major behind the dist-tag |
+| `@earendil-works/pi-tui` | `latest` | 0.82.1 | 1.1.0 | major behind the dist-tag |
+| `@opencode-ai/plugin` | `latest` | 1.18.8 | 1.19.0 | lock behind the dist-tag |
 
 ## Maintenance
 
