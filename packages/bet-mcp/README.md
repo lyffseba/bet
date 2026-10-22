@@ -16,7 +16,7 @@ MCP stdio server for BET. Claude Code, Codex, and any other stdio host get the s
 ```bash
 make install
 export PATH="$HOME/.local/bin:$PATH"
-export BET_BIN=/absolute/path/to/bet
+export BET_BIN=/ABS/PATH/to/bet
 ```
 
 Interactive ratatui cannot run under MCP stdio. The bridge always sets `BET_MOVES` (empty when `moves` is omitted) so the CLI never reads stdin. An empty or exhausted script resigns on that side's turn.
@@ -31,12 +31,12 @@ No arguments. Returns the engine version and the WASM integrity check.
 
 ### `bet_play`
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `game` | yes | `ttt` (alias `tictactoe`) or `hangman` |
-| `action` | no | `new`, `move`, or `status`. Default: `move` when `move` is set, otherwise `new` / `status` |
-| `move` | no | ttt: empty-cell index `0`–`8`. hangman: one letter `A`–`Z` |
-| `seed` | no | Integer seed for a new game. The same seed repeats the AI or the word pick |
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `game` | yes | `string` | `ttt` (alias `tictactoe`) or `hangman` |
+| `action` | no | `string` | `new`, `move`, or `status`. Default: `move` when `move` is set, otherwise `new` / `status` |
+| `move` | no | `string` | ttt: empty-cell index `0`–`8`. hangman: one letter `A`–`Z` |
+| `seed` | no | `integer` | Integer seed for a new game. The same seed repeats the AI or the word pick |
 
 The hangman secret is omitted until the engine reports the game is over.
 
@@ -44,20 +44,20 @@ The hangman secret is omitted until the engine reports the game is over.
 
 Spawns `bet host`. Default `wait` is `ready`: the tool returns after `BET_READY` and leaves the host running.
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `game` | no | `ttt` (default) or `hangman` |
-| `stake` | no | Virtual points (`--stake`, default 10) |
-| `name` | no | `--name` (default `$BET_PLAYER` or `$USER`) |
-| `port` | no | `--port` (default 7733). `0` picks an ephemeral port |
-| `bind` | no | `--bind` (default `0.0.0.0`) |
-| `code` | no | Fixed room code (`--code`, 4–8 alnum) |
-| `word` | no | Hangman only: pin the secret (`--word`). Not copied into tool JSON |
-| `seed` | no | Hangman: `--seed` picks from the word bank when `word` is omitted |
-| `moves` | no | `BET_MOVES` (`0,1,2`, `B,E,T`, or `q`) |
-| `wait` | no | `ready` (default) or `end` |
-| `timeout_ms` | no | Cap the wait (default 10s for `ready`, 60s for `end`, max 5 min) |
-| `config_dir` | no | `BET_CONFIG_DIR` ledger directory |
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `game` | no | `string` | `ttt` (default) or `hangman` |
+| `stake` | no | `integer` | Virtual points (`--stake`, default 10) |
+| `name` | no | `string` | `--name` (default `$BET_PLAYER` or `$USER`) |
+| `port` | no | `integer` | `--port` (default 7733). `0` picks an ephemeral port |
+| `bind` | no | `string` | `--bind` (default `0.0.0.0`) |
+| `code` | no | `string` | Fixed room code (`--code`, 4–8 alnum) |
+| `word` | no | `string` | Hangman only: pin the secret (`--word`). Not copied into tool JSON |
+| `seed` | no | `integer` | Hangman: `--seed` picks from the word bank when `word` is omitted |
+| `moves` | no | `string` | `BET_MOVES` (`0,1,2`, `B,E,T`, or `q`) |
+| `wait` | no | `enum ready\|end` | `ready` (default) returns after `BET_READY`. `end` waits until exit |
+| `timeout_ms` | no | `integer` | Cap the wait (default 10s for `ready`, 60s for `end`, max 5 min) |
+| `config_dir` | no | `string` | `BET_CONFIG_DIR` ledger directory |
 
 The `ready` payload includes `room`, `port`, `join` (`CODE@127.0.0.1:port`), and `guest_cmd`.
 
@@ -65,17 +65,17 @@ The `ready` payload includes `room`, `port`, `join` (`CODE@127.0.0.1:port`), and
 
 Spawns `bet join`. Pass `target` or `code`.
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `target` | yes* | `CODE` or `CODE@host:port` (the host tool's `join` field) |
-| `code` | yes* | Room code when `target` is omitted |
-| `addr` | no | `host:port` (`--addr`) when `target` is a bare code |
-| `game` | no | Must match the host room (`ttt` or `hangman`) |
-| `stake` | no | Must match the host (`--stake`) |
-| `name` | no | `--name` |
-| `moves` | no | Guest `BET_MOVES` |
-| `timeout_ms` | no | Cap the wait for match end (default 60s, max 5 min) |
-| `config_dir` | no | `BET_CONFIG_DIR` |
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `target` | yes* | `string` | `CODE` or `CODE@host:port` (the host tool's `join` field) |
+| `code` | yes* | `string` | Room code when `target` is omitted |
+| `addr` | no | `string` | `host:port` (`--addr`) when `target` is a bare code |
+| `game` | no | `string` | Must match the host room (`ttt` or `hangman`) |
+| `stake` | no | `integer` | Must match the host (`--stake`) |
+| `name` | no | `string` | `--name` |
+| `moves` | no | `string` | Guest `BET_MOVES` |
+| `timeout_ms` | no | `integer` | Cap the wait for match end (default 60s, max 5 min) |
+| `config_dir` | no | `string` | `BET_CONFIG_DIR` |
 
 \* One of `target` or `code`.
 
@@ -125,11 +125,10 @@ Stdio is the default transport. Everything after `--` is the server command. In 
 ```bash
 claude mcp add bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
 claude mcp add --scope user bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
-claude mcp add --scope project bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
 claude mcp list
 ```
 
-A project `.mcp.json` server stays pending until you approve it in `claude`. Inside a session, `/mcp` manages servers.
+For a server committed with the repo, use the `.mcp.json` block above. `${CLAUDE_PROJECT_DIR:-.}` stays tied to the project root. A project entry stays pending until you approve it in `claude`. Inside a session, `/mcp` manages servers.
 
 ## Codex
 

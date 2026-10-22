@@ -67,10 +67,10 @@ The OpenCode plugin implements the 1.x plugin API (`@opencode-ai/plugin`). The c
 
 ## Claude Code
 
-Project scope is `.mcp.json`. `claude mcp add` writes local scope in `~/.claude.json` unless you pass `--scope`. Scopes, the JSON block, and every tool argument: [packages/bet-mcp/README.md](packages/bet-mcp/README.md).
+A shared project server belongs in `.mcp.json`, with `${CLAUDE_PROJECT_DIR:-.}` so the path is the project root rather than this machine. Private setup uses `claude mcp add` and `~/.claude.json`. Scopes, the JSON block, and every tool argument: [packages/bet-mcp/README.md](packages/bet-mcp/README.md).
 
 ```bash
-claude mcp add --scope project bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
+claude mcp add --scope user bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
 claude mcp list
 ```
 

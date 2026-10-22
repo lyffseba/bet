@@ -2,9 +2,17 @@
 /**
  * Doc-claim gate for README.md and packages/bet-mcp/README.md.
  *
- * Checks prose claims, parses JSON/TOML config snippets, runs the shell
- * commands in those files that are safe in CI, and compares documented MCP
- * tool arguments to a live tools/list from the stdio server.
+ * Checks prose claims, parses JSON/TOML config snippets (``` and ~~~ fences),
+ * and compares documented MCP tool names, required flags, types, and enums
+ * to a live tools/list.
+ *
+ * Executed: `cargo build -p bet-cli --release`, `./target/release/bet --help`,
+ * and tools/list through both `packages/bet-mcp/src/index.ts` and
+ * `packages/bet-mcp/bin/bet-mcp.mjs`.
+ * Statically checked: make targets (recipe + `bash -n`), `bet host` / `join` /
+ * `balance` tokens against help, pi/claude/codex/npm/export/inspector lines,
+ * and the node launch lines as path checks (tools/list is what actually
+ * starts those processes). Untagged fences fail. `text` fences are sketches.
  *
  * Official pages this file's expectations were checked against (2026-10-22):
  * - Claude Code MCP: https://code.claude.com/docs/en/mcp
@@ -23,7 +31,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isMain = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
@@ -31,10 +39,13 @@ const isMain = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta
 /** tools/list processes. The bin wrapper is the "Other MCP hosts" entry. */
 export const MCP_LIST_LAUNCHES = [
   { command: "node", args: ["--experimental-strip-types", "packages/bet-mcp/src/index.ts"] },
+  { command: "node", args: ["packages/bet-mcp/bin/bet-mcp.mjs"] },
 ];
 
 export function helpMentions(help, token) {
-  return help.includes(token);
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(^|[^A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "i");
+  return re.test(help);
 }
 
 export function expectedType(schema) {
@@ -64,9 +75,12 @@ function read(rel) {
 
 export function fences(md) {
   const out = [];
-  const re = /```([^\n`]*)\n([\s\S]*?)```/g;
+  const re = /(```|~~~)([^\n]*)\n([\s\S]*?)\1/g;
   let m;
-  while ((m = re.exec(md))) out.push({ info: m[1].trim().split(/\s+/)[0] ?? "", body: m[2] });
+  while ((m = re.exec(md))) {
+    const info = m[2].trim().split(/\s+/)[0] ?? "";
+    out.push({ info, body: m[3] });
+  }
   return out;
 }
 
@@ -153,22 +167,40 @@ function parseTable(section) {
     lines.push(line);
   }
   if (lines.length < 2) return null;
-  const cells = (line) =>
-    line
-      .trim()
-      .replace(/^\|/, "")
-      .replace(/\|$/, "")
-      .split("|")
-      .map((c) => c.trim().replace(/`/g, ""));
+  const cells = (line) => {
+    const body = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+    const out = [];
+    let cur = "";
+    for (let i = 0; i < body.length; i++) {
+      if (body[i] === "\\" && body[i + 1] === "|") {
+        cur += "|";
+        i++;
+        continue;
+      }
+      if (body[i] === "|") {
+        out.push(cur.trim().replace(/`/g, ""));
+        cur = "";
+        continue;
+      }
+      cur += body[i];
+    }
+    out.push(cur.trim().replace(/`/g, ""));
+    return out;
+  };
   const header = cells(lines[0]).map((h) => h.toLowerCase());
   const argIdx = header.indexOf("arg");
   const reqIdx = header.findIndex((h) => h.startsWith("required"));
+  const typeIdx = header.indexOf("type");
   if (argIdx < 0 || reqIdx < 0) return null;
   const rows = [];
   for (const line of lines.slice(1)) {
     const row = cells(line);
     if (/^[-: ]+$/.test(row[0] ?? "")) continue;
-    rows.push({ arg: row[argIdx], required: (row[reqIdx] ?? "").toLowerCase() });
+    rows.push({
+      arg: row[argIdx],
+      required: (row[reqIdx] ?? "").toLowerCase(),
+      type: typeIdx >= 0 ? (row[typeIdx] ?? "") : "",
+    });
   }
   return rows;
 }
@@ -483,15 +515,15 @@ function runSafe(commands) {
     if (cmd === "./target/release/bet --help") {
       const help = result.stdout ?? "";
       for (const sub of usage.subcommands) {
-        if (!help.includes(sub)) fail(`bet --help does not mention documented subcommand \`${sub}\``);
+        if (!helpMentions(help, sub)) fail(`bet --help does not mention documented subcommand \`${sub}\``);
       }
       for (const flag of usage.flags) {
-        if (!help.includes(flag)) fail(`bet --help does not mention documented flag \`${flag}\``);
+        if (!helpMentions(help, flag)) fail(`bet --help does not mention documented flag \`${flag}\``);
       }
       for (const env of ["BET_CONFIG_DIR", "BET_PLAYER", "BET_MOVES"]) {
-        if (!help.includes(env)) fail(`bet --help does not mention ${env}`);
+        if (!helpMentions(help, env)) fail(`bet --help does not mention ${env}`);
       }
-      if (!/virtual/i.test(help)) fail("bet --help does not mention virtual points");
+      if (!helpMentions(help, "virtual")) fail("bet --help does not mention virtual points");
     }
   }
 }
@@ -682,6 +714,10 @@ function listTools(launch) {
 export function collectShell(md, rel) {
   const commands = [];
   for (const fence of fences(md)) {
+    if (!fence.info) {
+      fail(`${rel}: untagged fence is not checked. Name it (bash, json, toml, or text).`);
+      continue;
+    }
     if (fence.info === "json") checkJsonFence(fence.body, rel);
     else if (fence.info === "toml") checkTomlFence(fence.body, rel);
     else if (fence.info === "bash" || fence.info === "sh" || fence.info === "shell") {
@@ -739,10 +775,6 @@ try {
   }
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
-}
-
-if (!existsSync(pathToFileURL(path.join(ROOT, "packages/bet-mcp/src/index.ts")))) {
-  fail("internal: entry URL check broke");
 }
 
 if (failures.length) {

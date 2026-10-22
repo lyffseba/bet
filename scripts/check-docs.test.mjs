@@ -1,7 +1,7 @@
 /**
- * Failing cases for the doc gate. Run by scripts/check-docs.mjs.
- * Each assertion is the behavior BetQA asked for; this file stays red until
- * the gate and the READMEs implement it.
+ * Doc-gate cases for fence parsing, help tokens, launches, placeholders,
+ * Claude project scope, and tool type/enum tables.
+ * scripts/check-docs.mjs runs this file before the README gate.
  */
 import { readFileSync } from "node:fs";
 import {
