@@ -26,6 +26,26 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const isMain = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
+
+/** tools/list processes. The bin wrapper is the "Other MCP hosts" entry. */
+export const MCP_LIST_LAUNCHES = [
+  { command: "node", args: ["--experimental-strip-types", "packages/bet-mcp/src/index.ts"] },
+];
+
+export function helpMentions(help, token) {
+  return help.includes(token);
+}
+
+export function expectedType(schema) {
+  if (Array.isArray(schema?.enum) && schema.enum.length > 0) return `enum ${schema.enum.join("|")}`;
+  if (typeof schema?.type === "string") return schema.type;
+  return "unknown";
+}
+
+function normalizeType(value) {
+  return String(value ?? "").trim().replace(/`/g, "").replace(/\s+/g, " ");
+}
 process.env.PATH = `${process.env.HOME}/.cargo/bin:${process.env.PATH ?? ""}`;
 
 const PATH_CLI =
@@ -42,7 +62,7 @@ function read(rel) {
   return readFileSync(path.join(ROOT, rel), "utf8");
 }
 
-function fences(md) {
+export function fences(md) {
   const out = [];
   const re = /```([^\n`]*)\n([\s\S]*?)```/g;
   let m;
@@ -89,6 +109,20 @@ function subst(token) {
   return token
     .replaceAll("${CLAUDE_PROJECT_DIR:-.}", ".")
     .replaceAll("/ABS/PATH/to/bet", ROOT);
+}
+
+export function takeFailures() {
+  return failures.splice(0, failures.length);
+}
+
+export function checkPlaceholders(md, label) {
+  const re = /[^\s`'"]*path\/to\/bet[^\s`'"]*/g;
+  for (const match of md.matchAll(re)) {
+    const token = match[0].replace(/[),.;]+$/, "");
+    if (!token.includes("/ABS/PATH/to/bet")) {
+      fail(`${label}: use the placeholder /ABS/PATH/to/bet (found ${token})`);
+    }
+  }
 }
 
 function mustExist(label, abs) {
@@ -339,17 +373,23 @@ function checkMake(cmd) {
 const usage = { subcommands: new Set(), flags: new Set() };
 
 function checkClaudeAdd(cmd) {
-  const m = cmd.match(
-    /^claude mcp add(?: --scope (project|user))? bet -- node --experimental-strip-types (\S+)$/,
-  );
-  if (!m) {
+  if (/^claude mcp add --scope project\b/.test(cmd)) {
     fail(
-      `claude mcp add must match \`claude mcp add [--scope project|user] bet -- node --experimental-strip-types <entry>\`: ${cmd}`,
+      "`claude mcp add --scope project` writes a machine path into shared .mcp.json. Point at the ${CLAUDE_PROJECT_DIR:-.} JSON block instead.",
     );
     return;
   }
-  const abs = repoPathFromToken(m[2]);
-  if (!abs) fail(`claude mcp add path is not in the repo: ${m[2]}`);
+  const m = cmd.match(
+    /^claude mcp add(?: --scope user)? bet -- node --experimental-strip-types (\S+)$/,
+  );
+  if (!m) {
+    fail(
+      `claude mcp add must match \`claude mcp add [--scope user] bet -- node --experimental-strip-types <entry>\`: ${cmd}`,
+    );
+    return;
+  }
+  const abs = repoPathFromToken(m[1]);
+  if (!abs) fail(`claude mcp add path is not in the repo: ${m[1]}`);
   else mustExist("claude mcp add", abs);
 }
 
@@ -364,7 +404,7 @@ function checkCodexAdd(cmd) {
   else mustExist("codex mcp add", abs);
 }
 
-function classify(cmd) {
+export function classify(cmd) {
   if (cmd === "cargo build -p bet-cli --release" || cmd === "./target/release/bet --help") return "run";
   if (checkMake(cmd)) return "make";
   const bet = cmd.match(/^bet (host|join|balance)\b(.*)$/);
@@ -517,7 +557,7 @@ function checkMcp(md) {
   }
 }
 
-function documentedTools(md) {
+export function documentedTools(md) {
   const out = new Map();
   for (const name of ["bet_status", "bet_play", "bet_host", "bet_join"]) {
     const section = sectionAfter(md, new RegExp(`^\`${name}\`$`));
@@ -557,17 +597,19 @@ function compareTools(documented, listed) {
       if (!schemaRequired && marked) {
         fail(`${tool.name}.${row.arg} is marked required in the docs but not in the schema`);
       }
+      const prop = tool.inputSchema?.properties?.[row.arg] ?? {};
+      const expected = expectedType(prop);
+      const documentedType = normalizeType(row.type);
+      if (documentedType !== expected) {
+        fail(`${tool.name}.${row.arg} type \`${documentedType}\` != schema \`${expected}\``);
+      }
     }
   }
 }
 
-function listTools() {
+function listTools(launch) {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      "node",
-      ["--experimental-strip-types", "packages/bet-mcp/src/index.ts"],
-      { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] },
-    );
+    const child = spawn(launch.command, launch.args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
     let stderr = "";
     let buf = "";
     const messages = [];
@@ -637,7 +679,7 @@ function listTools() {
   });
 }
 
-function collectShell(md, rel) {
+export function collectShell(md, rel) {
   const commands = [];
   for (const fence of fences(md)) {
     if (fence.info === "json") checkJsonFence(fence.body, rel);
@@ -653,10 +695,13 @@ function collectShell(md, rel) {
   return commands;
 }
 
+async function main() {
 const rootMd = read("README.md");
 const mcpMd = read("packages/bet-mcp/README.md");
 checkRoot(rootMd);
 checkMcp(mcpMd);
+checkPlaceholders(rootMd, "README.md");
+checkPlaceholders(mcpMd, "packages/bet-mcp/README.md");
 const commands = [...collectShell(rootMd, "README.md"), ...collectShell(mcpMd, "packages/bet-mcp/README.md")];
 const kinds = commands.map((cmd) => classify(cmd));
 const runnable = commands.filter((_, i) => kinds[i] === "run");
@@ -688,8 +733,10 @@ if (!structureOk) {
 
 runSafe(runnable);
 try {
-  const tools = await listTools();
-  compareTools(documented, tools);
+  for (const launch of MCP_LIST_LAUNCHES) {
+    const tools = await listTools(launch);
+    compareTools(documented, tools);
+  }
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
 }
@@ -705,3 +752,15 @@ if (failures.length) {
 }
 
 console.log("check-docs: OK");
+}
+
+if (isMain) {
+  const unit = spawnSync(process.execPath, [path.join(ROOT, "scripts/check-docs.test.mjs")], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  if (unit.stdout) process.stdout.write(unit.stdout);
+  if (unit.stderr) process.stderr.write(unit.stderr);
+  if (unit.status !== 0) process.exit(unit.status ?? 1);
+  await main();
+}
