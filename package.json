@@ -10,6 +10,7 @@
   "scripts": {
     "typecheck": "npm run typecheck -w @lyffseba/bet-ts && npm run typecheck -w bet-pi-hub && npm run typecheck -w bet-opencode && npm run typecheck -w @lyffseba/bet-mcp",
     "test:rust": "cargo test -p bet-core",
+    "test:docs": "node scripts/check-docs.mjs",
     "build:cli": "cargo build -p bet-cli --release"
   },
   "repository": {
