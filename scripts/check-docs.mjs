@@ -110,7 +110,14 @@ function sectionAfter(md, headingRe) {
 }
 
 function parseTable(section) {
-  const lines = section.split("\n").filter((l) => l.trim().startsWith("|"));
+  const raw = section.split("\n");
+  const start = raw.findIndex((l) => l.trim().startsWith("|"));
+  if (start < 0) return null;
+  const lines = [];
+  for (const line of raw.slice(start)) {
+    if (!line.trim().startsWith("|")) break;
+    lines.push(line);
+  }
   if (lines.length < 2) return null;
   const cells = (line) =>
     line
