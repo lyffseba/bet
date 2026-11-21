@@ -116,14 +116,14 @@ Windows is omitted: the gate is Unix bash (`verify-engine.sh`, `build-wasm.sh`, 
 
 | Action | Ref we use | That ref today | Newest stable release | Docs |
 |--------|------------|----------------|----------------------|------|
-| `actions/checkout` | `v4` | `v4` updated 2026-07-16 | `v7.0.1` | [checkout](https://github.com/actions/checkout), [Actions](https://docs.github.com/en/actions) |
-| `actions/setup-node` | `v4` | `v4` updated 2025-04-02 | `v7.1.0` | [setup-node](https://github.com/actions/setup-node) |
+| `actions/checkout` | `v7` | `v7` updated 2026-07-17 | `v7.0.1` | [checkout](https://github.com/actions/checkout), [Actions](https://docs.github.com/en/actions) |
+| `actions/setup-node` | `v7` | `v7` updated 2026-10-08 | `v7.1.0` | [setup-node](https://github.com/actions/setup-node) |
 | `dtolnay/rust-toolchain` | `stable` | channel commit 2026-11-15, rustc **1.100.0** (2026-11-09) | action tag `v1` (2026-10-16) is the action, separate from the channel | [rust-toolchain](https://github.com/dtolnay/rust-toolchain) |
 | `Swatinem/rust-cache` | `v2` | tag points at **2.9.3** (2026-10-20) | `v2.9.3` | [rust-cache](https://github.com/Swatinem/rust-cache) |
 
 `@stable` on `dtolnay/rust-toolchain` is the Rust channel ref. It is how this repo tracks stable rustc, now **1.100.0** (2026-11-09). CI does not pin a channel date. The action's `v1` tag is a different ref (updated 2026-10-16) and is separate from the channel.
 
-`actions/checkout@v4` and `actions/setup-node@v4` still declare `runs.using: node20`. GitHub [removed Node 20 from hosted runners](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) on 2026-09-23. That is the action runtime, not this repo's `node-version: "22"` pin. A follow-up (not this change) should move those two pins to `checkout@v7` and `setup-node@v7`, which run on Node 24. `Swatinem/rust-cache@v2` already does.
+`actions/checkout@v7` and `actions/setup-node@v7` declare `runs.using: node24`, which is the current GitHub-hosted runner JavaScript runtime after Node 20 was [removed on 2026-09-23](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/). That is the action runtime, not this repo's `node-version: "22"` pin, which is unchanged. `Swatinem/rust-cache@v2` already ran on Node 24. No input changes were required: checkout is used with defaults, and setup-node still passes `node-version: "22"` and `cache: npm` (both still valid in v7). v5+ can auto-cache when `package.json` has a `packageManager` field; this repo does not, and `cache: npm` is explicit.
 
 ## Formula
 
@@ -154,8 +154,8 @@ Checked 2026-11-21. "In sync" means the locked build matches the latest stable r
 | wasm-pack | installer | whatever the installer ships that run | 0.15.1 | tracks latest |
 | wasm-bindgen-cli | `--locked` install, fallback only | installed on demand | 0.2.130 | unpinned fallback |
 | Python 3 | `python3` on PATH | runner default | 3.15.2 | unpinned |
-| `actions/checkout` | `@v4` | v4 line | v7.0.1 | major behind; `@v4` still runs on the removed Node 20 action runtime |
-| `actions/setup-node` | `@v4` | v4 line (last move 2025-04-02) | v7.1.0 | major behind; `@v4` still runs on the removed Node 20 action runtime |
+| `actions/checkout` | `@v7` | v7 line (updated 2026-07-17) | v7.0.1 | in sync (major line) |
+| `actions/setup-node` | `@v7` | v7 line (updated 2026-10-08) | v7.1.0 | in sync (major line) |
 | `Swatinem/rust-cache` | `@v2` | 2.9.3 | 2.9.3 | in sync |
 | Homebrew formula source | `v1.0.0` tarball | tag v1.0.0 | workspace `2.0.0-alpha.0` on `main` | release tarball behind `head` |
 
