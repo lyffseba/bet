@@ -77,11 +77,27 @@ function read(rel) {
 
 export function fences(md) {
   const out = [];
-  const re = /(```|~~~)([^\n]*)\n([\s\S]*?)\1/g;
-  let m;
-  while ((m = re.exec(md))) {
-    const info = m[2].trim().split(/\s+/)[0] ?? "";
-    out.push({ info, body: m[3] });
+  const lines = md.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const open = lines[i].match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+    if (!open) continue;
+    const marker = open[2];
+    const info = open[3].trim().split(/\s+/)[0] ?? "";
+    const ch = marker[0];
+    const n = marker.length;
+    const body = [];
+    let j = i + 1;
+    let closed = false;
+    for (; j < lines.length; j++) {
+      const close = lines[j].match(/^(\s*)(`{3,}|~{3,})\s*$/);
+      if (close && close[2][0] === ch && close[2].length >= n) {
+        closed = true;
+        break;
+      }
+      body.push(lines[j]);
+    }
+    out.push({ info, body: body.join("\n") + (body.length ? "\n" : "") });
+    i = closed ? j : lines.length;
   }
   return out;
 }
