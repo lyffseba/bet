@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Doc-claim gate for README.md and packages/bet-mcp/README.md.
+ * Doc-claim gate for README.md, packages/bet-mcp/README.md, and docs/STACK.md pins.
  *
  * Checks prose claims, parses JSON/TOML config snippets (``` and ~~~ fences),
  * and compares documented MCP tool names, required flags, types, and enums
@@ -14,7 +14,8 @@
  * and the node launch lines as path checks (tools/list is what actually
  * starts those processes). Untagged fences fail. `text` fences are sketches.
  *
- * Official pages this file's expectations were checked against (2026-10-22):
+ * Official pages this file's expectations were checked against (2026-10-22,
+ * STACK pin gate refreshed 2026-11-21):
  * - Claude Code MCP: https://code.claude.com/docs/en/mcp
  *   and https://code.claude.com/docs/en/mcp-quickstart
  *   (.mcp.json project scope, ~/.claude.json local/user, `claude mcp add
@@ -32,6 +33,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkStackPins, readStackManifests } from "./check-stack.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isMain = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
@@ -75,11 +77,27 @@ function read(rel) {
 
 export function fences(md) {
   const out = [];
-  const re = /(```|~~~)([^\n]*)\n([\s\S]*?)\1/g;
-  let m;
-  while ((m = re.exec(md))) {
-    const info = m[2].trim().split(/\s+/)[0] ?? "";
-    out.push({ info, body: m[3] });
+  const lines = md.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const open = lines[i].match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+    if (!open) continue;
+    const marker = open[2];
+    const info = open[3].trim().split(/\s+/)[0] ?? "";
+    const ch = marker[0];
+    const n = marker.length;
+    const body = [];
+    let j = i + 1;
+    let closed = false;
+    for (; j < lines.length; j++) {
+      const close = lines[j].match(/^(\s*)(`{3,}|~{3,})\s*$/);
+      if (close && close[2][0] === ch && close[2].length >= n) {
+        closed = true;
+        break;
+      }
+      body.push(lines[j]);
+    }
+    out.push({ info, body: body.join("\n") + (body.length ? "\n" : "") });
+    i = closed ? j : lines.length;
   }
   return out;
 }
@@ -732,6 +750,7 @@ export function collectShell(md, rel) {
 }
 
 async function main() {
+for (const msg of checkStackPins(read("docs/STACK.md"), readStackManifests(ROOT))) fail(msg);
 const rootMd = read("README.md");
 const mcpMd = read("packages/bet-mcp/README.md");
 checkRoot(rootMd);

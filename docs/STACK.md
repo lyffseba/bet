@@ -2,7 +2,7 @@
 
 Pins for the v2 monorepo (`2.0.0-alpha.0`): Rust workspace, WASM host, npm workspaces, CI, and the Homebrew formula. Official links below are each project's current stable docs (language `/stable` or `/latest`, docs.rs `/latest`, or the project's own docs site).
 
-**Last checked: 2026-09-25.**
+**Last checked: 2026-11-21.**
 
 | Column | Meaning |
 |--------|---------|
@@ -20,12 +20,12 @@ Cargo treats a bare version as a caret requirement (`5.1.2` means `^5.1.2`). npm
 |------|-------------|-------|---------------|------|
 | Rust / Cargo | `stable` channel | CI `dtolnay/rust-toolchain@stable` | [stable std](https://doc.rust-lang.org/stable/), [Cargo book](https://doc.rust-lang.org/cargo/), [rustup](https://rust-lang.github.io/rustup/) | Build, test, clippy |
 | Edition | `2024` | `[workspace.package]` | [Edition guide](https://doc.rust-lang.org/edition-guide/rust-2024/index.html) | All workspace crates |
-| Resolver | `"2"` (explicit) | `[workspace]` | [Dependency resolution](https://doc.rust-lang.org/cargo/reference/resolver.html) | Feature unification. Edition 2024's default is resolver `"3"` (MSRV-aware `fallback`) |
+| Resolver | `"2"` (explicit) | `[workspace]` | [Resolver versions](https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions) | Feature unification. Edition 2024's default is resolver `"3"` (MSRV-aware `fallback`, Rust 1.84+) |
 | Clippy | component on `stable` | CI `components: clippy` | [Clippy](https://doc.rust-lang.org/clippy/) | `make clippy` / `verify-engine.sh`, `-D warnings` |
 | `wasm32-unknown-unknown` | CI target | workflow `targets:` | [Platform support](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html) | `bet-wasm` clippy and the wasm-bindgen fallback |
 | wasm-pack | installer script, unpinned | `scripts/build-wasm.sh`, CI | [wasm-pack book](https://wasm-bindgen.github.io/wasm-pack/) | `wasm-pack build --target nodejs` into `packages/bet-ts/pkg` |
 | wasm-bindgen-cli | `cargo install --locked` when wasm-pack is absent | `scripts/build-wasm.sh` | [wasm-bindgen](https://wasm-bindgen.github.io/wasm-bindgen/) | Fallback bindgen for the same Node package |
-| Node.js | `"22"` | `actions/setup-node`, `bet-mcp` `engines` | [v22 API](https://nodejs.org/docs/latest-v22.x/api/) (this line), [Active LTS v24](https://nodejs.org/docs/latest-v24.x/api/) | Typecheck, `node --experimental-strip-types` tests ([type stripping](https://nodejs.org/docs/latest-v22.x/api/typescript.html)) |
+| Node.js | `"22"` | `actions/setup-node`, `bet-mcp` `engines` | [v22 API](https://nodejs.org/docs/latest-v22.x/api/) (this line), [Active LTS v26](https://nodejs.org/docs/latest-v26.x/api/) | Typecheck, `node --experimental-strip-types` tests ([type stripping](https://nodejs.org/docs/latest-v22.x/api/typescript.html)) |
 | npm workspaces | lockfileVersion `3` | root `package.json` | [Workspaces](https://docs.npmjs.com/cli/using-npm/workspaces/) | `packages/*` |
 | TypeScript | `^7.0.2` | every package `devDependencies` | [Handbook](https://www.typescriptlang.org/docs/) | `tsc --noEmit`. Shared options: `strict`, `module`/`moduleResolution` `NodeNext`, `target` `ES2022` |
 | GNU Make | unpinned | `Makefile` | [GNU Make](https://www.gnu.org/software/make/manual/make.html) | `make verify` runs `scripts/verify-engine.sh` |
@@ -97,8 +97,8 @@ Root package `bet-monorepo` is private. Workspaces:
 |---------|-------------|--------|------|-----|
 | `typescript` | `^7.0.2` | `7.0.2` | [Handbook](https://www.typescriptlang.org/docs/) | `tsc -p tsconfig.json --noEmit` |
 | `@types/node` | `^22.0.0` | `22.20.1` | [DefinitelyTyped `node`](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) | `types: ["node"]` on Node 22 |
-| `@earendil-works/pi-coding-agent` | `latest` (dev + peer `*`) | `0.82.1` | [pi docs](https://pi.dev/docs/latest), [extensions](https://pi.dev/docs/latest/extensions) | `ExtensionAPI` for the `/b$t` extension |
-| `@earendil-works/pi-tui` | `latest` (dev + peer `*`) | `0.82.1` | [TUI](https://pi.dev/docs/latest/tui) | `matchesKey`, `visibleWidth` |
+| `@earendil-works/pi-coding-agent` | `latest` (dev + peer `*`) | `0.82.1` | [pi docs](https://docs.pi.dev/latest), [extensions](https://docs.pi.dev/latest/extensions) | `ExtensionAPI` for the `/b$t` extension |
+| `@earendil-works/pi-tui` | `latest` (dev + peer `*`) | `0.82.1` | [TUI](https://docs.pi.dev/latest/tui) | `matchesKey`, `visibleWidth` |
 | `@opencode-ai/plugin` | `latest` (dev + peer `*`) | `1.18.8` | [Plugins](https://opencode.ai/docs/plugins/) | `Plugin` and `tool` |
 | `@modelcontextprotocol/server` | `^2.0.0` | `2.0.0` | [SDK v2](https://ts.sdk.modelcontextprotocol.io/v2/) (stable line for the [2026-07-28 spec](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro)) | `McpServer`, `serveStdio` |
 | `zod` | `^4.0.0` | `4.5.4` | [zod.dev](https://zod.dev/) | Tool input schemas in `packages/bet-mcp` |
@@ -117,11 +117,13 @@ Windows is omitted: the gate is Unix bash (`verify-engine.sh`, `build-wasm.sh`, 
 | Action | Ref we use | That ref today | Newest stable release | Docs |
 |--------|------------|----------------|----------------------|------|
 | `actions/checkout` | `v4` | `v4` updated 2026-07-16 | `v7.0.1` | [checkout](https://github.com/actions/checkout), [Actions](https://docs.github.com/en/actions) |
-| `actions/setup-node` | `v4` | `v4` updated 2025-04-02 | `v7.0.0` | [setup-node](https://github.com/actions/setup-node) |
-| `dtolnay/rust-toolchain` | `stable` | channel commit 2026-09-03, rustc **1.98.1** | action tag `v1` (2026-09-12) is the action, separate from the channel | [rust-toolchain](https://github.com/dtolnay/rust-toolchain) |
-| `Swatinem/rust-cache` | `v2` | tag points at **2.9.2** (2026-08-06) | `v2.9.2` | [rust-cache](https://github.com/Swatinem/rust-cache) |
+| `actions/setup-node` | `v4` | `v4` updated 2025-04-02 | `v7.1.0` | [setup-node](https://github.com/actions/setup-node) |
+| `dtolnay/rust-toolchain` | `stable` | channel commit 2026-11-15, rustc **1.100.0** (2026-11-09) | action tag `v1` (2026-10-16) is the action, separate from the channel | [rust-toolchain](https://github.com/dtolnay/rust-toolchain) |
+| `Swatinem/rust-cache` | `v2` | tag points at **2.9.3** (2026-10-20) | `v2.9.3` | [rust-cache](https://github.com/Swatinem/rust-cache) |
 
-`@stable` on `dtolnay/rust-toolchain` is the Rust channel ref. It is how this repo tracks stable rustc. The action's `v1` tag is a different ref and has moved since the `stable` ref's last channel bump.
+`@stable` on `dtolnay/rust-toolchain` is the Rust channel ref. It is how this repo tracks stable rustc, now **1.100.0** (2026-11-09). CI does not pin a channel date. The action's `v1` tag is a different ref (updated 2026-10-16) and is separate from the channel.
+
+`actions/checkout@v4` and `actions/setup-node@v4` still declare `runs.using: node20`. GitHub [removed Node 20 from hosted runners](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) on 2026-09-23. That is the action runtime, not this repo's `node-version: "22"` pin. A follow-up (not this change) should move those two pins to `checkout@v7` and `setup-node@v7`, which run on Node 24. `Swatinem/rust-cache@v2` already does.
 
 ## Formula
 
@@ -138,23 +140,23 @@ The tagged source URL is the v1.0.0 release. `head` follows `main`.
 
 ## Ours vs latest
 
-Checked 2026-09-25. "In sync" means the locked build matches the latest stable release, or a floating channel is defined to track it.
+Checked 2026-11-21. "In sync" means the locked build matches the latest stable release, or a floating channel is defined to track it.
 
 ### Toolchain
 
 | Component | Requirement | Locked / resolved | Latest stable | Drift |
 |-----------|-------------|-------------------|---------------|-------|
-| rustc | `stable` | 1.98.1 via `@stable` (2026-09-03) | 1.98.1 | in sync (channel) |
+| rustc | `stable` | 1.100.0 via `@stable` (2026-11-09) | 1.100.0 | in sync (channel) |
 | edition | 2024 | 2024 | 2024 | in sync |
 | Cargo resolver | `"2"` | `"2"` | `"3"` (edition 2024 default) | explicit pin behind the edition default |
-| Node.js | `22` | newest 22.x at CI time | 22.23.3 on this line; Active LTS 24.21.0 (Krypton); Current 26.10.0 | line is Maintenance LTS (Jod); patch floats |
+| Node.js | `22` | newest 22.x at CI time | 22.23.5 on this line (Maintenance LTS, Jod); Active LTS 26.13.1 (Lithium); Maintenance LTS 24.22.3 (Krypton). No Current: v27 starts 2027-04-22 (dist has prereleases only) | line is Maintenance LTS (Jod); patch floats |
 | TypeScript | `^7.0.2` | 7.0.2 | 7.0.2 | in sync |
-| wasm-pack | installer | whatever the installer ships that run | 0.15.0 | tracks latest |
-| wasm-bindgen-cli | `--locked` install, fallback only | installed on demand | 0.2.129 | unpinned fallback |
-| Python 3 | `python3` on PATH | runner default | 3.14.7 | unpinned |
-| `actions/checkout` | `@v4` | v4 line | v7.0.1 | major behind |
-| `actions/setup-node` | `@v4` | v4 line (last move 2025-04-02) | v7.0.0 | major behind |
-| `Swatinem/rust-cache` | `@v2` | 2.9.2 | 2.9.2 | in sync |
+| wasm-pack | installer | whatever the installer ships that run | 0.15.1 | tracks latest |
+| wasm-bindgen-cli | `--locked` install, fallback only | installed on demand | 0.2.130 | unpinned fallback |
+| Python 3 | `python3` on PATH | runner default | 3.15.2 | unpinned |
+| `actions/checkout` | `@v4` | v4 line | v7.0.1 | major behind; `@v4` still runs on the removed Node 20 action runtime |
+| `actions/setup-node` | `@v4` | v4 line (last move 2025-04-02) | v7.1.0 | major behind; `@v4` still runs on the removed Node 20 action runtime |
+| `Swatinem/rust-cache` | `@v2` | 2.9.3 | 2.9.3 | in sync |
 | Homebrew formula source | `v1.0.0` tarball | tag v1.0.0 | workspace `2.0.0-alpha.0` on `main` | release tarball behind `head` |
 
 ### Rust (direct)
@@ -162,16 +164,16 @@ Checked 2026-09-25. "In sync" means the locked build matches the latest stable r
 | Crate | Requirement | Locked | Latest stable | Drift |
 |-------|-------------|--------|---------------|-------|
 | `crossterm` | 0.28 | 0.28.1 (direct). `ratatui-crossterm` 0.1.0 also locks 0.29.0 | 0.29.0 | direct requirement one minor behind; two copies in the lockfile |
-| `qrcode` | 0.14.1 | 0.14.1 | 0.14.1 | in sync |
-| `rand` | 0.8 | 0.8.5 | 0.10.3 | minor line behind |
+| `qrcode` | 0.14.1 | 0.14.1 | 0.15.0 | minor behind |
+| `rand` | 0.8 | 0.8.5 | 0.10.4 | minor line behind |
 | `ratatui` | 0.30.0 | 0.30.0 | 0.30.2 | patch behind |
-| `open` | 5.1.2 | 5.3.3 | 5.4.4 | patch behind the caret range's ceiling |
-| `shakmaty` | 0.30.0 | 0.30.0 | 0.30.1 | patch behind |
+| `open` | 5.1.2 | 5.3.3 | 5.4.5 | patch behind the caret range's ceiling |
+| `shakmaty` | 0.30.0 | 0.30.0 | 0.30.3 | patch behind |
 | `directories` | 6.0.0 | 6.0.0 | 6.0.0 | in sync |
 | `serde` | 1 | 1.0.228 | 1.0.229 | patch behind |
-| `serde_json` | 1 | 1.0.149 | 1.0.151 | patch behind |
-| `wasm-bindgen` | 0.2 | 0.2.114 | 0.2.129 | patch line behind |
-| `js-sys` | 0.3 | 0.3.91 | 0.3.106 | patch line behind |
+| `serde_json` | 1 | 1.0.149 | 1.0.154 | patch behind |
+| `wasm-bindgen` | 0.2 | 0.2.114 | 0.2.130 | patch line behind |
+| `js-sys` | 0.3 | 0.3.91 | 0.3.107 | patch line behind |
 | `serde-wasm-bindgen` | 0.6 | 0.6.5 | 0.6.5 | in sync |
 
 ### npm (direct)
@@ -179,18 +181,18 @@ Checked 2026-09-25. "In sync" means the locked build matches the latest stable r
 | Package | Requirement | Locked | Latest stable | Drift |
 |---------|-------------|--------|---------------|-------|
 | `typescript` | `^7.0.2` | 7.0.2 | 7.0.2 | in sync |
-| `@types/node` | `^22.0.0` | 22.20.1 | 22.20.4 on the 22 line; `latest` tag is 26.6.2 | patch behind on the Node 22 line |
-| `zod` | `^4.0.0` | 4.5.4 | 4.6.5 | minor behind |
-| `@modelcontextprotocol/server` | `^2.0.0` | 2.0.0 | 2.1.0 | minor behind |
-| `@earendil-works/pi-coding-agent` | `latest` | 0.82.1 | 0.87.1 | lock behind the dist-tag |
-| `@earendil-works/pi-tui` | `latest` | 0.82.1 | 0.87.1 | lock behind the dist-tag |
-| `@opencode-ai/plugin` | `latest` | 1.18.8 | 1.18.32 | lock behind the dist-tag |
+| `@types/node` | `^22.0.0` | 22.20.1 | 22.20.5 on the 22 line; `latest` tag is 26.6.6 | patch behind on the Node 22 line |
+| `zod` | `^4.0.0` | 4.5.4 | 4.6.7 | minor behind |
+| `@modelcontextprotocol/server` | `^2.0.0` | 2.0.0 | 2.4.0 | minor behind |
+| `@earendil-works/pi-coding-agent` | `latest` | 0.82.1 | 1.6.0 | major behind the dist-tag |
+| `@earendil-works/pi-tui` | `latest` | 0.82.1 | 1.6.0 | major behind the dist-tag |
+| `@opencode-ai/plugin` | `latest` | 1.18.8 | 1.19.6 | lock behind the dist-tag |
 
 ## Maintenance
 
 Update this file in the same change as a direct pin, a lockfile bump that moves a row above, or a CI/formula toolchain change. Re-read the official docs URL if the project moved its stable book.
 
-Refresh the latest-stable column from the registries. Keep that refresh out of CI. `scripts/verify-engine.sh` only checks that `docs/STACK.md` is non-empty and that `README.md` links to it.
+Refresh the latest-stable column from the registries. Keep that refresh out of CI. `scripts/check-docs.mjs` (run from `scripts/verify-engine.sh` / `make verify`) compares the requirement and locked columns to the repo manifests (`Cargo.toml`, `Cargo.lock`, `package.json`, `package-lock.json`, `.github/workflows/ci.yml`, and `Formula/bet.rb`). It does not call crates.io, npm, or other networks. `README.md` must still link this page.
 
 ```bash
 # crates.io max_stable_version
@@ -204,8 +206,8 @@ npm view @types/node version
 # Rust stable
 curl -fsSL https://static.rust-lang.org/dist/channel-rust-stable.toml | awk '/\[pkg.rustc\]/{p=1} p&&/^version =/{print; exit}'
 
-# Node index (first row is Current)
-curl -fsSL https://nodejs.org/dist/index.json | python3 -c "import json,sys; rows=json.load(sys.stdin); print(rows[0]['version'], 'lts', rows[0]['lts'])"
+# Node index (skip prereleases; first remaining row is Current or Active LTS)
+curl -fsSL https://nodejs.org/dist/index.json | python3 -c "import json,sys,re; rows=json.load(sys.stdin); r=next(x for x in rows if not re.search(r'-', x['version'])); print(r['version'], 'lts', r['lts'])"
 ```
 
 After a Rust or WASM engine change, the golden-fixture rules in `docs/QUALITY.md` still apply. This page does not replace that checklist.
