@@ -1,105 +1,95 @@
 # @lyffseba/bet-mcp
 
-MCP stdio server so BET is playable from **Claude Code**, **Codex**, and any other MCP host.
+MCP stdio server for BET. Claude Code, Codex, and any other stdio host get the same four tools. Hangman and tic-tac-toe rules stay in Rust. Stakes are virtual points only.
 
 | Tool | Engine | What it does |
 |------|--------|----------------|
-| `bet_status` | WASM | Engine version + `assertEngineIntegrity` via `@lyffseba/bet-ts`. |
-| `bet_play` | WASM | Play **ttt** (you are X vs seeded WASM AI) or **hangman** in-process. |
-| `bet_host` | CLI bridge | Spawn native `bet host`. Returns `BET_READY` + `CODE@host:port`. |
-| `bet_join` | CLI bridge | Spawn native `bet join CODE\|CODE@host:port`. Returns CLI outcome. |
+| `bet_status` | WASM | Engine version and integrity check. No arguments. |
+| `bet_play` | WASM | Tic-tac-toe (you are X vs a seeded AI) or hangman, in-process. |
+| `bet_host` | `bet` CLI | Spawn `bet host`. Returns `BET_READY` and `CODE@host:port`. |
+| `bet_join` | `bet` CLI | Spawn `bet join`. Returns the CLI outcome. |
 
-Rules come from **Rust**:
+`bet_host` and `bet_join` spawn the native `bet` binary. `make install` installs it to `~/.local/bin`; that directory has to be on `PATH`, or set `BET_BIN` to the binary.
 
-- Solo play / status: **`@lyffseba/bet-ts` (WASM)** via the shared facade **`@lyffseba/bet-ts/play`**.
-- Multiplayer: the **`bet` CLI** (`bet-protocol` room authority). This package does **not** reimplement hangman/ttt or the TCP NDJSON protocol.
-
-Stakes are **virtual points only**.
-
-## `bet` on PATH
-
-`bet_host` / `bet_join` **spawn the native binary**. They fail loud if it is missing.
+`bet_status` and `bet_play` are in-process WASM. They do not need the `bet` binary.
 
 ```bash
-# from the bet monorepo
-make install          # → ~/.local/bin/bet
+make install
 export PATH="$HOME/.local/bin:$PATH"
-# or
-export BET_BIN=/abs/path/to/bet
+export BET_BIN=/ABS/PATH/to/bet
 ```
 
-Interactive ratatui cannot run under MCP stdio. The bridge always sets `BET_MOVES` (empty if you omit `moves`) so the CLI never blocks on stdin. Empty / exhausted script resigns on that side's turn.
+Interactive ratatui cannot run under MCP stdio. The bridge always sets `BET_MOVES` (empty when `moves` is omitted) so the CLI never reads stdin. An empty or exhausted script resigns on that side's turn.
+
+Requires Node ≥ 22.
 
 ## Tools
 
-### `bet_play` (WASM, unchanged)
+### `bet_status`
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `game` | yes | `ttt` (aliases: `tictactoe`) or `hangman` |
-| `action` | no | `new` \| `move` \| `status`. Default: `move` if `move` is set, else `new` / `status` |
-| `move` | for a turn | ttt: empty-cell index `0`–`8`. hangman: one letter `A`–`Z` |
-| `seed` | no | Integer seed for a new game (same seed ⇒ same AI / word pick) |
+No arguments. Returns the engine version and the WASM integrity check.
 
-Hangman secret is omitted until the engine reports the game is over.
+### `bet_play`
 
-### `bet_host` (CLI bridge)
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `game` | yes | `string` | `ttt` (alias `tictactoe`) or `hangman` |
+| `action` | no | `string` | `new`, `move`, or `status`. Default: `move` when `move` is set, otherwise `new` / `status` |
+| `move` | no | `string` | ttt: empty-cell index `0`–`8`. hangman: one letter `A`–`Z` |
+| `seed` | no | `integer` | Integer seed for a new game. The same seed repeats the AI or the word pick |
 
-Spawns `bet host --game … --stake N --name …` (plus `--port`, `--bind`, `--code`, `--word`, `--seed` when set).
+The hangman secret is omitted until the engine reports the game is over.
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `game` | no | `ttt` (default) or `hangman` |
-| `stake` | no | Virtual points (`--stake`, default 10) |
-| `name` | no | `--name` (default `$BET_PLAYER` or `$USER`) |
-| `port` | no | `--port` (CLI default 7733). `0` = ephemeral |
-| `bind` | no | `--bind` (default `0.0.0.0`) |
-| `code` | no | Fixed room code (`--code`, 4–8 alnum) |
-| `word` | hangman tests | Pin the secret (`--word`). **Not copied into tool JSON.** |
-| `seed` | hangman | `--seed` word-bank pick when `word` is omitted |
-| `moves` | no | `BET_MOVES` (ttt: `0,1,2` — hangman: `B,E,T` — `q` resigns) |
-| `wait` | no | `ready` (default): return after `BET_READY`, leave host running. `end`: wait until exit |
-| `timeout_ms` | no | Cap wait (default 10s / 60s, max 5 min) |
-| `config_dir` | no | `BET_CONFIG_DIR` ledger directory |
+### `bet_host`
 
-Default `wait=ready` returns JSON with `room`, `port`, `join` (`CODE@127.0.0.1:port`), and `guest_cmd`. The child stays up so a guest can connect.
+Spawns `bet host`. Default `wait` is `ready`: the tool returns after `BET_READY` and leaves the host running.
 
-### `bet_join` (CLI bridge)
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `game` | no | `string` | `ttt` (default) or `hangman` |
+| `stake` | no | `integer` | Virtual points (`--stake`, default 10) |
+| `name` | no | `string` | `--name` (default `$BET_PLAYER` or `$USER`) |
+| `port` | no | `integer` | `--port` (default 7733). `0` picks an ephemeral port |
+| `bind` | no | `string` | `--bind` (default `0.0.0.0`) |
+| `code` | no | `string` | Fixed room code (`--code`, 4–8 alnum) |
+| `word` | no | `string` | Hangman only: pin the secret (`--word`). Not copied into tool JSON |
+| `seed` | no | `integer` | Hangman: `--seed` picks from the word bank when `word` is omitted |
+| `moves` | no | `string` | `BET_MOVES` (`0,1,2`, `B,E,T`, or `q`) |
+| `wait` | no | `enum ready\|end` | `ready` (default) returns after `BET_READY`. `end` waits until exit |
+| `timeout_ms` | no | `integer` | Cap the wait (default 10s for `ready`, 60s for `end`, max 5 min) |
+| `config_dir` | no | `string` | `BET_CONFIG_DIR` ledger directory |
 
-Spawns `bet join CODE|CODE@host:port`.
+The `ready` payload includes `room`, `port`, `join` (`CODE@127.0.0.1:port`), and `guest_cmd`.
 
-| Arg | Required | Notes |
-|-----|----------|--------|
-| `target` | yes* | `CODE` or `CODE@host:port` (from `bet_host` `join`) |
-| `code` | yes* | Room code if `target` is omitted |
-| `addr` | no | `host:port` (`--addr`) when target is a bare `CODE` |
-| `game` | no | Must match the host room (`ttt` or `hangman`) |
-| `stake` | no | Must match the host (`--stake`) |
-| `name` | no | `--name` |
-| `moves` | no | Guest `BET_MOVES` |
-| `timeout_ms` | no | Cap wait for match end (default 60s) |
-| `config_dir` | no | `BET_CONFIG_DIR` |
+### `bet_join`
 
-\* `target` **or** `code`.
+Spawns `bet join`. Pass `target` or `code`.
 
-Hangman secret stays off the wire until `MatchEnded` (CLI already does this). The wrapper never adds `word` to JSON from the `--word` arg; `word=` in join/host stdout appears only after `MATCH ENDED`.
+| Arg | Required | Type | Notes |
+|-----|----------|------|--------|
+| `target` | yes* | `string` | `CODE` or `CODE@host:port` (the host tool's `join` field) |
+| `code` | yes* | `string` | Room code when `target` is omitted |
+| `addr` | no | `string` | `host:port` (`--addr`) when `target` is a bare code |
+| `game` | no | `string` | Must match the host room (`ttt` or `hangman`) |
+| `stake` | no | `integer` | Must match the host (`--stake`) |
+| `name` | no | `string` | `--name` |
+| `moves` | no | `string` | Guest `BET_MOVES` |
+| `timeout_ms` | no | `integer` | Cap the wait for match end (default 60s, max 5 min) |
+| `config_dir` | no | `string` | `BET_CONFIG_DIR` |
 
-## Run locally (from the monorepo)
+\* One of `target` or `code`.
+
+The hangman secret stays off the wire until `MatchEnded`. `word` from the host is not added to tool JSON; `word=` in stdout appears only after `MATCH ENDED`.
+
+## Run locally
 
 ```bash
-# once, from repo root
 npm install
-
-# stdio server (waits on stdin; log banner is on stderr)
 node --experimental-strip-types packages/bet-mcp/src/index.ts
-
-# or via the bin wrapper
 node packages/bet-mcp/bin/bet-mcp.mjs
 ```
 
-Requires **Node ≥ 22** (`--experimental-strip-types`) and a built WASM payload under `packages/bet-ts/pkg` (`make wasm` if missing).
-
-Inspector (optional):
+The TypeScript entry waits on stdin. Its banner goes to stderr. The bin wrapper adds `--experimental-strip-types`. WASM must already be built (`make wasm` from the repo root).
 
 ```bash
 npx @modelcontextprotocol/inspector node --experimental-strip-types packages/bet-mcp/src/index.ts
@@ -107,7 +97,15 @@ npx @modelcontextprotocol/inspector node --experimental-strip-types packages/bet
 
 ## Claude Code
 
-Project `.mcp.json` (or user `~/.claude.json`):
+Docs: [Connect Claude Code to tools via MCP](https://code.claude.com/docs/en/mcp) and [Connect to MCP servers](https://code.claude.com/docs/en/mcp-quickstart).
+
+| Scope | Flag | File |
+|-------|------|------|
+| local (default) | | `~/.claude.json`, under this project |
+| user | `--scope user` | `~/.claude.json`, top-level `mcpServers` |
+| project | `--scope project` | `.mcp.json` in the project root |
+
+Stdio is the default transport. Everything after `--` is the server command. In `.mcp.json`, `${CLAUDE_PROJECT_DIR:-.}` expands to the project root; the `:-.` default is required for that expansion.
 
 ```json
 {
@@ -124,17 +122,19 @@ Project `.mcp.json` (or user `~/.claude.json`):
 }
 ```
 
-CLI:
-
 ```bash
 claude mcp add bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
+claude mcp add --scope user bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
+claude mcp list
 ```
 
-After connect, ask the agent to call `bet_status`, then `bet_play` (WASM) or `bet_host` / `bet_join` (CLI).
+For a server committed with the repo, use the `.mcp.json` block above. `${CLAUDE_PROJECT_DIR:-.}` stays tied to the project root. A project entry stays pending until you approve it in `claude`. Inside a session, `/mcp` manages servers.
 
 ## Codex
 
-`~/.codex/config.toml` or project `.codex/config.toml` (trusted repo). The table name is `mcp_servers` (snake_case):
+Docs: [Model Context Protocol](https://learn.chatgpt.com/docs/extend/mcp) and the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+Codex reads `~/.codex/config.toml`. A trusted project may also use `.codex/config.toml`. Each server is a `[mcp_servers.<name>]` table. `command` starts a stdio server; `args` is the argument array.
 
 ```toml
 [mcp_servers.bet]
@@ -145,16 +145,32 @@ args = [
 ]
 ```
 
-CLI (if available in your Codex build):
-
 ```bash
 codex mcp add bet -- node --experimental-strip-types /ABS/PATH/to/bet/packages/bet-mcp/src/index.ts
+codex mcp list
 ```
 
-Then `/mcp` in a Codex session to confirm `bet_status`, `bet_play`, `bet_host`, and `bet_join` are listed.
+`codex mcp add <name> -- <command>` writes the user config. In the Codex TUI, `/mcp` lists connected servers.
+
+## Other MCP hosts
+
+Same stdio process. Point `command` at Node and `args` at the wrapper (it adds the type-strip flag):
+
+```json
+{
+  "mcpServers": {
+    "bet": {
+      "command": "node",
+      "args": ["/ABS/PATH/to/bet/packages/bet-mcp/bin/bet-mcp.mjs"]
+    }
+  }
+}
+```
+
+Add `"type": "stdio"` when the host requires a transport field. Claude Code treats a missing `type` as stdio.
 
 ## Notes
 
-- One in-memory WASM session per game per server process (the host owns process lifetime).
-- `bet_host` children stay alive after `wait=ready` so a guest can join; they die with the MCP process.
-- OpenCode (`packages/bet-opencode`) imports the same `@lyffseba/bet-ts/play` facade for ttt/hangman (CLI spawn only for games not yet in WASM).
+- One in-memory WASM session per game per server process.
+- `bet_host` with `wait=ready` keeps the child alive so a guest can join. The child exits with the MCP process.
+- OpenCode (`packages/bet-opencode`) imports the same `@lyffseba/bet-ts/play` facade for tic-tac-toe and hangman.
